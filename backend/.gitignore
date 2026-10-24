@@ -1,0 +1,23 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# 开发库与备份（含真实厂数据，不入库）
+db.sqlite3
+db.sqlite3.bak*
+media/
+
+# 覆盖率与日志产物
+.coverage
+.coverage.*
+coverage*.json
+coverage_missing.txt
+*.log
+
+# 调研临时文件
+_tmp_*
+bing*.html
+baidu.html
+paper_test.html
+audit_chain.py.html

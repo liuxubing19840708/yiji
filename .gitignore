@@ -1,0 +1,7 @@
+# 调研临时产物
+.tavily-*
+
+# 依赖目录（前端分包/前端管理端）
+node_modules/
+miniprogram_npm/
+dist/

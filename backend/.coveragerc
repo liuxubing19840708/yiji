@@ -1,0 +1,12 @@
+[run]
+branch = True
+source = apps
+omit =
+    */migrations/*
+    */tests/*
+    apps/*/admin.py
+
+[report]
+precision = 1
+show_missing = False
+skip_empty = True
