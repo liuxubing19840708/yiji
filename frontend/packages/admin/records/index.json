@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "登记记录",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index",
+    "date-range-bar": "/components/date-range-bar/index"
+  }
+}

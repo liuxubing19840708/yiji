@@ -1,0 +1,28 @@
+<!-- 进行中床次进度卡列表（共用组件：工作中页 + 看板大屏；P3B beds 合并）
+     数据形状 = utils/bed-progress.ts BedProgressVM；clickable=true 时卡片可点上抛 bedtap -->
+<view class="bp-list">
+  <view
+    wx:for="{{beds}}"
+    wx:key="id"
+    wx:for-item="bed"
+    wx:for-index="idx"
+    class="bp-card {{clickable ? 'bp-tappable' : ''}}"
+    data-index="{{idx}}"
+    bindtap="onBedTap"
+  >
+    <view class="bp-row">
+      <view class="bp-bed-no">床次 {{bed.bedNo}}</view>
+      <view class="bp-spacer"></view>
+      <view class="bp-style-no">{{bed.styleNo}}</view>
+    </view>
+    <view wx:if="{{bed.styleName}}" class="bp-style-name">{{bed.styleName}}</view>
+    <view class="bp-track">
+      <view class="bp-fill" style="width: {{bed.progress}}%"></view>
+    </view>
+    <view class="bp-row bp-line2">
+      <view class="bp-sub">已登记 {{bed.registeredQty}} / {{bed.cutTotal}} 件</view>
+      <view class="bp-spacer"></view>
+      <view class="bp-sub">完成 {{bed.doneCount}} / {{bed.ticketCount}} 扎</view>
+    </view>
+  </view>
+</view>

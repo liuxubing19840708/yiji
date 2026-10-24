@@ -1,0 +1,55 @@
+/* 薪酬管理（管理员） */
+.loading { padding: 40rpx 0; text-align: center; }
+
+/* 汇总卡（2026-10-22 参考竞品改版：已结/未结大数两栏 + 计件/固定/总三列 + 链接行 + 动作行） */
+.sum-duo { display: flex; align-items: center; }
+.sum-duo-item { flex: 1; display: flex; align-items: baseline; justify-content: center; }
+.sum-duo-label { font-size: 30rpx; font-weight: 600; color: var(--color-text); }
+.sum-duo-num { font-size: 40rpx; font-weight: 600; }
+.sum-duo-num.settled { color: var(--color-success); }
+.sum-duo-num.unset { color: var(--color-primary); }
+.sum-duo-divider { width: 2rpx; height: 48rpx; background: var(--color-border); }
+.sum-trio { display: flex; margin-top: 20rpx; padding-top: 20rpx; border-top: 2rpx dashed var(--color-border); }
+.sum-trio-item { flex: 1; text-align: center; }
+.sum-trio-label { font-size: 24rpx; color: var(--color-text-3); }
+.sum-trio-num { font-size: 32rpx; font-weight: 600; margin-top: 6rpx; }
+.sum-links { display: flex; align-items: center; margin-top: 20rpx; padding-top: 16rpx; border-top: 2rpx dashed var(--color-border); }
+.sum-link { flex: 1; text-align: center; color: var(--color-primary); font-size: 26rpx; }
+.sum-link.dim { color: var(--color-text-3); }
+.sum-link-divider { width: 2rpx; height: 28rpx; background: var(--color-border); }
+.sum-acts { display: flex; align-items: center; margin-top: 20rpx; padding-top: 16rpx; border-top: 2rpx solid var(--color-border); }
+.sum-act { flex: 1; text-align: center; font-size: 28rpx; color: var(--color-text); }
+.sum-act-divider { width: 2rpx; height: 32rpx; background: var(--color-border); }
+
+/* 工资结算确认 */
+.settle-total { margin: 16rpx 0; }
+.settle-grid { margin-bottom: 16rpx; }
+.settle-grid-item { padding: 12rpx 0; border-bottom: 1rpx solid var(--color-border); }
+.settle-actions { gap: 16rpx; }
+.settle-btn { flex: 1; }
+
+/* 结算记录 */
+.card-list { margin-top: 16rpx; }
+.st-card { margin-bottom: 16rpx; }
+.caret { margin-left: 16rpx; }
+.detail-box { margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx solid var(--color-border); }
+.d-row { padding: 8rpx 0; }
+.revoke-btn { margin-top: 16rpx; color: var(--color-danger); }
+.load-more { text-align: center; padding: 20rpx 0; }
+
+/* 申请记录 */
+.seg { background: var(--color-bg); border-radius: 12rpx; padding: 6rpx; margin-bottom: 16rpx; }
+.seg-item { flex: 1; text-align: center; padding: 12rpx 0; border-radius: 10rpx; color: var(--color-text-2); font-size: 26rpx; }
+.seg-item.on { background: var(--color-primary); color: var(--color-card); }
+.ap-card { margin-bottom: 16rpx; }
+.ap-actions { gap: 16rpx; margin-top: 16rpx; }
+.ap-btn { flex: 1; padding-left: 0; padding-right: 0; }
+
+/* 员工卡列表（2026-10-22 参考竞品改版：居中标题 + 两栏 + 三列 + 统计行） */
+.emp-head { margin: 24rpx 0 16rpx; }
+.emp-card { margin-bottom: 16rpx; }
+.emp-title { font-size: 32rpx; font-weight: 600; }
+.emp-card .sum-duo { margin-top: 16rpx; }
+.emp-card .sum-trio { margin-top: 16rpx; }
+.emp-stats { display: flex; margin-top: 16rpx; padding-top: 14rpx; border-top: 2rpx dashed var(--color-border); }
+.gear { font-size: 36rpx; margin-left: 8rpx; padding: 4rpx; }

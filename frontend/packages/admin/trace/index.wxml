@@ -1,0 +1,52 @@
+<view class="page">
+  <!-- 扫码追溯（置顶主入口） -->
+  <view class="card scan-card" bindtap="onScan">
+    <view class="scan-icon">📷</view>
+    <view class="scan-main">
+      <view class="scan-title">扫码追溯</view>
+      <hint-toggle text="扫任意菲票二维码，查全链路（经手员工/工序/批次）" />
+    </view>
+    <view class="arrow text-3">›</view>
+  </view>
+
+  <!-- Tab：反向 / 批次 -->
+  <view class="tabs">
+    <view class="tab {{mode === 'reverse' ? 'active' : ''}}" data-mode="reverse" bindtap="onMode">按款式颜色反查</view>
+    <view class="tab {{mode === 'lot' ? 'active' : ''}}" data-mode="lot" bindtap="onMode">按批次正向查</view>
+  </view>
+
+  <!-- 反向：款式+颜色 → 床次+批次 -->
+  <block wx:if="{{mode === 'reverse'}}">
+    <view class="card form">
+      <input class="input" placeholder="款号 / 款名（可空）" value="{{styleNo}}" bindinput="onStyleNo" />
+      <input class="input" placeholder="颜色（可空，如 宝蓝）" value="{{color}}" bindinput="onColor" />
+      <button class="btn btn-primary" loading="{{searching}}" bindtap="onReverseSearch">查询</button>
+    </view>
+    <view wx:if="{{searched && !matches.length}}" class="state text-3">无匹配床次</view>
+    <view class="card item" wx:for="{{matches}}" wx:key="production_id" data-index="{{index}}" bindtap="onTapMatch">
+      <view class="item-title">{{item.style_no}} · 床次 {{item.bed_no}}</view>
+      <view class="text-3">客户：{{item.customer_name || '-'}}　来源单号：{{item.source_order_no || '-'}}</view>
+      <view class="text-3">批次：
+        <text wx:if="{{!item.lots.length}}">未挂批次</text>
+        <text wx:for="{{item.lots}}" wx:for-item="lot" wx:key="id" class="lot-chip">{{lot.lot_no}}</text>
+      </view>
+    </view>
+  </block>
+
+  <!-- 正向：批次 → 受影响床次 -->
+  <block wx:else>
+    <view class="card form">
+      <input class="input" placeholder="批次号 / 面料 / 颜色" value="{{lotKeyword}}" bindinput="onLotKeyword" confirm-type="search" bindconfirm="onLotSearch" />
+      <button class="btn btn-primary" loading="{{searching}}" bindtap="onLotSearch">查询</button>
+    </view>
+    <view wx:if="{{searched && !lots.length}}" class="state text-3">无匹配批次</view>
+    <view class="card item" wx:for="{{lots}}" wx:key="id" data-index="{{index}}" bindtap="onTapLot">
+      <view class="row">
+        <view class="item-title">{{item.lot_no}}</view>
+        <view class="text-3">{{item.color || '-'}}</view>
+      </view>
+      <view class="text-3">{{item.fabric_name || '-'}}　{{item.qty || 0}}{{item.unit || ''}}</view>
+      <view class="text-3">波及 {{item.production_count}} 个床次 / {{item.ticket_count}} 扎 / {{item.qty_total}} 件</view>
+    </view>
+  </block>
+</view>

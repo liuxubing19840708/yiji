@@ -1,0 +1,70 @@
+<view class="page">
+  <!-- 基本信息 -->
+  <view class="card">
+    <view class="h2 section-title">基本资料</view>
+
+    <view class="row field" bindtap="onChooseAvatar">
+      <view class="field-label">头像</view>
+      <view class="spacer" />
+      <view class="avatar-hint text-3">{{uploadingAvatar ? '上传中…' : '更换头像'}}</view>
+      <image wx:if="{{avatar}}" class="avatar-img" src="{{avatarUrl || avatar}}" mode="aspectFill" />
+      <view wx:else class="avatar-img avatar-empty">像</view>
+      <view class="arrow">›</view>
+    </view>
+
+    <view class="row field">
+      <view class="field-label">手机号</view>
+      <view class="spacer" />
+      <view class="text-2">{{phone || '未绑定'}}</view>
+    </view>
+
+    <view class="row field">
+      <view class="field-label">姓名</view>
+      <view class="spacer" />
+      <input class="input" placeholder="填写真实姓名" value="{{realName}}" bindinput="onNameInput" maxlength="20" />
+    </view>
+
+    <picker mode="selector" range="{{genders}}" bindchange="onGenderChange">
+      <view class="row field">
+        <view class="field-label">性别</view>
+        <view class="spacer" />
+        <view class="text-2">{{genderName}}</view>
+        <view class="arrow">›</view>
+      </view>
+    </picker>
+
+    <picker mode="date" end="{{today}}" value="{{birthday}}" bindchange="onBirthdayChange">
+      <view class="row field field-last">
+        <view class="field-label">生日</view>
+        <view class="spacer" />
+        <view class="text-2">{{birthday || '请选择'}}</view>
+        <view class="arrow">›</view>
+      </view>
+    </picker>
+
+    <!-- 保存按钮随脏数据启用（updateProfile：real_name/gender/birthday/avatar） -->
+    <button
+      class="btn btn-info save-btn {{profileDirty && !savingProfile ? '' : 'disabled'}}"
+      loading="{{savingProfile}}"
+      bindtap="onSaveProfile"
+    >保存资料</button>
+  </view>
+
+  <!-- 修改密码 -->
+  <view class="card">
+    <view class="h2 section-title">修改密码</view>
+    <view class="row field">
+      <view class="field-label">原密码</view>
+      <input class="input" placeholder="输入原密码" password value="{{oldPassword}}" bindinput="onOldPwd" />
+    </view>
+    <view class="row field">
+      <view class="field-label">新密码</view>
+      <input class="input" placeholder="至少 6 位" password value="{{newPassword}}" bindinput="onNewPwd" />
+    </view>
+    <view class="row field field-last">
+      <view class="field-label">确认密码</view>
+      <input class="input" placeholder="再次输入新密码" password value="{{confirmPassword}}" bindinput="onConfirmPwd" />
+    </view>
+    <button class="btn btn-info save-btn {{savingPwd ? 'disabled' : ''}}" bindtap="onSavePassword">修改密码</button>
+  </view>
+</view>

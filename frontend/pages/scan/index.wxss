@@ -1,0 +1,286 @@
+/* 扫菲页样式：全部走 app.wxss 设计令牌 */
+.scan-page {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- 今日累计常驻条（即时反馈） ---- */
+.today-bar {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 24rpx;
+  margin-bottom: 20rpx;
+}
+.today-num {
+  margin-left: 16rpx;
+  font-size: 28rpx;
+  color: var(--color-text-2);
+}
+.today-qty {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+.today-amt {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+/* ---- 协助横幅 ---- */
+/* 件数确认页「切换工序」入口（自动推导不符时的出口） */
+.switch-proc { margin-left: 16rpx; font-size: 26rpx; }
+.assist-bar .assist-name {
+  margin-left: 16rpx;
+  font-weight: 500;
+}
+.assist-actions {
+  margin-top: 16rpx;
+}
+.link {
+  color: var(--color-info);
+  font-size: 26rpx;
+  padding: 4rpx 12rpx;
+}
+.link-danger {
+  color: var(--color-danger);
+}
+
+/* 菲票卡「查看菲票 / 补打」入口（M6，有打印权限才显示） */
+.ticket-print-link {
+  display: inline-block;
+  margin-top: 8rpx;
+  color: var(--color-primary, #FF7A00);
+}
+
+/* ---- 扫码态 ---- */
+.scan-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80rpx 0 40rpx;
+}
+.scan-frame {
+  position: relative;
+  width: 360rpx;
+  height: 360rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+}
+.scan-icon {
+  font-size: 120rpx;
+  color: var(--color-primary);
+  line-height: 1;
+}
+.scan-corner {
+  position: absolute;
+  width: 56rpx;
+  height: 56rpx;
+}
+.scan-corner.tl { top: 0; left: 0; border-top: 6rpx solid var(--color-primary); border-left: 6rpx solid var(--color-primary); border-top-left-radius: var(--radius); }
+.scan-corner.tr { top: 0; right: 0; border-top: 6rpx solid var(--color-primary); border-right: 6rpx solid var(--color-primary); border-top-right-radius: var(--radius); }
+.scan-corner.bl { bottom: 0; left: 0; border-bottom: 6rpx solid var(--color-primary); border-left: 6rpx solid var(--color-primary); border-bottom-left-radius: var(--radius); }
+.scan-corner.br { bottom: 0; right: 0; border-bottom: 6rpx solid var(--color-primary); border-right: 6rpx solid var(--color-primary); border-bottom-right-radius: var(--radius); }
+.scan-hint {
+  margin-top: 40rpx;
+  font-size: 36rpx;
+  font-weight: 600;
+  color: var(--color-text-2);
+}
+.scan-btn {
+  width: 60%;
+  margin: 24rpx 0 16rpx;
+}
+.scan-btn-album {
+  width: 60%;
+  margin: 0 0 40rpx;
+}
+
+/* ---- 菲票卡 ---- */
+.ticket-card .ticket-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16rpx 24rpx;
+  margin: 20rpx 0 8rpx;
+}
+.ticket-item {
+  display: flex;
+  align-items: baseline;
+}
+.ticket-label {
+  color: var(--color-text-3);
+  font-size: 24rpx;
+  width: 120rpx;
+  flex-shrink: 0;
+}
+
+/* ---- 工序选择 ---- */
+.proc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20rpx;
+  margin-top: 20rpx;
+}
+.proc-chip {
+  background: var(--color-bg);
+  border: 3rpx solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 24rpx;
+  text-align: center;
+}
+.proc-chip.on {
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+}
+.proc-chip.on .proc-name {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+/* 未上价工序：禁选态（痛点 #2 工价拦截第一关） */
+.proc-chip.off {
+  opacity: 0.55;
+  border-style: dashed;
+  border-color: var(--color-danger);
+}
+.proc-badge {
+  margin-top: 8rpx;
+  display: inline-block;
+  padding: 2rpx 14rpx;
+  border-radius: 999rpx;
+  background: rgba(245, 63, 63, 0.12);
+  color: var(--color-danger);
+  font-size: 22rpx;
+}
+.proc-name {
+  font-size: 30rpx;
+}
+.proc-price {
+  margin-top: 8rpx;
+  color: var(--color-text-3);
+  font-size: 24rpx;
+}
+
+/* ---- 提交 ---- */
+.submit-btn {
+  margin-top: 24rpx;
+}
+
+/* ---- 工序流转推导：件数锁定展示 ---- */
+.qty-fixed {
+  padding: 20rpx 0 8rpx;
+}
+.qty-fixed .qty-big {
+  margin-top: 8rpx;
+  font-size: 64rpx;
+  font-weight: 600;
+  text-align: center;
+}
+/* 手选工序默认件数的「修改数量」入口（点后才展开键盘） */
+.qty-edit-link {
+  display: block;
+  margin-top: 12rpx;
+  text-align: center;
+}
+
+/* ---- 退出引导（相机 ✕ 只关摄像头，tab 页需 switchTab 离开） ---- */
+.scan-exit-hint {
+  margin-top: 32rpx;
+  text-align: center;
+}
+.scan-exit-hint .link {
+  display: inline-block;
+  margin-top: 12rpx;
+}
+
+/* ---- 手输查找入口（§2.7.2 手输码兜底） ---- */
+.lookup-entry {
+  width: 60%;
+  margin: 0 0 24rpx;
+  padding: 18rpx 0;
+  text-align: center;
+  font-size: 28rpx;
+  color: var(--color-info);
+}
+.offline-entry {
+  margin-top: 8rpx;
+}
+
+/* ---- 弹层（手输查找 / 离线暂存共用）：全页遮罩 + 底部圆角面板 ---- */
+.mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+}
+.sheet {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--color-card);
+  border-radius: 24rpx 24rpx 0 0;
+  padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.lookup-tip {
+  margin: 12rpx 0 20rpx;
+}
+.lookup-form {
+  display: flex;
+  gap: 20rpx;
+  margin-bottom: 24rpx;
+}
+.lookup-input {
+  flex: 1;
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  padding: 18rpx 24rpx;
+  font-size: 28rpx;
+}
+.lookup-search {
+  margin-top: 8rpx;
+}
+.lookup-error {
+  margin-top: 20rpx;
+  padding: 16rpx 20rpx;
+  border-radius: var(--radius);
+  background: rgba(245, 63, 63, 0.08);
+  color: var(--color-danger);
+  font-size: 26rpx;
+  text-align: center;
+}
+.lookup-row {
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  padding: 20rpx 24rpx;
+  margin-top: 20rpx;
+}
+.lookup-sub {
+  display: flex;
+  gap: 24rpx;
+  margin-top: 12rpx;
+  font-size: 26rpx;
+  flex-wrap: wrap;
+}
+
+/* ---- 满扎徽标（§2.7.1 P0）：工序 chip「累计/扎数」 ---- */
+.proc-cap {
+  display: inline-block;
+  margin-top: 8rpx;
+  padding: 2rpx 14rpx;
+  border-radius: 999rpx;
+  background: rgba(0, 128, 96, 0.1);
+  color: var(--color-success);
+  font-size: 22rpx;
+}
+/* 满扎（累计 ≥ 扎数）：红色警示，工人先看再登 */
+.proc-cap.full {
+  background: rgba(245, 63, 63, 0.12);
+  color: var(--color-danger);
+}

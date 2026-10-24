@@ -1,0 +1,62 @@
+/* 进行中床次进度卡（共用组件）：样式自包含（组件样式隔离，不依赖页面/app.wxss 工具类），
+   颜色全部走设计令牌 CSS 变量 + 兜底值，与 app.wxss 观感一致 */
+.bp-card {
+  padding: 24rpx 0;
+  border-bottom: 2rpx solid var(--color-border, #E5E6EB);
+}
+.bp-card:last-child {
+  border-bottom: none;
+}
+.bp-tappable {
+  cursor: pointer;
+}
+.bp-tappable:active {
+  opacity: 0.7;
+}
+
+.bp-row {
+  display: flex;
+  align-items: center;
+}
+.bp-spacer {
+  flex: 1;
+}
+
+.bp-bed-no {
+  font-weight: 600;
+  font-size: 30rpx;
+  color: var(--color-text, #1D2129);
+  font-variant-numeric: tabular-nums;
+}
+.bp-style-no {
+  font-size: 24rpx;
+  color: var(--color-text-3, #86909C);
+  font-variant-numeric: tabular-nums;
+}
+.bp-style-name {
+  margin-top: 6rpx;
+  font-size: 26rpx;
+  color: var(--color-text-2, #4E5969);
+}
+
+.bp-track {
+  height: 12rpx;
+  border-radius: 999rpx;
+  background: var(--color-bg, #F5F6F8);
+  margin: 16rpx 0 8rpx;
+  overflow: hidden;
+}
+.bp-fill {
+  height: 100%;
+  border-radius: 999rpx;
+  background: var(--color-primary, #FF7A00);
+}
+
+.bp-line2 {
+  justify-content: space-between;
+}
+.bp-sub {
+  font-size: 24rpx;
+  color: var(--color-text-3, #86909C);
+  font-variant-numeric: tabular-nums;
+}

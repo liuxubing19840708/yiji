@@ -1,0 +1,96 @@
+/* 登记记录列表样式 */
+.filter-bar .filter-row {
+  margin-bottom: 16rpx;
+}
+.filter-picker {
+  margin-right: 16rpx;
+}
+.filter-field {
+  display: flex;
+  align-items: center;
+  background: var(--color-bg);
+  border-radius: 999rpx;
+  padding: 10rpx 20rpx;
+}
+.filter-label {
+  color: var(--color-text-3);
+  font-size: 24rpx;
+  margin-right: 8rpx;
+}
+.filter-value {
+  font-size: 26rpx;
+  max-width: 160rpx;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.filter-caret {
+  color: var(--color-text-3);
+  margin-left: 8rpx;
+  font-size: 20rpx;
+}
+.filter-reset {
+  color: var(--color-info);
+  font-size: 26rpx;
+  padding: 10rpx 12rpx;
+}
+
+.list-count {
+  margin: 0 8rpx 16rpx;
+}
+
+.state-tip {
+  text-align: center;
+  color: var(--color-text-3);
+  padding: 32rpx 0 8rpx;
+}
+.retry-btn {
+  width: 40%;
+  margin: 24rpx auto 0;
+}
+
+.rec-title {
+  font-weight: 600;
+  font-size: 30rpx;
+}
+.rec-meta {
+  margin-top: 16rpx;
+}
+.rec-amount {
+  font-weight: 600;
+}
+.rec-qty {
+  color: var(--color-text-3);
+  font-size: 24rpx;
+}
+.rec-footer {
+  margin-top: 12rpx;
+}
+.revoke-btn {
+  color: var(--color-danger);
+  font-size: 26rpx;
+  padding: 4rpx 20rpx;
+  border: 2rpx solid var(--color-danger);
+  border-radius: 999rpx;
+}
+.revoke-btn.disabled {
+  opacity: 0.5;
+}
+
+/* 菲票预过滤 chip（下钻第三级）：展示当前按菲票过滤状态，点按解除 */
+.ticket-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--color-primary-light, #FFF3E8);
+  color: var(--color-primary, #FF7A00);
+  border-radius: 12rpx;
+  padding: 14rpx 20rpx;
+  margin-bottom: 16rpx;
+  font-size: 24rpx;
+}
+
+.ticket-chip-clear {
+  color: var(--color-text-3, #86909C);
+  flex-shrink: 0;
+}

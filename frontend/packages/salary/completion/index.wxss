@@ -1,0 +1,42 @@
+/* 完成汇总（三层钻取） */
+.loading { padding: 40rpx 0; text-align: center; }
+
+.head-card { margin-top: 16rpx; }
+.filter-row { margin-top: 16rpx; gap: 16rpx; }
+.filter-picker { flex: 1; }
+.filter-btn {
+  background: var(--color-bg);
+  border-radius: 999rpx;
+  padding: 12rpx 24rpx;
+  font-size: 24rpx;
+  color: var(--color-text-2);
+  text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 面包屑 */
+.crumb-row { margin: 16rpx 4rpx 16rpx; }
+.crumb { color: var(--color-primary); font-size: 26rpx; }
+
+/* 款式卡 */
+.s-card { margin-bottom: 16rpx; }
+.qty-badge { background: var(--color-primary-light); color: var(--color-primary); border-radius: 999rpx; padding: 4rpx 20rpx; font-size: 24rpx; }
+.s-nums { margin: 12rpx 0 8rpx; }
+.s-amount { font-weight: 600; }
+.s-foot { margin-top: 8rpx; }
+
+/* 工序行 */
+.p-card { margin-bottom: 16rpx; }
+.p-caret { margin-left: 12rpx; }
+
+/* 矩阵与员工表 */
+.m-row { padding: 12rpx 0; border-bottom: 1rpx solid var(--color-border); }
+.m-row:last-child { border-bottom: none; }
+.m-color { min-width: 96rpx; }
+.e-head { padding: 12rpx 0; border-bottom: 1rpx solid var(--color-border); }
+.e-row { padding: 12rpx 0; border-bottom: 1rpx solid var(--color-border); }
+.e-row:last-child { border-bottom: none; }
+.e-col { width: 25%; }
+.e-right { text-align: right; }

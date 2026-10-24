@@ -1,0 +1,351 @@
+<!-- 订单管理（规格 §2.5/§五）：列表 + 新建/编辑（选款式 + 颜色×尺码数量矩阵 + 备注图 + 关联工序） -->
+<view class="page">
+
+  <!-- ================= 列表 ================= -->
+  <block wx:if="{{stage === 'list'}}">
+    <!-- 状态筛选 tab -->
+    <view class="tabs">
+      <view
+        wx:for="{{filters}}"
+        wx:key="key"
+        class="tab {{filterKey === item.key ? 'active' : ''}}"
+        data-key="{{item.key}}"
+        bindtap="onFilter"
+      >{{item.label}}</view>
+    </view>
+
+    <view class="toolbar">
+      <input class="search" placeholder="搜索单号 / 客户" value="{{keyword}}" bindinput="onKeyword" bindconfirm="onSearch" confirm-type="search" />
+      <view class="add-btn" bindtap="onAddOrder">＋ 新建订单</view>
+    </view>
+
+    <view wx:if="{{loading && !orders.length}}" class="state text-3">加载中…</view>
+    <view wx:elif="{{error && !orders.length}}" class="state">
+      <view class="text-3">{{serviceDown ? '订单服务升级中，请稍后再试' : '加载失败，请重试'}}</view>
+      <button class="btn btn-ghost state-btn" bindtap="onRetry">重新加载</button>
+    </view>
+    <empty-state wx:elif="{{!orders.length}}" text="暂无订单" sub="点击「＋ 新建订单」创建第一张订单" />
+    <view wx:else>
+      <view class="card item" wx:for="{{orders}}" wx:key="id" data-id="{{item.id}}" bindtap="onOpenOrder">
+        <view class="row">
+          <view class="order-no num">{{item.order_no}}</view>
+          <view class="spacer"></view>
+          <view class="badge {{item.statusCls}}">{{item.statusDisplay}}</view>
+        </view>
+        <view class="row item-sub">
+          <view class="text-3">{{item.customerName}}</view>
+          <view class="spacer"></view>
+          <view class="text-3" wx:if="{{item.deliveryDate}}">交期 {{item.deliveryDate}}</view>
+          <view wx:if="{{item.lamp}}" class="lamp lamp-{{item.lamp}}"></view>
+        </view>
+        <view class="row item-sub">
+          <view class="progress-track">
+            <view class="progress-bar {{80 > item.progress ? 'progress-low' : ''}}" style="width: {{item.progress}}%;"></view>
+          </view>
+          <view class="text-3 num progress-text">{{item.progressText}}</view>
+        </view>
+        <view class="row item-sub">
+          <view class="text-3 num">订单 {{item.totalQty}} 件 · 已登记 {{item.registeredQty}} 件</view>
+        </view>
+      </view>
+      <view class="load-more text-3" wx:if="{{hasMore}}" bindtap="loadMoreOrders">
+        {{loading ? '加载中…' : '上拉加载更多'}}
+      </view>
+    </view>
+  </block>
+
+  <!-- ================= 新建 / 编辑 ================= -->
+  <block wx:else>
+    <view class="card">
+      <view class="h2 sheet-head">{{editingId ? '编辑订单' : '新建订单'}}</view>
+
+      <!-- 单号：系统自动生成（SO+日期+序号）——用户可见但不可配置，只读展示 -->
+      <view class="field">
+        <text class="label">单号</text>
+        <view class="input num {{editingId ? '' : 'placeholder'}}">
+          {{editingId ? orderNo : '保存时自动生成（SO+日期+序号）'}}
+        </view>
+      </view>
+      <hint-toggle text="单号由系统按日期自动生成，无需填写、不可修改" />
+
+      <!-- 款式（必选第一步）：选中即回显款号款名 -->
+      <view class="field" bindtap="onOpenStylePanel">
+        <text class="label">款式 *</text>
+        <view class="input {{styleId ? '' : 'placeholder'}}">
+          {{styleId && styleObj.style_no ? styleObj.style_no + ' ' + styleObj.name : (styleId ? '已选款式，点按更换' : '点按选择款式')}} ›
+        </view>
+      </view>
+
+      <!-- 关联款式信息：就在款式字段下方展示（款号/名称/图 + 工艺说明/图/视频） -->
+      <view class="style-inline" wx:if="{{styleObj}}">
+        <style-craft styleInfo="{{styleObj}}" />
+      </view>
+
+      <picker mode="selector" range="{{customerNames}}" value="{{customerIndex}}" bindchange="onCustomer">
+        <view class="field">
+          <text class="label">客户</text>
+          <view class="input">{{customerIndex > 0 ? customerNames[customerIndex] : '不指定客户'}} ▾</view>
+        </view>
+      </picker>
+      <!-- 空客户引导：下拉只有「不指定客户」时给出可点提示，避免像点不动 -->
+      <view class="auto-no-tip text-3" wx:if="{{!customers.length}}" bindtap="onGoCustomers">暂无客户可选，点此去「客户管理」添加 ›</view>
+
+      <picker mode="date" value="{{deliveryDate}}" start="2020-01-01" end="2035-12-31" bindchange="onDeliveryDate">
+        <view class="field">
+          <text class="label">交期</text>
+          <view class="input {{deliveryDate ? '' : 'placeholder'}}">{{deliveryDate || '选填，有交期才有预警灯'}} ▾</view>
+        </view>
+        <view class="clear-row" wx:if="{{deliveryDate}}">
+          <text class="text-3" catchtap="onClearDeliveryDate">清除交期</text>
+        </view>
+      </picker>
+
+      <picker mode="selector" range="{{orderTypes}}" value="{{orderTypeIndex}}" bindchange="onOrderType">
+        <view class="field">
+          <text class="label">类型</text>
+          <view class="input">{{orderTypes[orderTypeIndex]}} ▾</view>
+        </view>
+      </picker>
+
+      <view class="field">
+        <text class="label">备注</text>
+        <input class="input" placeholder="选填" value="{{remark}}" bindinput="onRemark" />
+      </view>
+
+      <!-- 备注图片九宫格（≤9 张，压缩上传，点图预览） -->
+      <view class="img-section">
+        <view class="text-3 img-section-label">备注图片（最多 9 张，点图预览）</view>
+        <view class="img-grid">
+          <view class="img-cell" wx:for="{{images}}" wx:key="*this">
+            <image class="img-thumb" src="{{imageUrls[index] || item}}" mode="aspectFill" data-index="{{index}}" bindtap="onPreviewImage" />
+            <view class="img-del" data-index="{{index}}" catchtap="onRemoveImage">×</view>
+          </view>
+          <view class="img-cell img-add" wx:if="{{9 > images.length}}" bindtap="onAddImages">
+            <text>{{imageUploading ? '…' : '＋'}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 颜色×尺码数量矩阵（横向/纵向/倍数/排列四视图，对齐编菲；格子只写本格不自动填充） -->
+    <view class="card">
+      <view class="row">
+        <view class="h2">数量矩阵</view>
+        <view class="spacer"></view>
+        <view class="badge">合计 {{grandTotal}} 件</view>
+      </view>
+      <hint-toggle text="点行头/列头把首个已填数量铺满整行/整列；倍数=基数×份数；排列一键铺满" />
+
+      <view class="chip-row">
+        <text class="chip-label">颜色</text>
+        <view class="chip" wx:for="{{colors}}" wx:key="*this">
+          <text>{{item}}</text>
+          <text class="chip-x" data-color="{{item}}" catchtap="onRemoveColor">⊗</text>
+        </view>
+        <view class="chip chip-add" bindtap="onAddColor">+ 添加</view>
+      </view>
+      <view wx:if="{{colorPanelVisible}}" class="pick-panel">
+        <view class="text-3 cp-title">点选常用色 · 再点「＋添加」收起</view>
+        <view class="cp-chips">
+          <view
+            wx:for="{{colorOptions}}"
+            wx:key="name"
+            class="cp-chip {{item.added ? 'cp-added' : ''}}"
+            data-name="{{item.name}}"
+            bindtap="onPickColorChip"
+          >{{item.name}}</view>
+          <view class="cp-chip cp-custom" bindtap="onOpenColorCustom">自定义…</view>
+        </view>
+      </view>
+
+      <view class="chip-row">
+        <text class="chip-label">尺码</text>
+        <view class="chip" wx:for="{{sizes}}" wx:key="*this">
+          <text>{{item}}</text>
+          <text class="chip-x" data-size="{{item}}" catchtap="onRemoveSize">⊗</text>
+        </view>
+        <view class="chip chip-add" bindtap="onAddSize">+ 添加</view>
+      </view>
+      <view wx:if="{{sizePanelVisible}}" class="pick-panel">
+        <view class="text-3 cp-title">点选常用尺码 · 再点「＋添加」收起</view>
+        <view class="cp-chips">
+          <view
+            wx:for="{{sizeOptions}}"
+            wx:key="name"
+            class="cp-chip {{item.added ? 'cp-added' : ''}}"
+            data-name="{{item.name}}"
+            bindtap="onPickSizeChip"
+          >{{item.name}}</view>
+          <view class="cp-chip cp-custom" bindtap="onOpenSizeCustom">自定义…</view>
+        </view>
+      </view>
+
+      <!-- 视图页签（横向/纵向/倍数/排列） -->
+      <view class="tabs" wx:if="{{colors.length && sizes.length}}">
+        <view
+          wx:for="{{views}}"
+          wx:key="key"
+          class="tab {{view === item.key ? 'on' : ''}}"
+          data-key="{{item.key}}"
+          bindtap="onSwitchView"
+        >{{item.name}}</view>
+      </view>
+      <view wx:if="{{view === 'multi' && colors.length && sizes.length}}" class="row multi-head">
+        <text class="text-3">倍数基数（件）</text>
+        <view class="spacer"></view>
+        <view class="mini-input num" bindtap="onTapMultiBase">{{multiBase || '点按输入'}} ›</view>
+      </view>
+      <view wx:if="{{view === 'array' && colors.length && sizes.length}}" class="row multi-head">
+        <text class="text-3">每格件数</text>
+        <view class="spacer"></view>
+        <view class="mini-input num" bindtap="onInputArrayQty">{{arrayQty || '点按输入'}} ›</view>
+        <view class="mini-btn" bindtap="onApplyArray">一键铺满</view>
+      </view>
+
+      <view wx:if="{{!colors.length || !sizes.length}}" class="text-3 mtx-tip">请先添加颜色和尺码，再点格子录入数量</view>
+      <scroll-view scroll-x class="mtx-scroll" wx:else>
+        <view class="mtx">
+          <view class="mtx-row mtx-head">
+            <view class="mtx-label head">{{view === 'v' ? '尺码＼颜色' : '颜色＼尺码'}}</view>
+            <view class="mtx-cell head" wx:for="{{mtxCols}}" wx:key="*this" data-col="{{index}}" bindtap="onTapColHead">{{item}}</view>
+            <view class="mtx-total head">合计</view>
+          </view>
+          <view class="mtx-row" wx:for="{{mtxRows}}" wx:key="label" wx:for-item="row">
+            <view class="mtx-label" data-row="{{index}}" bindtap="onTapRowHead">{{row.label}}</view>
+            <view
+              wx:for="{{row.cells}}"
+              wx:key="key"
+              wx:for-item="cell"
+              class="mtx-cell {{cell.main ? 'filled' : ''}} {{view === 'array' ? '' : 'tappable'}}"
+              data-key="{{cell.key}}"
+              bindtap="onTapCell"
+            >
+              <view class="mtx-main num">{{cell.main || '·'}}</view>
+              <view class="mtx-sub num" wx:if="{{cell.sub}}">{{cell.sub}}</view>
+            </view>
+            <view class="mtx-total num">{{row.total}}</view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 关联工序（选填）：模板一键填充 / 手工添加 / 改价 / 删行 -->
+    <view class="card">
+      <view class="row">
+        <view class="h2">关联工序</view>
+        <view class="spacer"></view>
+        <view class="mini-btn" bindtap="onOpenTplSheet">选择模板</view>
+      </view>
+      <view class="text-3">选填：用模板一键带出工序和工价，也可手工添加后逐行上价</view>
+
+      <block wx:if="{{procRows.length}}">
+        <view class="row proc-line-head text-3">
+          <view class="proc-line-name">工序</view>
+          <view class="spacer"></view>
+          <view class="proc-line-price">工价（元/件）</view>
+          <view class="proc-line-del"></view>
+        </view>
+        <view class="row proc-line" wx:for="{{procRows}}" wx:key="process_id">
+          <view class="proc-line-name">{{item.name}}</view>
+          <view class="spacer"></view>
+          <input
+            class="input num proc-line-input"
+            type="digit"
+            value="{{item.price}}"
+            data-index="{{index}}"
+            bindinput="onProcPrice"
+          />
+          <view class="proc-line-del" data-index="{{index}}" catchtap="onRemoveProcRow">×</view>
+        </view>
+      </block>
+
+      <picker mode="selector" range="{{procNames}}" bindchange="onPickProc">
+        <view class="field">
+          <text class="label">手工添加</text>
+          <view class="input placeholder">选择工序 ▾</view>
+        </view>
+      </picker>
+    </view>
+
+    <view class="row save-bar">
+      <button class="btn btn-plain cancel-btn" bindtap="onCancelEdit">取消</button>
+      <button class="btn btn-info save-btn" loading="{{saving}}" bindtap="onSaveOrder">保存订单</button>
+    </view>
+    <view class="text-3 tip">保存前请核对合计数量：{{grandTotal}} 件</view>
+  </block>
+
+  <!-- ================= 款式选择面板（搜索列表） ================= -->
+  <view class="mask" wx:if="{{stylePanelVisible}}" bindtap="onCloseStylePanel">
+    <view class="sheet" catchtap="noop">
+      <view class="row sheet-head">
+        <view class="h2">选择款式</view>
+        <view class="spacer"></view>
+        <view class="text-3" bindtap="onCloseStylePanel">关闭</view>
+      </view>
+      <view class="row search-row">
+        <input class="search" placeholder="款号 / 名称" value="{{styleKeyword}}" bindinput="onStyleKeyword" bindconfirm="onStyleSearch" confirm-type="search" />
+        <view class="search-btn" bindtap="onStyleSearch">搜索</view>
+      </view>
+
+      <scroll-view scroll-y class="style-list">
+        <view wx:if="{{styleLoading}}" class="text-3 state-tip">加载中…</view>
+        <view wx:elif="{{styleError}}" class="text-3 state-tip">加载失败，请重试</view>
+        <empty-state wx:elif="{{!styleOptions.length}}" text="未找到款式" sub="换个关键字试试" />
+        <view wx:else>
+          <view class="row style-item" wx:for="{{styleOptions}}" wx:key="id" data-index="{{index}}" bindtap="onPickStyle">
+            <view class="style-main">
+              <view class="s-no">{{item.style_no}}</view>
+              <view class="text-3">{{item.name}}{{item.customer_name ? ' · ' + item.customer_name : ''}}</view>
+            </view>
+            <view class="spacer"></view>
+            <view class="text-3">选择 ›</view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+
+  <!-- ================= 工序模板弹层（一键填充） ================= -->
+  <view class="mask" wx:if="{{tplSheetVisible}}" bindtap="onCloseTplSheet">
+    <view class="sheet" catchtap="noop">
+      <view class="row sheet-head">
+        <view class="h2">选择工序模板</view>
+        <view class="spacer"></view>
+        <view class="text-3" bindtap="onCloseTplSheet">关闭</view>
+      </view>
+      <scroll-view scroll-y class="style-list">
+        <view wx:if="{{tplLoading}}" class="text-3 state-tip">加载中…</view>
+        <view wx:elif="{{tplDown}}" class="text-3 state-tip">模板服务升级中，可手工添加工序</view>
+        <view wx:elif="{{!templates.length}}" class="text-3 state-tip">暂无模板，可在「工序」页创建，或手工添加工序</view>
+        <view wx:else>
+          <view class="row style-item" wx:for="{{templates}}" wx:key="id" data-index="{{index}}" bindtap="onPickTemplate">
+            <view class="style-main">
+              <view class="s-no">{{item.name}}</view>
+              <view class="text-3">{{item.items.length}} 道工序</view>
+            </view>
+            <view class="spacer"></view>
+            <view class="text-3">填充 ›</view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+
+  <!-- 数字键盘弹层（矩阵数量录入） -->
+  <view class="mask" wx:if="{{sheetVisible}}" bindtap="onCloseSheet">
+    <view class="sheet" catchtap="noop">
+      <view class="row sheet-head">
+        <view class="h2">{{sheetTitle}}</view>
+        <view class="spacer"></view>
+        <view class="text-3" bindtap="onCloseSheet">取消</view>
+      </view>
+      <numeric-keypad
+        id="order-keypad"
+        decimal="{{false}}"
+        placeholder="0"
+        bind:input="onSheetInput"
+        bind:confirm="onSheetConfirm"
+      />
+    </view>
+  </view>
+</view>

@@ -1,0 +1,12 @@
+{
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true
+  ,
+  "json.schemas": [
+    {
+      "fileMatch": ["**/app.json", "**/pages/**/*.json", "**/packages/**/*.json"],
+      // 小程序页面/组件 json 不属于 npm schema 体系，禁用内置 app 假设，避免误报
+      "schema": { "type": "object" }
+    }
+  ]
+}

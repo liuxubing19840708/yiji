@@ -1,0 +1,59 @@
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  background: var(--color-card, #fff);
+  border-radius: var(--radius-lg, 24rpx);
+  box-shadow: var(--shadow);
+  padding: 16rpx 0;
+}
+
+.cell {
+  width: 33.33%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24rpx 0;
+}
+
+.cell:active {
+  opacity: 0.6;
+}
+
+.cell-icon {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 46rpx;
+  background: var(--color-primary-light, #FFF3E8);
+  color: var(--color-primary, #FF7A00);
+}
+
+/* 每个模块专属底色（与 pages/index 的 emoji 图标一一对应；未知 key 回落主色） */
+.cell-icon-styles { background: #FFE9F2; }
+.cell-icon-client-logs { background: #E8F0FE; }
+.cell-icon-production { background: #FFF3E0; }
+.cell-icon-salary { background: #FFF8E1; }
+.cell-icon-my-salary { background: #E8F5E9; }
+.cell-icon-order-salary { background: #EDE7F6; }
+.cell-icon-employees { background: #E3F2FD; }
+.cell-icon-in-progress { background: #E0F7FA; }
+.cell-icon-customers { background: #E8F5E9; }
+.cell-icon-completion { background: #E3F2FD; }
+.cell-icon-assist { background: #F3E5F5; }
+.cell-icon-logs { background: #ECEFF1; }
+.cell-icon-assigned-process { background: #FFF3E0; }
+.cell-icon-company-qr { background: #E0F2F1; }
+.cell-icon-print { background: #FBE9E7; }
+.cell-icon-kanban { background: #DFF3FA; }
+
+.cell-name {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: var(--color-text, #1F2329);
+}
+.cell-icon-trace { background: #EDE7F6; }
+.cell-icon-warehouse { background: #E0F2F1; }
+.cell-icon-orders { background: #FFF0E0; }

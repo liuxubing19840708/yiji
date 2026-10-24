@@ -1,0 +1,21 @@
+<!-- 日期区间条：📅 start 至 end ▾ + 今日/本月/上月 快捷 tab（与自定义区间互斥，规格 §4.1） -->
+<view class="drb">
+  <picker mode="date" value="{{start}}" bindchange="onStartChange">
+    <view class="drb-date">{{start}}</view>
+  </picker>
+  <view class="drb-sep">至</view>
+  <picker mode="date" value="{{end}}" bindchange="onEndChange">
+    <view class="drb-date">{{end}}</view>
+  </picker>
+  <view class="drb-caret">▾</view>
+
+  <view class="drb-tabs">
+    <view
+      wx:for="{{tabs}}"
+      wx:key="key"
+      class="drb-tab {{quick === item.key ? 'on' : ''}}"
+      data-quick="{{item.key}}"
+      bindtap="onQuick"
+    >{{item.label}}</view>
+  </view>
+</view>

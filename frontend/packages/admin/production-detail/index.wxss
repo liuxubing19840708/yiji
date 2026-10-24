@@ -1,0 +1,352 @@
+/* 床次详情页样式（颜色/圆角取自 app.wxss 变量） */
+
+.state {
+  text-align: center;
+  padding: 120rpx 0;
+}
+
+.state-btn {
+  margin-top: 24rpx;
+  width: 240rpx;
+  font-size: 28rpx;
+  padding: 14rpx 0;
+}
+
+.mini-btn {
+  margin-left: 12rpx;
+  font-size: 24rpx;
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+  border-radius: 999rpx;
+  padding: 8rpx 20rpx;
+}
+
+.info-row {
+  display: flex;
+  margin-top: 16rpx;
+  font-size: 28rpx;
+}
+
+.head-body {
+  display: flex;
+  margin-top: 16rpx;
+}
+
+.detail-thumb {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: var(--radius);
+  margin-right: 20rpx;
+  flex-shrink: 0;
+  background: var(--color-bg, #f5f5f5);
+}
+
+.head-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.head-info .info-row {
+  margin-top: 0;
+}
+
+.head-info .info-row + .info-row {
+  margin-top: 14rpx;
+}
+
+.info-label {
+  width: 140rpx;
+  color: var(--color-text-3);
+  flex-shrink: 0;
+}
+
+.sec-head {
+  margin-bottom: 16rpx;
+}
+
+/* ---- 裁货矩阵 ---- */
+.matrix-scroll {
+  width: 100%;
+}
+
+.matrix {
+  min-width: 100%;
+  display: inline-block;
+  border: 2rpx solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.m-row {
+  display: flex;
+}
+
+.m-row + .m-row {
+  border-top: 2rpx solid var(--color-border);
+}
+
+.m-head {
+  background: var(--color-bg);
+}
+
+.m-cell {
+  min-width: 112rpx;
+  padding: 14rpx 10rpx;
+  text-align: center;
+  font-size: 26rpx;
+  border-left: 2rpx solid var(--color-border);
+}
+
+.m-cell:first-child {
+  border-left: none;
+}
+
+.m-color {
+  min-width: 160rpx;
+  max-width: 240rpx;
+  color: var(--color-text-2);
+  word-break: break-all;
+}
+
+/* ---- 订单工序 ---- */
+.o-row {
+  padding: 16rpx 0;
+  border-bottom: 2rpx solid var(--color-border);
+}
+
+.o-name {
+  font-size: 30rpx;
+  font-weight: 500;
+  margin-right: 16rpx;
+}
+
+.o-price {
+  width: 170rpx;
+  text-align: right;
+  font-size: 30rpx;
+  margin-left: 12rpx;
+  border-bottom: 2rpx solid var(--color-border);
+  padding: 6rpx 8rpx;
+}
+
+.o-del {
+  margin-left: 20rpx;
+  color: var(--color-text-3);
+  font-size: 32rpx;
+  padding: 8rpx;
+}
+
+.o-add {
+  margin-top: 24rpx;
+  font-size: 28rpx;
+  padding: 14rpx 0;
+}
+
+.o-save {
+  margin-top: 20rpx;
+  font-size: 28rpx;
+  padding: 14rpx 0;
+}
+
+/* ---- 菲票列表（2026-10-22 参考竞品「按扎号查看」卡片） ---- */
+.b-card {
+  padding: 20rpx 0;
+  border-bottom: 2rpx solid var(--color-border);
+}
+
+.b-card:last-child {
+  border-bottom: none;
+}
+
+.b-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+/* 扎号行：标题 + 打印状态徽标（2026-10-23 每扎保存菲票信息） */
+.b-title-row {
+  align-items: center;
+}
+
+.b-print-badge {
+  font-size: 22rpx;
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+  color: var(--color-text-3);
+  background: var(--color-border);
+}
+
+.b-print-badge.on {
+  color: #fff;
+  background: var(--color-success, #10b981);
+}
+
+/* 菲票信息行：二维码文本 + 查看菲票入口 */
+.b-ticket-row {
+  display: flex;
+  align-items: center;
+  margin-top: 10rpx;
+  padding: 10rpx 16rpx;
+  border-radius: 8rpx;
+  background: var(--color-bg, #f7f8fa);
+}
+
+.b-ticket-code {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.b-ticket-link {
+  font-size: 26rpx;
+  color: var(--color-primary);
+}
+
+/* 值/标签四宫格：颜色 尺码 件数 工序 */
+.b-grid {
+  display: flex;
+  margin-top: 12rpx;
+}
+
+.b-grid-item {
+  flex: 1;
+  text-align: center;
+}
+
+.b-grid-val {
+  font-size: 30rpx;
+  font-weight: 500;
+}
+
+.b-grid-label {
+  font-size: 24rpx;
+  color: var(--color-text-3);
+  margin-top: 4rpx;
+}
+
+.b-progress-row {
+  display: flex;
+  align-items: center;
+  margin-top: 16rpx;
+  padding-top: 16rpx;
+  border-top: 2rpx dashed var(--color-border);
+}
+
+.b-detail-link {
+  color: var(--color-text-3);
+}
+
+.b-track {
+  height: 20rpx;
+  border-radius: 999rpx;
+  background: var(--color-bg);
+  overflow: hidden;
+  margin-top: 14rpx;
+}
+
+.b-bar {
+  height: 100%;
+  border-radius: 999rpx;
+  background: var(--color-primary);
+  transition: width 0.3s;
+}
+
+/* 完成人（超长省略） */
+.b-workers {
+  margin-top: 10rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 质量追溯卡（P0 2026-10-18，加法式追加） */
+.trace-card .link { color: #FF7A00; }
+.trace-row { display: flex; align-items: center; gap: 12rpx; margin: 12rpx 0; }
+.trace-input { flex: 1; border: 2rpx solid #E5E6EB; border-radius: 12rpx; padding: 14rpx 20rpx; font-size: 26rpx; }
+.trace-input.picker { color: #4E5969; }
+.trace-qty { flex: 0 0 140rpx; }
+.trace-save { flex-shrink: 0; }
+.trace-label { margin: 16rpx 0 4rpx; }
+.lot-row { padding: 10rpx 0; }
+
+/* 菲票行下钻（§2.9 P0）：点菲票 → 该扎登记明细 */
+.b-arrow {
+  color: var(--color-text-3);
+  font-size: 32rpx;
+  margin-left: 12rpx;
+}
+
+.b-hint {
+  margin-top: 12rpx;
+  text-align: right;
+}
+
+/* 完成矩阵（2026-10-22 参考「工序完成明细」样式）：
+   每颜色块 = 左色名列 + 三行（裁货数红/已完成蓝/余数绿）+ 合计列，多扎按列展开子行 */
+.mx { display: inline-block; min-width: 100%; }
+.mx-row { display: flex; align-items: stretch; gap: 6rpx; margin-bottom: 6rpx; }
+.mx-headcell {
+  box-sizing: border-box;
+  background: #F2F3F5;
+  color: #1D2129;
+  font-weight: 600;
+  text-align: center;
+  padding: 14rpx 0;
+  border-radius: 8rpx;
+}
+/* 色名列宽 140 与表头「颜色/尺寸」列一致，块内 gap 6rpx 与表头行一致 → 逐列对齐；
+   背景色/文字色与表头格同款（浅灰底深字） */
+.mx-block { display: flex; gap: 6rpx; margin-bottom: 20rpx; }
+.mx-colorcol {
+  flex: 0 0 140rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  background: #F2F3F5;
+  color: #1D2129;
+  border-radius: 8rpx;
+}
+.mx-body { flex: 1; min-width: 0; }
+.mx-color { flex: 0 0 140rpx; }
+.mx-label {
+  box-sizing: border-box;
+  flex: 0 0 140rpx;
+  text-align: center;
+  padding: 14rpx 0;
+  border-radius: 8rpx;
+  font-size: 26rpx;
+}
+.mx-cell {
+  box-sizing: border-box;
+  flex: 1 1 0;
+  min-width: 110rpx;
+  text-align: center;
+  padding: 14rpx 0;
+  border-radius: 8rpx;
+  font-size: 26rpx;
+}
+.mx-total {
+  box-sizing: border-box;
+  flex: 0 0 110rpx;
+  text-align: center;
+  padding: 14rpx 0;
+  border-radius: 8rpx;
+  font-size: 26rpx;
+}
+/* 三行配色（参考截图：浅红/浅蓝/浅绿） */
+.mx-cut { background: #FDE9E8; color: #E65444; }
+.mx-done { background: #E8F1FD; color: #4A78C2; }
+.mx-left { background: #E9F9EE; color: #3E9B5F; }
+/* 扎明细子行 */
+.mx-blabel { background: #F7F8FA; color: var(--color-text-3); font-size: 22rpx; }
+.mx-bcell {
+  background: #FAFBFC;
+  color: var(--color-text-2);
+  font-size: 20rpx;
+  word-break: break-all;
+  line-height: 1.4;
+}
+.m-legend { margin-top: 12rpx; }

@@ -1,0 +1,24 @@
+<!-- 使用帮助（§2.11 P3 纯文档）：角色 tab + 核心动线/常见问题 两段 -->
+<view class="page">
+  <!-- 角色 tab -->
+  <view class="help-tabs">
+    <view
+      wx:for="{{roles}}"
+      wx:key="key"
+      class="help-tab {{current === item.key ? 'on' : ''}}"
+      data-key="{{item.key}}"
+      bindtap="onRoleTap"
+    >{{item.icon}} {{item.tab}}</view>
+  </view>
+
+  <!-- 文章正文（纯静态，渲染 article.sections） -->
+  <view class="card help-card">
+    <view class="help-role-title">{{article.icon}} {{article.tab}}指引</view>
+    <block wx:for="{{article.sections}}" wx:key="title" wx:for-item="sec">
+      <view class="help-sec-title">{{sec.title}}</view>
+      <view class="help-line" wx:for="{{sec.lines}}" wx:key="*this" wx:for-item="line">{{line}}</view>
+    </block>
+  </view>
+
+  <view class="text-3 help-foot">还有疑问？请联系贵厂管理员或在「我的」页反馈。</view>
+</view>

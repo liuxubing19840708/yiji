@@ -1,0 +1,60 @@
+.keypad {
+  background: var(--color-card, #fff);
+  border-radius: var(--radius-lg, 24rpx) var(--radius-lg, 24rpx) 0 0;
+  padding: 16rpx;
+}
+
+.keypad-display {
+  display: flex;
+  align-items: center;
+  background: var(--color-bg, #F5F6F8);
+  border-radius: 12rpx;
+  padding: 16rpx 24rpx;
+  margin-bottom: 16rpx;
+}
+
+.keypad-value {
+  flex: 1;
+  font-size: 44rpx;
+  font-weight: 600;
+  color: var(--color-text, #1F2329);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.keypad-back {
+  margin-left: 24rpx;
+  font-size: 40rpx;
+  color: var(--color-text-3, #86909C);
+  padding: 0 12rpx;
+}
+
+.keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12rpx;
+}
+
+.key {
+  background: var(--color-bg, #F5F6F8);
+  border-radius: 12rpx;
+  text-align: center;
+  font-size: 36rpx;
+  font-weight: 500;
+  padding: 22rpx 0;
+}
+
+.key:active {
+  background: #E5E6EB;
+}
+
+.key-clear {
+  color: var(--color-danger, #F53F3F);
+  font-size: 30rpx;
+}
+
+.key-confirm {
+  background: var(--color-primary, #FF7A00);
+  color: #ffffff;
+  font-size: 30rpx;
+}

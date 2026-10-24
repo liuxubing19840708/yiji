@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "薪酬管理",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "date-range-bar": "/components/date-range-bar/index",
+    "empty-state": "/components/empty-state/index"
+  }
+}

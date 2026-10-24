@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "款式工序单价",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index"
+  }
+}

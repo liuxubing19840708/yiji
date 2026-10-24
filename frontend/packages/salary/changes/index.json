@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "与我相关的变更",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index"
+  }
+}

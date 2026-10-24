@@ -1,0 +1,141 @@
+<view class="page">
+  <!-- 已绑定打印机 -->
+  <view class="card">
+    <view class="row">
+      <view class="h2">打印机</view>
+      <view class="spacer"></view>
+      <view class="badge {{connected ? 'badge-green' : 'badge-gray'}}">
+        {{connected ? '已连接' : '待连接'}}
+      </view>
+    </view>
+    <block wx:if="{{printer}}">
+      <view class="row printer-info">
+        <view class="text-2 printer-name">{{printer.name}}</view>
+      </view>
+      <view class="text-3">未连接时打印会自动重连</view>
+      <view class="row btn-row">
+        <button class="btn btn-info btn-flex" bindtap="onTestPrint">测试打印</button>
+        <button class="btn btn-ghost btn-flex" bindtap="onCalibrate">对位诊断</button>
+        <button class="btn btn-ghost btn-flex" bindtap="onDisconnect">断开</button>
+      </view>
+    </block>
+    <block wx:else>
+      <hint-toggle text="通过蓝牙连接菲票标签机（佳博 / 汉印 / 快麦 / 芯烨等），扫描时请让打印机靠近手机" />
+      <view class="row btn-row">
+        <button class="btn btn-primary btn-flex" loading="{{scanning}}" bindtap="onScan">
+          {{scanning ? '扫描中…' : '扫描查找打印机'}}
+        </button>
+      </view>
+    </block>
+  </view>
+
+  <!-- 扫描结果 -->
+  <view class="card" wx:if="{{devices.length}}">
+    <view class="h2">附近的打印机</view>
+    <view class="device-row" wx:for="{{devices}}" wx:key="deviceId"
+          data-index="{{index}}" bindtap="onPickDevice">
+      <view class="setting-main">
+        <view class="setting-label">{{item.name}}</view>
+        <view class="text-3">{{item.deviceId}}</view>
+      </view>
+      <view class="badge {{item.matched ? 'badge-green' : 'badge-gray'}}">
+        {{item.matched ? '打印机' : '其它设备'}}
+      </view>
+      <view class="text-3 rssi">{{item.rssiText}}</view>
+    </view>
+    <hint-toggle text="找不到？点击「扫描查找打印机」重新扫描" />
+  </view>
+
+  <!-- 菲票版式 -->
+  <view class="card">
+    <view class="h2">打印模板</view>
+    <view class="tpl-row sub-row" bindtap="onPickPaper">
+      <view class="setting-main"><view class="setting-label">纸张尺寸</view></view>
+      <view class="setting-value">{{paperLabel}} <text class="arrow">›</text></view>
+    </view>
+    <view class="tpl-row sub-row" bindtap="onPickQrUnit">
+      <view class="setting-main"><view class="setting-label">二维码大小</view></view>
+      <view class="setting-value">{{qrUnitLabel}} <text class="arrow">›</text></view>
+    </view>
+    <view class="tpl-row sub-row">
+      <view class="setting-main"><view class="setting-label">数量放大显示</view></view>
+      <switch checked="{{style.bigQty}}" color="#FF7A00" bindchange="onToggleBigQty" />
+    </view>
+    <view class="field-title text-3">打印内容（点选要打印的字段）</view>
+    <view class="field-chips">
+      <view class="chip {{item.on ? 'chip-on' : ''}}" wx:for="{{fieldChips}}" wx:key="key"
+            data-key="{{item.key}}" bindtap="onToggleField">{{item.label}}</view>
+    </view>
+    <view class="tpl-row sub-row">
+      <view class="setting-main">
+        <view class="setting-label">上下微调</view>
+        <view class="text-3">内容压到两张标签接缝时调到二维码落正为止（跟打印机走，各机独立）</view>
+      </view>
+      <view class="stepper">
+        <view class="step-btn" data-delta="-1" bindtap="onOffsetStep">−</view>
+        <view class="step-val num">{{offsetMm}}mm</view>
+        <view class="step-btn" data-delta="1" bindtap="onOffsetStep">＋</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 打印队列 -->
+  <view class="card">
+    <view class="row">
+      <view class="h2">打印队列</view>
+      <view class="spacer"></view>
+      <view class="text-3" wx:if="{{queue.length}}">{{queue.length}} 张待补打</view>
+    </view>
+    <empty-state wx:if="{{!queue.length}}" text="暂无待补打菲票" sub="打印失败的菲票会自动进入这里" />
+    <block wx:else>
+      <view class="queue-row" wx:for="{{queue}}" wx:key="id">
+        <view class="setting-main">
+          <view class="setting-label">床次 {{item.bed_no}} 第 {{item.bundle_no}} 扎 ×{{item.qty}}</view>
+          <view class="text-3">{{item.style_no}} {{item.color}} {{item.size}} · {{item.reason}}</view>
+        </view>
+        <button class="btn btn-info btn-mini" wx:if="{{canPrint}}" data-index="{{index}}" bindtap="onRetryItem">重打</button>
+        <button class="btn btn-ghost btn-mini" data-index="{{index}}" bindtap="onRemoveItem">移除</button>
+      </view>
+      <view class="row btn-row">
+        <button class="btn btn-primary btn-flex" wx:if="{{canPrint}}" disabled="{{printing}}" bindtap="onRetryAll">一键补打</button>
+        <button class="btn btn-ghost btn-flex" bindtap="onClearQueue">清空队列</button>
+      </view>
+    </block>
+  </view>
+
+  <!-- 打印历史（已出票菲票存档） -->
+  <view class="card">
+    <view class="row">
+      <view class="h2">打印历史</view>
+      <view class="spacer"></view>
+      <view class="text-3" bindtap="onToggleHistory">{{historyShow ? '收起' : '展开'}}</view>
+    </view>
+    <block wx:if="{{historyShow}}">
+      <view class="history-search">
+        <input class="history-input" placeholder="输入床次号 / 扎号搜索" value="{{historyKeyword}}"
+               bindinput="onHistorySearchInput" bindconfirm="onHistorySearchConfirm" confirm-type="search" />
+      </view>
+      <empty-state wx:if="{{!history.length && !historyLoading}}" text="暂无打印记录" sub="打印过的菲票会留档在这里" />
+      <view class="queue-row" wx:for="{{history}}" wx:key="id">
+        <view class="setting-main">
+          <view class="row history-title-row">
+            <view class="setting-label">{{item.title}}</view>
+            <view class="badge badge-red h-reprint-badge" wx:if="{{item.reprinted}}">补打过</view>
+          </view>
+          <view class="text-3">{{item.sub}}</view>
+          <view class="text-3">{{item.printAtText}} · {{item.countText}}</view>
+        </view>
+        <button class="btn btn-info btn-mini" wx:if="{{canPrint}}" data-index="{{index}}" bindtap="onHistoryReprint">补打</button>
+      </view>
+      <view class="text-3 cp-foot" wx:if="{{historyHasMore}}" bindtap="onHistoryMore">
+        {{historyLoading ? '加载中…' : '加载更多'}}
+      </view>
+    </block>
+    <hint-toggle wx:else text="打印过的菲票留档在此，可随时回看（按最后打印时间倒序）" />
+  </view>
+
+  <view class="text-3 cp-foot">菲票打印为蓝牙直连方案；云打印平台即将支持</view>
+</view>
+
+<!-- 试打预览：按当前模板渲染标签，确认后发送 -->
+<label-preview show="{{previewShow}}" tickets="{{previewTickets}}" company="{{previewCompany}}" bind:confirm="onPreviewConfirm" bind:cancel="onPreviewCancel" />

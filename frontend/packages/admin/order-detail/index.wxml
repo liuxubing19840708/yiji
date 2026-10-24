@@ -1,0 +1,160 @@
+<!-- 订单详情（规格 §2.5.2）：矩阵完成度（落后格红底）+ 交期灯 + 关联床次 + 状态操作 -->
+<view class="page">
+
+  <view wx:if="{{loading && !orderNo}}" class="state text-3">加载中…</view>
+  <view wx:elif="{{error}}" class="state">
+    <view class="text-3">{{serviceDown ? '订单服务升级中，请稍后再试' : '加载失败，请重试'}}</view>
+    <button class="btn btn-ghost state-btn" bindtap="reload">重新加载</button>
+  </view>
+
+  <block wx:else>
+        <!-- 基本信息 -->
+    <view class="card">
+      <view class="row">
+        <view class="order-no num">{{orderNo}}</view>
+        <view class="spacer"></view>
+        <view class="badge {{statusCls}}">{{statusDisplay}}</view>
+      </view>
+      <view class="row info-row">
+        <view class="text-3">客户：{{customerName}}</view>
+      </view>
+      <view class="row info-row" wx:if="{{deliveryDate}}">
+        <view class="text-3">交期：{{deliveryDate}}{{daysLeftText ? '（' + daysLeftText + '）' : ''}}</view>
+        <view wx:if="{{lamp}}" class="lamp lamp-{{lamp}}"></view>
+      </view>
+      <view class="row info-row" wx:if="{{orderType}}">
+        <view class="text-3">类型：{{orderType}}</view>
+      </view>
+      <view class="row info-row" wx:if="{{remark}}">
+        <view class="text-3">备注：{{remark}}</view>
+      </view>
+      <!-- 备注图片九宫格 + 预览 -->
+      <view wx:if="{{remarkImages.length}}" class="img-grid">
+        <image
+          wx:for="{{remarkImages}}"
+          wx:key="*this"
+          class="img-thumb"
+          src="{{item}}"
+          mode="aspectFill"
+          data-index="{{index}}"
+          bindtap="onPreviewRemarkImage"
+        />
+      </view>
+      <view class="row info-row">
+        <view class="progress-track">
+          <view class="progress-bar {{80 > progress ? 'progress-low' : ''}}" style="width: {{progress}}%;"></view>
+        </view>
+        <view class="text-2 num progress-text">{{progress}}%</view>
+      </view>
+      <view class="row info-row">
+        <view class="text-3 num">已登记 {{registeredQty}} / 订单 {{totalQty}} 件</view>
+      </view>
+
+      <!-- 满登记提示一键标完成（§2.5.2） -->
+      <view wx:if="{{fullRegister}}" class="full-tip">
+        <text class="text-3">登记已满，可标记完成收单</text>
+        <view class="mini-btn" bindtap="onMarkDone">一键标完成</view>
+      </view>
+
+      <!-- 状态操作 -->
+      <view class="row act-row" wx:if="{{status === 'producing'}}">
+        <button class="btn btn-plain act-btn" bindtap="onEdit">编辑</button>
+        <button class="btn btn-info act-btn" bindtap="onMarkDone">标记完成</button>
+        <button class="btn btn-danger act-btn" bindtap="onCancelOrder">取消订单</button>
+      </view>
+      <view class="row act-row" wx:else>
+        <button class="btn btn-plain act-btn" bindtap="onEdit">编辑</button>
+        <button wx:if="{{status !== 'cancelled'}}" class="btn btn-danger act-btn" bindtap="onDeleteOrder">删除订单</button>
+      </view>
+    </view>
+
+    <!-- 款式卡：默认收起，点开展开款号/名称/图 + 工艺说明/工艺图片/产品视频 -->
+    <view class="card" wx:if="{{styleInfo}}">
+      <view class="row" bindtap="onToggleStyle">
+        <view class="h2">款式信息</view>
+        <text class="text-3 style-brief" wx:if="{{styleInfo.style_no}}">{{styleInfo.style_no}}</text>
+        <view class="spacer"></view>
+        <view class="text-3">{{styleExpanded ? '收起 ▴' : '展开 ▾'}}</view>
+      </view>
+      <block wx:if="{{styleExpanded}}">
+        <view class="style-body">
+          <style-craft styleInfo="{{styleInfo}}" />
+        </view>
+      </block>
+    </view>
+
+    <!-- 完成度矩阵：表格格式与床次完成矩阵完全一致（仅内容不同：订单数/已登记/完成率，落后格红底） -->
+    <view class="card">
+      <view class="row sec-head">
+        <view class="h2">完成度矩阵</view>
+        <view class="spacer"></view>
+        <view class="badge">整单 {{progress}}%</view>
+      </view>
+      <view class="text-3 legend"><view class="lamp lamp-red legend-lamp"></view> 红底 = 完成率低于 80%</view>
+      <view wx:if="{{matrixFailed}}" class="text-3 state-tip">完成度服务升级中，稍后下拉刷新重试</view>
+      <block wx:if="{{rows.length && sizes.length}}">
+        <scroll-view scroll-x class="mx-scroll">
+          <view class="mx">
+            <view class="mx-row mx-head">
+              <view class="mx-color mx-headcell">颜色/尺寸</view>
+              <view class="mx-label mx-headcell">尺码</view>
+              <view class="mx-cell mx-headcell" wx:for="{{sizes}}" wx:key="*this">{{item}}</view>
+              <view class="mx-total mx-headcell">合计</view>
+            </view>
+            <view class="mx-block" wx:for="{{rows}}" wx:for-item="row" wx:key="color">
+              <view class="mx-colorcol">{{row.color}}</view>
+              <view class="mx-body">
+                <view class="mx-row">
+                  <view class="mx-label mx-cut">订单数</view>
+                  <view class="mx-cell mx-cut num" wx:for="{{row.cells}}" wx:for-item="cell" wx:key="size">{{cell.orderQty > 0 ? cell.orderQty : '·'}}</view>
+                  <view class="mx-total mx-cut num">{{row.total}}</view>
+                </view>
+                <view class="mx-row">
+                  <view class="mx-label mx-done">已登记</view>
+                  <view class="mx-cell mx-done num" wx:for="{{row.cells}}" wx:for-item="cell" wx:key="size">{{cell.orderQty > 0 ? cell.regQty : '·'}}</view>
+                  <view class="mx-total mx-done num">{{row.regTotal}}</view>
+                </view>
+                <view class="mx-row">
+                  <view class="mx-label mx-left">完成率</view>
+                  <view class="mx-cell mx-left num {{cell.orderQty > 0 && cell.low ? 'mx-lowbg' : ''}}" wx:for="{{row.cells}}" wx:for-item="cell" wx:key="size">{{cell.orderQty > 0 ? cell.pct + '%' : '·'}}</view>
+                  <view class="mx-total mx-left num">{{row.totalPct}}%</view>
+                </view>
+              </view>
+            </view>
+          </view>
+        </scroll-view>
+      </block>
+      <block wx:else><view class="text-3 state-tip">暂无数量明细</view></block>
+    </view>
+
+<!-- 关联床次 + ＋开床 -->
+    <view class="card">
+      <view class="row">
+        <view class="h2">关联床次</view>
+        <view class="spacer"></view>
+        <view wx:if="{{canOpenBed && status === 'producing'}}" class="mini-btn" bindtap="onOpenBed">＋ 开床</view>
+      </view>
+      <view wx:if="{{productionsLoading}}" class="text-3 state-tip">加载中…</view>
+      <view wx:elif="{{!productions.length}}" class="text-3 state-tip">暂未挂单开床，点「＋ 开床」创建床次</view>
+      <block wx:else>
+      <view
+        class="row prod-item"
+        wx:for="{{productions}}"
+        wx:key="id"
+        data-id="{{item.id}}"
+        bindtap="onTapProduction"
+      >
+        <view class="prod-main">
+          <view>床次 {{item.bedNo}}<text class="text-3" wx:if="{{item.styleNo}}"> · {{item.styleNo}}</text></view>
+          <view class="text-3 num">已登记 {{item.registeredQty}} / {{item.totalQty}} 件</view>
+        </view>
+        <view class="spacer"></view>
+        <view class="badge badge-gray" wx:if="{{item.locked}}">已锁定</view>
+        <view class="badge badge-green" wx:elif="{{item.cutDone}}">已裁完</view>
+        <view class="text-2 num">{{item.progress}}%</view>
+        <view class="arrow text-3">›</view>
+      </view>
+      </block>
+    </view>
+  </block>
+</view>

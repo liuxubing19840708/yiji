@@ -1,0 +1,6 @@
+<view class="page">
+  <view class="card">
+    <view class="h2">管理分包占位页</view>
+    <view class="text-3">Wave 1/2：款式、生产、编菲、员工、日志、设置等管理页面放 packages/admin/ 下</view>
+  </view>
+</view>

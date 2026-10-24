@@ -1,0 +1,137 @@
+<view class="page">
+  <view class="toolbar">
+    <input class="search" placeholder="请输入关键字（款号/名称）" value="{{keyword}}" bindinput="onKeyword" bindconfirm="onSearch" confirm-type="search" />
+    <view class="add-btn" bindtap="onAdd">＋ 新建</view>
+  </view>
+
+  <view wx:if="{{loading && !styles.length}}" class="state text-3">加载中…</view>
+  <view wx:elif="{{error && !styles.length}}" class="state">
+    <view class="text-3">加载失败，请重试</view>
+    <button class="btn btn-ghost state-btn" bindtap="reload">重新加载</button>
+  </view>
+  <empty-state wx:elif="{{!styles.length}}" text="暂无款式" sub="点击「＋ 新建」创建第一个款式" />
+  <view wx:else>
+    <view class="card style-card" wx:for="{{styles}}" wx:key="id" bindtap="onCardTap" data-index="{{index}}">
+      <view class="row">
+        <image wx:if="{{item.imageUrl}}" class="style-img" src="{{item.imageUrl}}" mode="aspectFill" />
+        <view wx:else class="style-img style-img-ph text-3">图</view>
+        <view class="style-main">
+          <view class="row">
+            <view class="item-title">{{item.style_no}}</view>
+            <view class="spacer"></view>
+            <view class="menu-dot" data-index="{{index}}" catchtap="onCardMenu">⋮</view>
+          </view>
+          <view class="text-2">{{item.name}}</view>
+          <view class="row price-row">
+            <view class="price num" wx:if="{{!hideStylePrice}}">¥{{item.priceText}}</view>
+            <!-- TODO: 系统设置「隐藏款式总单价」开启时此处留白，后续可改为「已隐藏」提示 -->
+            <view class="spacer"></view>
+            <view class="text-3" wx:if="{{item.customer_name}}">客户：{{item.customer_name}}</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="load-more text-3" wx:if="{{hasMore}}" bindtap="loadMore">
+      {{loading ? '加载中…' : '上拉加载更多'}}
+    </view>
+  </view>
+
+  <!-- ============ 新建/编辑款式弹层 ============ -->
+  <view class="mask" wx:if="{{formVisible}}" bindtap="onCloseForm">
+    <view class="sheet" catchtap="noop">
+      <view class="row sheet-head">
+        <view class="h2">{{form.id ? '编辑款式' : '新建款式'}}</view>
+        <view class="spacer"></view>
+        <view class="text-3" bindtap="onCloseForm">关闭</view>
+      </view>
+
+      <scroll-view scroll-y class="sheet-body">
+        <view class="field">
+          <text class="label">款号 *</text>
+          <input class="input" placeholder="请输入款号" value="{{form.style_no}}" bindinput="onFormNo" />
+        </view>
+        <view class="field">
+          <text class="label">名称 *</text>
+          <input class="input" placeholder="请输入款式名称" value="{{form.name}}" bindinput="onFormName" />
+        </view>
+        <!-- 款式图片（≤9 张，与工艺图片同款九宫格：标签在上，格子图在下方） -->
+        <view class="field field-top">
+          <text class="label">款式图片（最多 9 张）</text>
+        </view>
+        <view class="craft-grid">
+          <view class="craft-cell" wx:for="{{form.imageUrls}}" wx:key="*this">
+            <image class="craft-thumb" src="{{item}}" mode="aspectFill" data-index="{{index}}" bindtap="onPreviewStyleImage" />
+            <view class="form-img-del" data-index="{{index}}" catchtap="onRemoveFormImage">×</view>
+          </view>
+          <view class="craft-cell craft-add" wx:if="{{9 > form.images.length}}" bindtap="onFormImage">
+            <text>{{form.uploading ? '…' : '＋'}}</text>
+          </view>
+        </view>
+        <picker mode="selector" range="{{customerNames}}" value="{{form.customerIndex}}" bindchange="onFormCustomer">
+          <view class="field">
+            <text class="label">客户</text>
+            <view class="input">{{form.customerIndex > 0 ? customerNames[form.customerIndex] : '不关联客户'}} ▾</view>
+          </view>
+        </picker>
+        <!-- 面料：常用面料点选 + 自定义输入（选填，建床时作默认面料） -->
+        <view class="field">
+          <text class="label">面料</text>
+          <input class="input" placeholder="选填，点下方常用面料或自定义输入" value="{{form.fabric}}" bindinput="onFormFabric" />
+          <view wx:if="{{fabricOptions.length}}" class="fh-chips">
+            <view
+              wx:for="{{fabricOptions}}"
+              wx:key="*this"
+              class="fh-chip {{form.fabric === item ? 'fh-on' : ''}}"
+              data-name="{{item}}"
+              bindtap="onPickFabric"
+            >{{item}}</view>
+          </view>
+        </view>
+        <!-- 工艺说明（多行，建单/订单详情展示） -->
+        <view class="field field-top">
+          <text class="label">工艺说明</text>
+          <textarea
+            class="craft-textarea"
+            placeholder="工艺流程说明，建单/开床时会展示（选填）"
+            value="{{form.craft_note}}"
+            bindinput="onFormCraftNote"
+            maxlength="500"
+          />
+        </view>
+
+        <!-- 工艺图片（≤9 张，点图预览） -->
+        <view class="field field-top">
+          <text class="label">工艺图片</text>
+        </view>
+        <view class="craft-grid">
+          <view class="craft-cell" wx:for="{{form.craftImageUrls}}" wx:key="*this">
+            <image class="craft-thumb" src="{{item}}" mode="aspectFill" data-index="{{index}}" bindtap="onPreviewCraftImage" />
+            <view class="form-img-del" data-index="{{index}}" catchtap="onRemoveCraftImage">×</view>
+          </view>
+          <view class="craft-cell craft-add" wx:if="{{9 > form.craftImages.length}}" bindtap="onFormCraftImages">
+            <text>{{form.craftUploading ? '…' : '＋'}}</text>
+          </view>
+        </view>
+
+        <!-- 产品视频（mp4/m4v/mov/3gp / ≤100MB，前端预校验） -->
+        <view class="field field-top">
+          <text class="label">产品视频</text>
+          <view class="spacer"></view>
+          <view wx:if="{{form.videoUrl}}" class="text-3" catchtap="onRemoveFormVideo">删除视频</view>
+        </view>
+        <view class="video-row" wx:if="{{form.videoUrl}}">
+          <video class="craft-video" src="{{form.videoUrl}}" object-fit="contain" controls />
+        </view>
+        <view wx:else class="video-row">
+          <view class="craft-video-add" bindtap="onFormVideo">
+            {{form.videoUploading ? '视频上传中…' : '＋ 选择视频（mp4/m4v/mov/3gp，≤100MB）'}}
+          </view>
+        </view>
+
+      </scroll-view>
+
+      <button class="btn btn-info sheet-save" loading="{{saving}}" bindtap="onSave">保存</button>
+    </view>
+  </view>
+</view>

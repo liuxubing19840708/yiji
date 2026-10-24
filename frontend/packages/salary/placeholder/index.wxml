@@ -1,0 +1,6 @@
+<view class="page">
+  <view class="card">
+    <view class="h2">薪酬分包占位页</view>
+    <view class="text-3">Wave 2 Agent F：薪酬管理/我的薪酬/结算/申请 全套页面放 packages/salary/ 下</view>
+  </view>
+</view>

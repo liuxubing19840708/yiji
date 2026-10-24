@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "成衣加工生产看板",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "bed-progress": "/components/bed-progress/index"
+  }
+}

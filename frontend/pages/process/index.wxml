@@ -1,0 +1,155 @@
+<!-- 工序 Tab：固定工序开关 + 本人指定工序（规格 §9.1） -->
+<view class="page">
+
+  <view class="card">
+    <view class="row">
+      <view class="h2">固定工序</view>
+      <view class="spacer"></view>
+      <!-- 管理员可新建工序档案（后端需「款式管理」权限） -->
+      <view wx:if="{{isAdmin}}" class="add-proc-btn" bindtap="onOpenAdd">＋ 新建工序</view>
+    </view>
+    <view class="text-3">开启后成为扫菲可选工序；整件工厂只留「整件」即可扫码直登{{isAdmin ? '；长按工序可删除' : ''}}</view>
+
+    <!-- 加载中 -->
+    <view wx:if="{{loading}}" class="state-tip">加载中…</view>
+
+    <!-- 失败态 -->
+    <block wx:elif="{{loadError}}">
+      <view class="state-tip text-danger">加载失败</view>
+      <button class="btn btn-plain retry-btn" bindtap="onRetry">重试</button>
+    </block>
+
+    <!-- 空态 -->
+    <empty-state wx:elif="{{!list.length}}" text="暂无工序"
+                 sub="{{isAdmin ? '点右上「＋ 新建工序」添加' : '请联系管理员添加工序'}}" />
+
+    <!-- 列表 -->
+    <block wx:else><view class="proc-list">
+      <view wx:for="{{list}}" wx:key="id" class="proc-row" data-id="{{item.id}}" bindlongpress="onDeleteProcess">
+        <view class="row">
+          <view class="proc-name">{{item.name}}</view>
+          <view class="spacer"></view>
+          <view class="toggle {{item.is_fixed ? 'on' : ''}} {{savingId === item.id ? 'disabled' : ''}}" data-id="{{item.id}}" bindtap="onToggleFixed">
+            <view class="toggle-knob"></view>
+          </view>
+        </view>
+      </view>
+    </view></block>
+  </view>
+
+  <!-- 工序模板（管理员可见）：建单页「关联工序」一键填充用 -->
+  <view class="card" wx:if="{{canManage}}">
+    <view class="row">
+      <view class="h2">工序模板</view>
+      <view class="spacer"></view>
+      <view class="add-proc-btn" bindtap="onAddTemplate">＋ 新建模板</view>
+    </view>
+    <view class="text-3">常用工序组合存成模板，建单时一键带出工序和工价</view>
+
+    <view wx:if="{{tplLoading && !templates.length}}" class="state-tip">加载中…</view>
+    <block wx:elif="{{tplDown}}">
+      <view class="state-tip text-3">模板服务升级中，请稍后再试</view>
+    </block>
+    <block wx:elif="{{!templates.length}}">
+      <view class="state-tip text-3">暂无模板，点右上「＋ 新建模板」创建</view>
+    </block>
+    <block wx:else><view class="proc-list">
+      <view wx:for="{{templates}}" wx:key="id" class="proc-row" data-id="{{item.id}}" bindtap="onTapTemplate" bindlongpress="onDeleteTemplate">
+        <view class="row">
+          <view class="proc-name">{{item.name}}</view>
+          <view class="spacer"></view>
+          <view class="badge">{{item.count}} 道工序</view>
+        </view>
+        <view class="text-3 tpl-summary">{{item.summary}}</view>
+      </view>
+    </view></block>
+  </view>
+
+  <view class="card">
+    <view class="row">
+      <view class="h2">我的指定工序</view>
+      <view class="spacer"></view>
+      <view class="text-3" bindtap="goAssign">去配置 ></view>
+    </view>
+    <view class="text-3">管理员在员工管理中为员工指定的工序，扫菲时与固定工序一并供选</view>
+
+    <empty-state wx:if="{{!loading && !loadError && !assigned.length}}" text="暂未指定工序" sub="未指定时仅可选固定工序" />
+
+    <view wx:else class="assigned-list">
+      <view wx:for="{{assigned}}" wx:key="id" class="assigned-item">
+        <view class="badge">{{item.name}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 新建工序弹层（管理员）：取消/创建放标题行，键盘弹出不遮挡 -->
+  <view class="mask" wx:if="{{showAdd}}" bindtap="onCloseAdd">
+    <view class="sheet" catchtap="stopBubble">
+      <view class="sheet-head">
+        <view class="sheet-title">新建工序</view>
+        <view class="spacer"></view>
+        <button class="btn btn-plain head-btn" bindtap="onCloseAdd" disabled="{{addSaving}}">取消</button>
+        <button class="btn btn-primary head-btn" loading="{{addSaving}}" bindtap="onConfirmAdd">创建</button>
+      </view>
+      <scroll-view scroll-y class="sheet-body" scroll-into-view="{{focusId}}"
+                   style="{{kbHeight ? 'padding-bottom:' + kbHeight + 'px' : ''}}">
+        <view class="sheet-field">
+          <text class="sheet-label">工序名称</text>
+          <input class="sheet-input" id="f-add-name" adjust-position="{{false}}"
+                 placeholder="如：车缝" value="{{addName}}" bindinput="onAddName"
+                 bindfocus="onFieldFocus" maxlength="20" />
+        </view>
+        <view class="sheet-field">
+          <text class="sheet-label">默认单价</text>
+          <input class="sheet-input" id="f-add-price" adjust-position="{{false}}" type="digit"
+                 placeholder="0.000（可留空，款式工序里再上价）"
+                 value="{{addPrice}}" bindinput="onAddPrice" bindfocus="onFieldFocus" />
+        </view>
+      <view class="text-3 sheet-tip">创建后可在此列表打开「固定工序」开关；单价也可在款式「工序单价」里按款式单独配</view>
+      </scroll-view>
+    </view>
+  </view>
+
+  <!-- 模板新建/编辑弹层：取消/保存在标题行（键盘盖不住，项目既有教训） -->
+  <view class="mask" wx:if="{{showTpl}}" bindtap="onCloseTpl">
+    <view class="sheet" catchtap="stopBubble">
+      <view class="sheet-head">
+        <view class="sheet-title">{{tplEditingId ? '编辑模板' : '新建模板'}}</view>
+        <view class="spacer"></view>
+        <button class="btn btn-plain head-btn" bindtap="onCloseTpl" disabled="{{tplSaving}}">取消</button>
+        <button class="btn btn-primary head-btn" loading="{{tplSaving}}" bindtap="onConfirmTpl">保存</button>
+      </view>
+      <scroll-view scroll-y class="sheet-body" scroll-into-view="{{focusId}}"
+                   style="{{kbHeight ? 'padding-bottom:' + kbHeight + 'px' : ''}}">
+        <view class="sheet-field">
+          <text class="sheet-label">模板名称</text>
+          <input class="sheet-input" id="f-tpl-name" adjust-position="{{false}}"
+                 placeholder="如：普通卫衣套" value="{{tplName}}" bindinput="onTplName"
+                 bindfocus="onFieldFocus" maxlength="20" />
+        </view>
+        <view class="text-3 tpl-chips-tip">点选工序（可多选）：</view>
+        <view class="tpl-chips">
+          <view
+            wx:for="{{tplChips}}"
+            wx:key="id"
+            class="tpl-chip {{item.selected ? 'tpl-chip-on' : ''}}"
+            data-index="{{index}}"
+            bindtap="onTplToggleChip"
+          >{{item.name}}</view>
+        </view>
+        <block wx:if="{{tplRows.length}}">
+          <view class="text-3 tpl-chips-tip">已选工序工价（元/件，可改）：</view>
+          <view class="sheet-field" wx:for="{{tplRows}}" wx:key="id">
+            <text class="sheet-label">{{item.name}}</text>
+            <input class="sheet-input" id="f-tpl-row-{{index}}" adjust-position="{{false}}" type="digit" placeholder="0"
+                   value="{{item.price}}"
+                   data-chip="{{item.chipIdx}}"
+                   bindfocus="onFieldFocus"
+                   bindinput="onTplPrice" />
+          </view>
+        </block>
+      </scroll-view>
+    </view>
+  </view>
+
+</view>

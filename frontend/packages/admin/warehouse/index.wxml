@@ -1,0 +1,96 @@
+<view class="page">
+  <view class="tabs">
+    <view class="tab {{tab === 'purchase' ? 'active' : ''}}" data-tab="purchase" bindtap="onTab">采购单</view>
+    <view class="tab {{tab === 'stockin' ? 'active' : ''}}" data-tab="stockin" bindtap="onTab">入库单</view>
+    <view class="tab {{tab === 'issue' ? 'active' : ''}}" data-tab="issue" bindtap="onTab">领料单</view>
+  </view>
+
+  <view class="toolbar">
+    <view class="add-btn" wx:if="{{canManage}}" bindtap="onToggleForm">{{showForm ? '收起表单' : '＋ 新建'}}</view>
+  </view>
+
+  <!-- ============ 新建表单（单行明细，最小可用） ============ -->
+  <view class="card form" wx:if="{{showForm}}">
+    <block wx:if="{{tab === 'purchase'}}">
+      <input class="input" placeholder="供应商（可空）" value="{{supplier}}" bindinput="onSupplier" />
+      <picker mode="date" value="{{orderedDate}}" bindchange="onOrderedDate">
+        <view class="input picker">采购日期：{{orderedDate || '点选（默认今天）'}}</view>
+      </picker>
+    </block>
+
+    <block wx:if="{{tab === 'issue'}}">
+      <picker range="{{productions}}" range-key="label" bindchange="onPickProduction">
+        <view class="input picker">领用床次：{{productionIndex >= 0 ? productions[productionIndex].label : '点选'}}</view>
+      </picker>
+      <picker range="{{lots}}" range-key="label" bindchange="onPickLot">
+        <view class="input picker">面料批次：{{lotIndex >= 0 ? lots[lotIndex].label : '点选'}}</view>
+      </picker>
+    </block>
+
+    <block wx:if="{{tab !== 'issue'}}">
+      <input class="input" placeholder="面料名称（必填）" value="{{fabric}}" bindinput="onFabric" />
+      <input class="input" placeholder="颜色（可空）" value="{{color}}" bindinput="onColor" />
+    </block>
+
+    <block wx:if="{{tab === 'stockin'}}">
+      <input class="input" placeholder="批次号（供应商原始编号，必填）" value="{{lotNo}}" bindinput="onLotNo" />
+    </block>
+
+    <input class="input" type="digit" placeholder="数量（可空）" value="{{qty}}" bindinput="onQty" />
+    <button class="btn btn-primary" loading="{{saving}}" bindtap="onSubmit">
+      {{tab === 'issue' ? '保存领料单' : tab === 'stockin' ? '保存入库单' : '保存采购单'}}
+    </button>
+    <view class="text-3 hint" wx:if="{{tab === 'stockin'}}">批次不存在时自动创建；确认后批次正式生效</view>
+    <view class="text-3 hint" wx:if="{{tab === 'issue'}}">确认领料单后自动写入床次×批次血缘（追溯可见）</view>
+  </view>
+
+  <!-- ============ 列表 ============ -->
+  <view wx:if="{{loading}}" class="state text-3">加载中…</view>
+
+  <block wx:elif="{{tab === 'purchase'}}">
+    <view wx:if="{{!purchaseOrders.length}}" class="state text-3">暂无采购单</view>
+    <view class="card item" wx:for="{{purchaseOrders}}" wx:key="id">
+      <view class="row">
+        <view class="item-title">{{item.order_no}}</view>
+        <view class="badge {{item.status === 'done' ? 'badge-green' : 'badge-gray'}}">{{item.status === 'done' ? '已生效' : '草稿'}}</view>
+      </view>
+      <view class="text-3">{{item.supplier_name || '-'}} · {{item.ordered_at}}</view>
+      <view class="text-3" wx:for="{{item.items}}" wx:for-item="it" wx:key="id">
+        {{it.fabric_name}} {{it.color || ''}} ×{{it.qty}}{{it.unit || ''}}
+      </view>
+      <button wx:if="{{item.status === 'draft'}}" class="btn btn-ghost confirm-btn"
+              data-tab="purchase" data-index="{{index}}" wx:if="{{canManage}}" bindtap="onConfirm">确认</button>
+    </view>
+  </block>
+
+  <block wx:elif="{{tab === 'stockin'}}">
+    <view wx:if="{{!stockIns.length}}" class="state text-3">暂无入库单</view>
+    <view class="card item" wx:for="{{stockIns}}" wx:key="id">
+      <view class="row">
+        <view class="item-title">{{item.in_no}}</view>
+        <view class="badge {{item.status === 'done' ? 'badge-green' : 'badge-gray'}}">{{item.status === 'done' ? '已生效' : '草稿'}}</view>
+      </view>
+      <view class="text-3">{{item.in_at}}</view>
+      <view class="text-3" wx:for="{{item.items}}" wx:for-item="it" wx:key="id">
+        {{it.fabric_name}} {{it.color || ''}} · 批次 {{it.lot_no}} ×{{it.qty}}{{it.unit || ''}}
+      </view>
+      <button wx:if="{{item.status === 'draft'}}" class="btn btn-ghost confirm-btn"
+              data-tab="stockin" data-index="{{index}}" wx:if="{{canManage}}" bindtap="onConfirm">确认</button>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view wx:if="{{!issues.length}}" class="state text-3">暂无领料单</view>
+    <view class="card item" wx:for="{{issues}}" wx:key="id">
+      <view class="row">
+        <view class="item-title">{{item.issue_no}}</view>
+        <view class="badge {{item.status === 'confirmed' ? 'badge-green' : 'badge-gray'}}">{{item.status === 'confirmed' ? '已确认' : '草稿'}}</view>
+      </view>
+      <view class="text-3" wx:for="{{item.items}}" wx:for-item="it" wx:key="id">
+        床次 {{it.bed_no}} · 批次 {{it.lot_no}} ×{{it.qty}}
+      </view>
+      <button wx:if="{{item.status === 'draft'}}" class="btn btn-ghost confirm-btn"
+              data-tab="issue" data-index="{{index}}" wx:if="{{canManage}}" bindtap="onConfirm">确认（写血缘）</button>
+    </view>
+  </block>
+</view>

@@ -1,0 +1,44 @@
+.copyright {
+  text-align: center;
+  margin-top: 40rpx;
+}
+
+/* 常驻两块数字（§2.8 P0）：今日件数 / 今日预估工资，白卡横条置顶 */
+.today-strip {
+  display: flex;
+  align-items: center;
+  background: var(--color-card, #FFFFFF);
+  border-radius: var(--radius-lg, 20rpx);
+  box-shadow: var(--shadow);
+  padding: 28rpx 12rpx;
+  margin-bottom: 20rpx;
+}
+
+.today-cell {
+  flex: 1;
+  text-align: center;
+}
+
+.today-num {
+  font-size: 44rpx;
+  font-weight: 600;
+  color: var(--color-text, #1F2329);
+  font-variant-numeric: tabular-nums;
+}
+
+.today-num.accent {
+  color: var(--color-primary, #FF7A00);
+}
+
+.today-label {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: var(--color-text-3, #86909C);
+}
+
+.today-divider {
+  width: 2rpx;
+  height: 64rpx;
+  background: var(--color-border, #E5E6EB);
+  flex-shrink: 0;
+}

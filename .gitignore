@@ -5,3 +5,6 @@
 node_modules/
 miniprogram_npm/
 dist/
+
+# frontend 旧仓库历史备份（并入父仓库后保留）
+frontend-git-history/

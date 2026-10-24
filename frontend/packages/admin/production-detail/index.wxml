@@ -1,0 +1,147 @@
+<view class="page">
+  <view wx:if="{{loading && !prod}}" class="state text-3">加载中…</view>
+  <view wx:elif="{{error && !prod}}" class="state">
+    <view class="text-3">加载失败，请重试</view>
+    <button class="btn btn-ghost state-btn" bindtap="reload">重新加载</button>
+  </view>
+
+  <block wx:if="{{prod}}">
+    <!-- ============ 基本信息 ============ -->
+    <view class="card">
+      <view class="row">
+        <view class="h2">床次 {{prod.bed_no}}</view>
+        <view class="badge badge-gray" wx:if="{{prod.is_locked}}">已锁定</view>
+        <view class="badge badge-green" wx:if="{{prod.is_cut_done}}">裁完</view>
+        <view class="spacer"></view>
+        <view class="mini-btn" wx:if="{{canLock}}" bindtap="onToggleLock">{{prod.is_locked ? '解锁' : '锁定'}}</view>
+        <view class="mini-btn" bindtap="onToggleCutDone">{{prod.is_cut_done ? '取消裁完' : '置裁完'}}</view>
+      </view>
+      <view class="head-body">
+        <image wx:if="{{styleImageUrl}}" class="detail-thumb" src="{{styleImageUrl}}" mode="aspectFill" />
+        <view class="head-info">
+          <view class="info-row"><text class="info-label">款号</text><text>{{prod.style_no}}</text></view>
+          <view class="info-row"><text class="info-label">款式</text><text>{{prod.style_name}}</text></view>
+          <view class="info-row"><text class="info-label">总量</text><text class="num">{{prod.total_qty}} 件</text></view>
+        </view>
+      </view>
+      <view class="info-row" wx:if="{{prod.plan_qty}}"><text class="info-label">计划裁货</text><text class="num">{{prod.plan_qty}} 件</text></view>
+      <view class="info-row"><text class="info-label">订单类型</text><text>{{prod.order_type}}</text></view>
+      <view class="info-row"><text class="info-label">面料</text><text>{{prod.fabric || '-'}}</text></view>
+    </view>
+
+    <!-- ============ 完成矩阵（参考「工序完成明细」：每颜色 裁货数/已完成/余数 三行 + 合计列） ============ -->
+    <view class="card">
+      <view class="row sec-head">
+        <view class="h2">完成矩阵</view>
+        <view class="spacer"></view>
+        <view class="text-3 num" wx:if="{{!cutFailed}}">总 {{cutTotalQty}} 件</view>
+      </view>
+      <view wx:if="{{cutFailed}}" class="text-3">完成矩阵暂不可用，可在下方菲票列表查看各扎数据</view>
+      <block wx:else>
+        <view wx:if="{{!cutRows.length}}" class="text-3">暂无裁货数据（编菲后自动汇总）</view>
+        <scroll-view wx:else scroll-x class="matrix-scroll">
+          <view class="mx">
+            <view class="mx-row mx-head">
+              <view class="mx-color mx-headcell">颜色/尺寸</view>
+              <view class="mx-label mx-headcell">尺码</view>
+              <view class="mx-cell mx-headcell" wx:for="{{cutCols}}" wx:key="uk">{{item.size}}</view>
+              <view class="mx-total mx-headcell">合计</view>
+            </view>
+            <view class="mx-block" wx:for="{{cutRows}}" wx:for-item="row" wx:key="color">
+              <view class="mx-colorcol">{{row.color}}</view>
+              <view class="mx-body">
+                <view class="mx-row">
+                  <view class="mx-label mx-cut">裁货数</view>
+                  <view class="mx-cell mx-cut num" wx:for="{{row.cells}}" wx:for-item="cell" wx:key="uk">{{cell.qty}}</view>
+                  <view class="mx-total mx-cut num">{{row.total.qty}}</view>
+                </view>
+                <view class="mx-row">
+                  <view class="mx-label mx-done">已完成</view>
+                  <view class="mx-cell mx-done num" wx:for="{{row.cells}}" wx:for-item="cell" wx:key="uk">{{cell.reg}}</view>
+                  <view class="mx-total mx-done num">{{row.total.reg}}</view>
+                </view>
+                <view class="mx-row">
+                  <view class="mx-label mx-left">余数</view>
+                  <view class="mx-cell mx-left num" wx:for="{{row.cells}}" wx:for-item="cell" wx:key="uk">{{cell.left}}</view>
+                  <view class="mx-total mx-left num">{{row.total.left}}</view>
+                </view>
+              </view>
+            </view>
+          </view>
+        </scroll-view>
+      </block>
+    </view>
+
+    <!-- ============ 订单工序（可覆盖款式单价） ============ -->
+    <view class="card">
+      <view class="row sec-head">
+        <view class="h2">订单工序</view>
+        <view class="spacer"></view>
+        <view class="text-3">可覆盖款式单价</view>
+      </view>
+      <view wx:if="{{orderLoading}}" class="text-3">加载中…</view>
+      <block wx:else>
+        <hint-toggle wx:if="{{!orderRows.length}}" text="未配置订单工序（扫菲按款式工序计价）" />
+        <view class="row o-row" wx:for="{{orderRows}}" wx:key="process">
+          <view class="o-name">{{item.process_name}}</view>
+          <view class="text-3" wx:if="{{item.isSaved}}">默认 {{item.priceText}}</view>
+          <view class="spacer"></view>
+          <text class="text-3">单价</text>
+          <input class="o-price num" type="digit" placeholder="0.000"
+                 value="{{item.price}}" data-index="{{index}}" bindinput="onOrderPrice" />
+          <view class="o-del" data-index="{{index}}" bindtap="onRemoveOrderRow">✕</view>
+        </view>
+        <picker wx:if="{{processNames.length}}" mode="selector" range="{{processNames}}" bindchange="onPickProcess">
+          <button class="btn btn-ghost o-add">＋ 添加工序</button>
+        </picker>
+        <button class="btn btn-info o-save" wx:if="{{orderRows.length}}" loading="{{savingOrder}}" bindtap="onSaveOrderProcesses">保存订单工序</button>
+      </block>
+    </view>
+
+    <!-- ============ 菲票列表 ============ -->
+    <view class="card">
+      <view class="row sec-head">
+        <view class="h2">菲票列表</view>
+        <view class="spacer"></view>
+        <view class="text-3 num">{{bundles.length}} 扎</view>
+      </view>
+      <view wx:if="{{bundlesLoading}}" class="text-3">加载中…</view>
+      <empty-state wx:elif="{{!bundles.length}}" text="该床次暂无菲票" sub="编菲后自动生成菲票" />
+      <view wx:else>
+        <view class="b-card" wx:for="{{bundles}}" wx:key="id" data-index="{{index}}" bindtap="onOpenBundleRecords">
+          <view class="row b-title-row">
+            <view class="b-title num">扎号：{{item.bundle_no}}</view>
+            <view class="spacer"></view>
+            <view class="b-print-badge {{item.is_printed ? 'on' : ''}}">{{item.is_printed ? '已打印' : '未打印'}}</view>
+          </view>
+          <view class="b-grid">
+            <view class="b-grid-item"><view class="b-grid-val">{{item.color}}</view><view class="b-grid-label">颜色</view></view>
+            <view class="b-grid-item"><view class="b-grid-val">{{item.size}}</view><view class="b-grid-label">尺码</view></view>
+            <view class="b-grid-item"><view class="b-grid-val num">{{item.qty}}</view><view class="b-grid-label">件数</view></view>
+            <view class="b-grid-item"><view class="b-grid-val num">{{item.processCount}}</view><view class="b-grid-label">工序</view></view>
+          </view>
+          <view class="b-ticket-row" wx:if="{{item.qr_code}}">
+            <view class="text-3 b-ticket-code num">{{item.qr_code}}</view>
+            <view class="spacer"></view>
+            <view class="link b-ticket-link" wx:if="{{canPrint}}" data-index="{{index}}" catchtap="onShowBundleTicket">查看菲票</view>
+          </view>
+          <view class="b-progress-row">
+            <view class="text-3">已完成工序数：<text class="num">{{item.regCount}}</text></view>
+          </view>
+          <view class="b-track"><view class="b-bar" style="width: {{item.pct}}%;"></view></view>
+          <view class="b-workers text-3" wx:if="{{item.workers}}">完成人：{{item.workers}}</view>
+        </view>
+        <hint-toggle text="点菲票查看该扎登记明细；「查看菲票」可回看票面并补打" />
+      </view>
+    </view>
+  </block>
+
+  <!-- 菲票回看/补打弹层（菲票列表「查看菲票」入口） -->
+  <label-preview
+    show="{{previewShow}}"
+    tickets="{{previewTickets}}"
+    company="{{previewCompany}}"
+    bind:confirm="onPreviewConfirm"
+    bind:cancel="onPreviewCancel"
+  />
+</view>

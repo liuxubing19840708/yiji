@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "指定工序",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index",
+    "hint-toggle": "/components/hint-toggle/index"
+  }
+}

@@ -1,0 +1,508 @@
+/* 订单管理页样式（颜色/圆角一律取自 app.wxss 变量） */
+
+/* ---- 状态筛选 tab ---- */
+.tabs {
+  display: flex;
+  background: var(--color-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  margin-bottom: 24rpx;
+  overflow: hidden;
+}
+
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 22rpx 0;
+  color: var(--color-text-2);
+  font-size: 28rpx;
+  position: relative;
+}
+
+.tab.active {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.tab.active::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 6rpx;
+  width: 48rpx;
+  height: 6rpx;
+  border-radius: 999rpx;
+  background: var(--color-primary);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+
+.search {
+  flex: 1;
+  background: var(--color-card);
+  border-radius: 999rpx;
+  padding: 16rpx 28rpx;
+  font-size: 28rpx;
+  box-shadow: var(--shadow);
+}
+
+.add-btn {
+  margin-left: 16rpx;
+  background: var(--color-primary);
+  color: #ffffff;
+  font-size: 26rpx;
+  padding: 16rpx 24rpx;
+  border-radius: 999rpx;
+  white-space: nowrap;
+}
+
+/* ---- 订单卡片 ---- */
+.item {
+  margin-bottom: 20rpx;
+}
+
+.order-no {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.item-sub {
+  margin-top: 12rpx;
+}
+
+/* 交期灯：绿/黄(≤7天)/红(过期未完成) */
+.lamp {
+  width: 18rpx;
+  height: 18rpx;
+  border-radius: 50%;
+  margin-left: 12rpx;
+  flex-shrink: 0;
+}
+
+.lamp-green { background: var(--color-success); }
+.lamp-yellow { background: var(--color-warning); }
+.lamp-red { background: var(--color-danger); }
+
+/* 完成率进度条 */
+.progress-track {
+  flex: 1;
+  height: 14rpx;
+  border-radius: 999rpx;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  border-radius: 999rpx;
+  background: var(--color-primary);
+}
+
+.progress-low {
+  background: var(--color-danger);
+}
+
+.progress-text {
+  margin-left: 16rpx;
+  flex-shrink: 0;
+}
+
+.state {
+  text-align: center;
+  padding: 120rpx 0;
+}
+
+.state-btn {
+  margin-top: 24rpx;
+  width: 240rpx;
+  font-size: 28rpx;
+  padding: 14rpx 0;
+}
+
+.load-more {
+  text-align: center;
+  padding: 24rpx 0;
+}
+
+/* ---- 新建/编辑表单 ---- */
+.sheet-head {
+  margin-bottom: 8rpx;
+}
+
+/* 单号自动生成说明行（不录入，后端 SO+日期+序号） */
+.auto-no-tip {
+  padding: 8rpx 4rpx 4rpx;
+}
+
+/* 款式选择面板 / 模板弹层共用列表 */
+.search-row {
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+}
+.search-btn {
+  color: var(--color-primary);
+  font-size: 28rpx;
+  flex-shrink: 0;
+}
+.style-list {
+  /* 弹层加高：选项少时也给足可视高度（min-height），长列表最多 68vh 可滚 */
+  max-height: 68vh;
+  min-height: 30vh;
+}
+.style-item {
+  padding: 26rpx 0;
+  border-bottom: 2rpx solid var(--color-border);
+}
+.style-item:last-child {
+  border-bottom: none;
+}
+.s-no {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+.state-tip {
+  text-align: center;
+  color: var(--color-text-3);
+  padding: 48rpx 0;
+}
+
+/* mini 按钮（选择模板等标题行动作） */
+.mini-btn {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-size: 24rpx;
+  padding: 8rpx 22rpx;
+  border-radius: 999rpx;
+  flex-shrink: 0;
+}
+
+/* ---- 备注图片九宫格 ---- */
+.img-section {
+  padding: 16rpx 4rpx 4rpx;
+}
+.img-section-label {
+  margin-bottom: 12rpx;
+}
+.img-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+.img-cell {
+  width: 152rpx;
+  height: 152rpx;
+  position: relative;
+}
+.img-thumb {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius);
+  background: var(--color-bg);
+}
+.img-del {
+  position: absolute;
+  top: -12rpx;
+  right: -12rpx;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background: var(--color-danger);
+  color: #ffffff;
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.img-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx dashed var(--color-border);
+  border-radius: var(--radius);
+  color: var(--color-text-3);
+  font-size: 48rpx;
+  background: var(--color-bg);
+}
+
+/* ---- 关联工序行 ---- */
+.proc-line-head,
+.proc-line {
+  padding: 18rpx 4rpx;
+  border-bottom: 2rpx solid var(--color-border);
+}
+.proc-line-name {
+  font-size: 28rpx;
+  flex: 1;
+  min-width: 0;
+}
+.proc-line-input {
+  width: 180rpx;
+  flex: none;
+  text-align: right;
+}
+.proc-line-del {
+  width: 56rpx;
+  text-align: center;
+  color: var(--color-text-3);
+  font-size: 36rpx;
+  flex-shrink: 0;
+}
+
+/* 行/列头铺满提示 */
+.mtx-cap-tip {
+  margin-top: 4rpx;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  border-bottom: 2rpx solid var(--color-border);
+  padding: 22rpx 4rpx;
+}
+
+.label {
+  width: 160rpx;
+  color: var(--color-text-2);
+  font-size: 28rpx;
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  font-size: 30rpx;
+}
+
+.input.placeholder {
+  color: var(--color-text-3);
+}
+
+.clear-row {
+  padding: 8rpx 4rpx 0 164rpx;
+}
+
+/* ---- 颜色/尺码 chips ---- */
+.chip-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 16rpx;
+}
+
+.chip-label {
+  width: 84rpx;
+  color: var(--color-text-2);
+  font-size: 26rpx;
+  flex-shrink: 0;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  background: var(--color-bg);
+  border: 2rpx solid var(--color-border);
+  border-radius: 999rpx;
+  padding: 6rpx 20rpx;
+  font-size: 26rpx;
+}
+
+.chip-add {
+  color: var(--color-primary);
+  border-style: dashed;
+  border-color: var(--color-primary);
+  background: var(--color-card);
+}
+
+.chip-x {
+  margin-left: 8rpx;
+  color: var(--color-text-3);
+  padding: 0 4rpx;
+}
+
+/* 点选面板（厂内历史 + 内置池） */
+.pick-panel {
+  margin: 12rpx 0 4rpx 88rpx;
+  padding: 16rpx 20rpx;
+  background: var(--color-bg);
+  border-radius: var(--radius);
+}
+
+.cp-title {
+  margin-bottom: 12rpx;
+}
+
+.cp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.cp-chip {
+  padding: 8rpx 22rpx;
+  border-radius: 999rpx;
+  background: var(--color-card);
+  border: 2rpx solid var(--color-border);
+  font-size: 26rpx;
+  color: var(--color-text);
+}
+
+.cp-chip.cp-added {
+  opacity: 0.45;
+  border-style: dashed;
+}
+
+.cp-chip.cp-custom {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+/* ---- 矩阵 ---- */
+.mtx-tip {
+  margin-top: 16rpx;
+}
+
+.mtx-scroll {
+  width: 100%;
+  margin-top: 16rpx;
+}
+
+.mtx {
+  display: inline-block;
+  min-width: 100%;
+}
+
+.mtx-row {
+  display: flex;
+  align-items: stretch;
+}
+
+.mtx-row + .mtx-row {
+  border-top: 2rpx solid var(--color-border);
+}
+
+.mtx-label {
+  width: 112rpx;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx;
+  color: var(--color-text-2);
+  background: var(--color-bg);
+  padding: 16rpx 0;
+}
+
+.mtx-cell {
+  width: 128rpx;
+  flex-shrink: 0;
+  text-align: center;
+  padding: 16rpx 4rpx;
+  box-sizing: border-box;
+  border-left: 2rpx dashed var(--color-border);
+}
+
+.mtx-cell.filled {
+  background: var(--color-primary-light);
+}
+
+.mtx-cell.filled .mtx-main {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.mtx-main {
+  font-size: 30rpx;
+  color: var(--color-text-3);
+}
+
+/* 倍数视图份数角标（件数下方「基数×份数」） */
+.mtx-sub {
+  font-size: 18rpx;
+  color: var(--color-text-3);
+}
+
+/* 倍数/排列视图的全局输入行 */
+.multi-head {
+  margin: 8rpx 0;
+}
+
+.mini-input {
+  min-width: 160rpx;
+  text-align: right;
+  color: var(--color-primary);
+  font-size: 28rpx;
+  padding: 8rpx 0 8rpx 16rpx;
+}
+
+.mtx-total {
+  width: 96rpx;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx;
+  color: var(--color-primary);
+}
+
+.mtx-head .mtx-label,
+.mtx-head .mtx-cell,
+.mtx-head .mtx-total {
+  background: var(--color-bg);
+  color: var(--color-text-2);
+  font-size: 24rpx;
+}
+
+/* ---- 底部操作 ---- */
+.save-bar {
+  margin-top: 24rpx;
+  gap: 20rpx;
+}
+
+.save-bar .btn {
+  width: auto;
+}
+
+.cancel-btn {
+  flex: 1;
+}
+
+.save-btn {
+  flex: 2;
+}
+
+.tip {
+  margin-top: 16rpx;
+  text-align: center;
+}
+
+/* ---- 数字键盘弹层 ---- */
+.mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+}
+
+.sheet {
+  width: 100%;
+  background: var(--color-card);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+/* 关联款式信息（style-craft）：紧跟款式字段下方，与上方字段留出间距 */
+.style-inline {
+  margin-top: 12rpx;
+}

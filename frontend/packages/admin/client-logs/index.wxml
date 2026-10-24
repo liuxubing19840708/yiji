@@ -1,0 +1,65 @@
+<view class="page">
+  <date-range-bar start="{{startDate}}" end="{{endDate}}" bind:change="onRangeChange" />
+
+  <!-- level 筛选 chips -->
+  <scroll-view class="chips" scroll-x enable-flex>
+    <view
+      wx:for="{{chips}}"
+      wx:key="key"
+      class="chip {{activeLevel === item.key ? 'chip-on' : ''}}"
+      data-key="{{item.key}}"
+      bindtap="onLevelTap"
+    >{{item.label}}</view>
+    <!-- 员工下钻 -->
+    <view wx:if="{{filterUserId}}" class="chip chip-user" bindtap="onClearUser">
+      {{filterUserName}} ✕
+    </view>
+    <view wx:else class="chip" bindtap="onOpenPicker">按员工看 ›</view>
+  </scroll-view>
+
+  <!-- 加载态（首屏） -->
+  <view wx:if="{{loading && !items.length}}" class="card">
+    <view class="text-3 cl-center">加载中…</view>
+  </view>
+
+  <!-- 失败态 -->
+  <view wx:elif="{{error}}" class="card" bindtap="onRetry">
+    <empty-state text="加载失败" sub="网络异常，点击重试" />
+  </view>
+
+  <!-- 空态 -->
+  <view wx:elif="{{!items.length}}" class="card">
+    <empty-state text="暂无客户端日志" sub="用户端异常与动线会上报到这里" />
+  </view>
+
+  <!-- 列表 -->
+  <block wx:else>
+    <view class="card cl-item" wx:for="{{items}}" wx:key="id" data-index="{{index}}" bindtap="onToggleDetail">
+      <view class="row">
+        <view class="badge {{item.lvClass}}">{{item.level === 'error' ? '错误' : item.level === 'warn' ? '告警' : '信息'}}</view>
+        <view class="spacer"></view>
+        <view class="text-3">{{item.timeText}}</view>
+      </view>
+      <view class="cl-message">{{item.message}}</view>
+      <view class="text-3" wx:if="{{item.page}}">页面：{{item.page}}</view>
+      <view class="row cl-meta">
+        <view class="text-3">用户：{{item.user_name || '未登录'}}{{item.user_phone ? ' ' + item.user_phone : ''}}</view>
+      </view>
+      <view wx:if="{{item.expanded && item.detail}}" class="cl-detail">{{item.detail}}</view>
+      <view wx:elif="{{item.detail}}" class="text-3 cl-hint">点击查看详情</view>
+    </view>
+
+    <view class="text-3 cl-center cl-more">
+      {{loading ? '加载中…' : (hasMore ? '上拉加载更多' : '没有更多了')}}
+    </view>
+  </block>
+
+  <!-- 员工选择器（单选下钻） -->
+  <employee-picker
+    visible="{{pickerVisible}}"
+    multi="{{false}}"
+    selected="{{[]}}"
+    bind:confirm="onPickerConfirm"
+    bind:close="onClosePicker"
+  />
+</view>

@@ -1,0 +1,341 @@
+<!-- 生产看板：生产计划表形态（浅色主题，样式只用 app.wxss 设计令牌）
+     §2.9 P0/P1：顶层页签 = 计划表 / 订单；计划表行 tap 下钻（extra.link 带参跳转，非法值忽略）；
+     P3B：新增「大屏」页签（§4.1 车间大屏简化：进行中床次 + 今日登记排行，无汇总区）；
+     筛选状态存页面 data + 全局缓存，navigateBack 返回自动恢复 -->
+<view class="page">
+  <!-- 顶部：标题 + 实时钟 -->
+  <view class="board-header">
+    <view class="board-title">生产计划看板</view>
+    <view class="board-sub">
+      <text class="board-date">{{dateText}}</text>
+      <text class="board-clock">{{clock}}</text>
+    </view>
+  </view>
+
+  <!-- 顶层页签：计划表（原看板）/ 订单（P1 订单卡片墙）/ 大屏（P3B 车间大屏） -->
+  <view class="board-tabs">
+    <view class="board-tab {{boardTab === 'plan' ? 'on' : ''}}" data-key="plan" bindtap="onBoardTab">计划表</view>
+    <view class="board-tab {{boardTab === 'orders' ? 'on' : ''}}" data-key="orders" bindtap="onBoardTab">订单</view>
+    <view class="board-tab {{boardTab === 'screen' ? 'on' : ''}}" data-key="screen" bindtap="onBoardTab">大屏</view>
+  </view>
+
+  <!-- ============ 页签一：生产计划表 ============ -->
+  <block wx:if="{{boardTab === 'plan'}}">
+    <!-- 时间范围 tab：驱动下方所有统计块与计划表（自定义=起止日时间控件） -->
+    <view class="range-tabs">
+      <view
+        wx:for="{{rangeTabs}}"
+        wx:key="key"
+        class="range-tab {{range === item.key ? 'on' : ''}}"
+        data-key="{{item.key}}"
+        bindtap="onRangeTap"
+      >{{item.label}}</view>
+    </view>
+
+    <!-- 自定义时间段（picker mode=date）：改任一端即重查全部内容 -->
+    <view class="custom-range" wx:if="{{range === 'custom'}}">
+      <picker mode="date" value="{{customStart}}" bindchange="onCustomStart">
+        <view class="cr-item">{{customStart || '开始日期'}} ▾</view>
+      </picker>
+      <text class="cr-sep">至</text>
+      <picker mode="date" value="{{customEnd}}" bindchange="onCustomEnd">
+        <view class="cr-item">{{customEnd || '结束日期'}} ▾</view>
+      </picker>
+    </view>
+
+    <!-- 维度切换（2026-10-23 用户需求）：款式=模板计划表；订单/裁床/部门/组/人=维度聚合表 -->
+    <view class="dim-tabs">
+      <view
+        wx:for="{{dimTabs}}"
+        wx:key="key"
+        class="dim-tab {{dim === item.key ? 'on' : ''}}"
+        data-key="{{item.key}}"
+        bindtap="onDimTap"
+      >{{item.label}}</view>
+    </view>
+
+    <view wx:if="{{loading && !summary}}" class="board-state">加载中…</view>
+    <view wx:elif="{{error && !summary}}" class="board-state">
+      <view>加载失败，请重试</view>
+      <button class="retry" bindtap="reload">重新加载</button>
+    </view>
+
+    <block wx:else>
+      <!-- 汇总数据条：随 range 刷新，维度切换不隐藏 -->
+      <view class="board-card">
+        <view class="stat-grid">
+          <view class="stat-item">
+            <view class="stat-num accent">{{summary.done_qty}}</view>
+            <view class="stat-label">{{rangeLabel}}完工</view>
+          </view>
+          <view class="stat-item">
+            <view class="stat-num">{{summary.working_qty}}</view>
+            <view class="stat-label">{{rangeLabel}}在制</view>
+          </view>
+          <view class="stat-item">
+            <view class="stat-num">{{summary.cut_qty}}</view>
+            <view class="stat-label">{{rangeLabel}}已裁</view>
+          </view>
+          <view class="stat-item">
+            <view class="stat-num">{{summary.registered_qty}}</view>
+            <view class="stat-label">{{rangeLabel}}登记</view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 生产计划表（款式维度 = 模板列驱动）：贴近 Excel 的横向表格，按下单日期分组，整体横向可滑 -->
+      <view class="board-card" wx:if="{{dim === 'style'}}">
+        <scroll-view scroll-x class="plan-scroll">
+          <view class="plan-table">
+            <!-- 模板信息 -->
+            <view class="pt-meta" wx:if="{{tplName}}">模板：{{tplName}}</view>
+
+            <!-- 表头：单级=列直渲；两级（列带 group）= 组头跨列 + 叶子行，无组列跨两行 -->
+            <view class="pt-row pt-head" wx:if="{{!hasGroups}}">
+              <view
+                wx:for="{{columns}}"
+                wx:key="id"
+                class="pt-cell pt-head-cell ta-{{item.align}}"
+                style="width: {{item.width}}rpx; height: {{headSingleH}}rpx;"
+              >{{item.title}}</view>
+            </view>
+            <view class="pt-head" wx:else>
+              <view class="pt-row pt-head-row">
+                <block wx:for="{{headItems}}" wx:key="key" wx:for-item="h">
+                  <view class="pt-hcol" style="width: {{h.width}}rpx;">
+                    <view wx:if="{{h.tall}}" class="pt-cell pt-head-cell tall" style="height: {{headTallH}}rpx;">{{h.group}}</view>
+                    <block wx:else>
+                      <view class="pt-cell pt-head-cell group-cell">{{h.group}}</view>
+                      <view class="pt-row">
+                        <view
+                          wx:for="{{h.leaves}}"
+                          wx:key="id"
+                          wx:for-item="lf"
+                          class="pt-cell pt-head-cell leaf"
+                          style="width: {{lf.width}}rpx; height: {{headH}}rpx;"
+                        >{{lf.title}}</view>
+                      </view>
+                    </block>
+                  </view>
+                </block>
+              </view>
+            </view>
+
+            <!-- 按下单日期分组渲染（不再输出单独的日期小标题行，日期用「下单日期」列随款块合并展示）。
+                 块 = 按模板列展开的「列段」横向 flex：merge=block 的列整段一格拉伸块高，
+                 merge=value 的列块内连续同值合并，其余逐行一格；
+                 行高固定（rowH）保证跨列段对齐，列线由真实格边框画出，无取整缝；
+                 配了 extra.link 的列（或款号列兜底）单元格可点，带参下钻（data-nav 为空则 tap 无效） -->
+            <block wx:for="{{groups}}" wx:key="date" wx:for-item="group">
+              <view class="pt-block {{blk.alt ? 'pt-alt' : ''}}" wx:for="{{group.blocks}}" wx:for-item="blk" wx:key="key">
+                <view
+                  wx:for="{{blk.segs}}"
+                  wx:key="colId"
+                  wx:for-item="seg"
+                  class="pt-seg"
+                  style="width: {{seg.width}}rpx;"
+                >
+                  <view
+                    wx:for="{{seg.cells}}"
+                    wx:key="index"
+                    wx:for-item="cell"
+                    class="pt-cell pt-body-cell {{seg.cls}}"
+                    style="height: {{cell.height}}rpx;"
+                    data-nav="{{cell.nav}}"
+                    bindtap="onCellTap"
+                  >
+                    <view class="pt-cell-text pre">{{cell.text}}</view>
+                  </view>
+                </view>
+              </view>
+            </block>
+          </view>
+        </scroll-view>
+        <view wx:if="{{!groups.length}}" class="card-empty">暂无生产计划</view>
+      </view>
+
+      <!-- 维度聚合表（订单/裁床/部门/组/人）：后端 /dashboard/dim 扁平表直接渲染；
+           订单/裁床行可点下钻详情，其余维度只读 -->
+      <view class="board-card" wx:else>
+        <view wx:if="{{dimLoading && !dimCols.length}}" class="card-empty">加载中…</view>
+        <view wx:elif="{{dimError && !dimCols.length}}" class="board-state">
+          <view>加载失败，请重试</view>
+          <button class="retry" bindtap="onRetryDim">重新加载</button>
+        </view>
+        <block wx:else>
+          <scroll-view scroll-x class="plan-scroll">
+            <view class="plan-table">
+              <view class="pt-row pt-head">
+                <view
+                  wx:for="{{dimCols}}"
+                  wx:key="key"
+                  class="pt-cell pt-head-cell"
+                  style="width: {{item.width}}rpx; height: {{headSingleH}}rpx;"
+                >{{item.title}}</view>
+              </view>
+              <view
+                wx:for="{{dimRows}}"
+                wx:key="key"
+                wx:for-item="row"
+                class="pt-row {{row.nav ? 'dim-click' : ''}}"
+                data-index="{{index}}"
+                bindtap="onDimRowTap"
+              >
+                <view
+                  wx:for="{{dimCols}}"
+                  wx:key="key"
+                  wx:for-item="col"
+                  wx:for-index="ci"
+                  class="pt-cell pt-body-cell"
+                  style="width: {{col.width}}rpx; height: {{rowH}}rpx;"
+                >{{row.cells[ci]}}</view>
+              </view>
+            </view>
+          </scroll-view>
+          <view wx:if="{{!dimRows.length}}" class="card-empty">{{rangeLabel}}暂无登记数据</view>
+          <view wx:if="{{dimRows.length && (dim === 'order' || dim === 'bed')}}" class="card-empty">点行可下钻查看详情</view>
+        </block>
+      </view>
+
+      <!-- 登记排行：范围内登记件数 Top 员工 -->
+      <view class="board-card">
+        <view class="card-title">登记排行 · {{rangeLabel}}</view>
+        <view class="rank" wx:for="{{rank}}" wx:key="user_id">
+          <view class="rank-no {{3 > index ? 'top' : ''}}">{{index + 1}}</view>
+          <view class="rank-name">{{item.name}}</view>
+          <view class="rank-sub">{{item.ticket_count}} 张菲票</view>
+          <view class="rank-qty accent">{{item.qty}} 件</view>
+        </view>
+        <view wx:if="{{!rank.length}}" class="card-empty">{{rangeLabel}}暂无登记</view>
+      </view>
+
+      <!-- 组排行：范围内登记件数按组编号聚合（与员工组编号联动） -->
+      <view class="board-card">
+        <view class="card-title">组排行 · {{rangeLabel}}</view>
+        <view class="rank" wx:for="{{groupRank}}" wx:key="group_no">
+          <view class="rank-no {{3 > index ? 'top' : ''}}">{{index + 1}}</view>
+          <view class="rank-name">{{item.group_no ? item.group_no + '组' : '未分组'}}</view>
+          <view class="rank-sub">{{item.user_count}} 人 · {{item.ticket_count}} 张菲票</view>
+          <view class="rank-qty accent">{{item.qty}} 件</view>
+        </view>
+        <view wx:if="{{!groupRank.length}}" class="card-empty">{{rangeLabel}}暂无登记</view>
+      </view>
+
+      <!-- 工序占比：范围内登记件数 Top 6（横向进度条） -->
+      <view class="board-card">
+        <view class="card-title">工序占比 · {{rangeLabel}}</view>
+        <view class="proc" wx:for="{{processes}}" wx:key="name">
+          <view class="proc-head">
+            <text class="proc-name">{{item.name}}</text>
+            <text class="proc-val">{{item.qty}} 件 · {{item.percent}}%</text>
+          </view>
+          <view class="bar">
+            <view class="bar-fill" style="width: {{item.barWidth}}"></view>
+          </view>
+        </view>
+        <view wx:if="{{!processes.length}}" class="card-empty">{{rangeLabel}}暂无登记数据</view>
+      </view>
+    </block>
+  </block>
+
+  <!-- ============ 页签二：车间大屏（P3B §4.1 简化） ============
+       保留=进行中床次进度卡（床次号/款号/登记进度条，共用组件 bed-progress）+
+       今日登记排行 TopN；砍掉=与生产计划表重复的汇总统计区；
+       床次卡 tap → 床次详情（复用 navigateTo） -->
+  <block wx:elif="{{boardTab === 'screen'}}">
+    <view wx:if="{{screenLoading && !screenLoaded}}" class="board-state">加载中…</view>
+    <view wx:elif="{{screenError && !screenBeds.length}}" class="board-state">
+      <view>加载失败，请重试</view>
+      <button class="retry" bindtap="onRetryScreen">重新加载</button>
+    </view>
+    <block wx:else>
+      <view class="board-card">
+        <view class="card-title">进行中床次 · {{screenBeds.length}}</view>
+        <bed-progress
+          wx:if="{{screenBeds.length}}"
+          beds="{{screenBeds}}"
+          clickable
+          bindbedtap="onScreenBedTap"
+        />
+        <view wx:else class="card-empty">暂无进行中的床次</view>
+      </view>
+
+      <view class="board-card">
+        <view class="card-title">今日登记排行 · Top {{screenRankTop}}</view>
+        <view class="rank" wx:for="{{screenRank}}" wx:key="user_id">
+          <view class="rank-no {{3 > index ? 'top' : ''}}">{{index + 1}}</view>
+          <view class="rank-name">{{item.name}}</view>
+          <view class="rank-sub">{{item.ticket_count}} 张菲票</view>
+          <view class="rank-qty accent">{{item.qty}} 件</view>
+        </view>
+        <view wx:if="{{!screenRank.length}}" class="card-empty">今日暂无登记</view>
+      </view>
+    </block>
+  </block>
+
+  <!-- ============ 页签三：订单卡片墙（§2.9 P1） ============
+       卡片 = 单号+状态徽标 / 客户·交期灯 / 完成率环形 / 落后色码 chip；
+       卡头 = 未挂单床次汇总；后端 /orders 未就绪 → 「服务升级中」空态（不白屏） -->
+  <block wx:else>
+    <view wx:if="{{ordersLoading}}" class="board-card">
+      <view class="card-empty">订单加载中…</view>
+    </view>
+    <view wx:elif="{{ordersError}}" class="board-card ord-upgrade">
+      <view class="ord-upgrade-icon">🛠️</view>
+      <view class="ord-upgrade-title">服务升级中</view>
+      <view class="text-3">订单管理正在升级，稍后再来看看</view>
+      <button class="retry" bindtap="onRetryOrders">重新加载</button>
+    </view>
+    <block wx:else>
+      <view class="board-card">
+        <view class="stat-grid">
+          <view class="stat-item">
+            <view class="stat-num accent">{{orders.length}}</view>
+            <view class="stat-label">订单</view>
+          </view>
+          <view class="stat-item">
+            <view class="stat-num">{{unlinkedBeds.count}}</view>
+            <view class="stat-label">未挂单床次</view>
+          </view>
+          <view class="stat-item">
+            <view class="stat-num">{{unlinkedBeds.qty}}</view>
+            <view class="stat-label">未挂单裁货</view>
+          </view>
+        </view>
+      </view>
+
+      <view class="ord-wall" wx:if="{{orders.length}}">
+        <view class="ord-card" wx:for="{{orders}}" wx:key="id" data-index="{{index}}" bindtap="onOrderTap">
+          <view class="ord-head">
+            <view class="ord-no">{{item.orderNo}}</view>
+            <view class="ord-badge {{item.statusCls}}">{{item.statusText}}</view>
+          </view>
+          <view class="ord-meta">
+            <text class="text-3" wx:if="{{item.customerName}}">{{item.customerName}}</text>
+            <text class="text-3">交期 {{item.deliveryText}}</text>
+          </view>
+          <view class="ord-body">
+            <view class="ord-ring" style="{{item.ringStyle}}">
+              <view class="ord-ring-hole">
+                <view class="ord-ring-num">{{item.progress}}%</view>
+              </view>
+            </view>
+            <view class="ord-side">
+              <view class="ord-light-row">
+                <view class="lamp {{item.lightCls}}"></view>
+                <text class="text-2">{{item.lightText}}</text>
+              </view>
+              <view class="ord-chips">
+                <view wx:if="{{item.behind}}" class="ord-chip ord-chip-behind">落后</view>
+                <view class="ord-chip">{{item.totalQty}} 件</view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view wx:else class="board-card">
+        <view class="card-empty">暂无订单</view>
+      </view>
+    </block>
+  </block>
+</view>

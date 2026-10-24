@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "衣计",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "module-grid": "/components/module-grid/index",
+    "date-range-bar": "/components/date-range-bar/index"
+  }
+}

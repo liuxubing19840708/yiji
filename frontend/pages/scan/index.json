@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "扫菲",
+  "usingComponents": {
+    "numeric-keypad": "/components/numeric-keypad/index",
+    "style-craft": "/components/style-craft/index",
+    "hint-toggle": "/components/hint-toggle/index"
+  }
+}

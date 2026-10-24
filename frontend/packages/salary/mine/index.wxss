@@ -1,0 +1,71 @@
+/* 我的薪酬 / 员工薪酬详情（2026-10-22 参考竞品改版） */
+.loading { padding: 40rpx 0; text-align: center; }
+
+/* 头部卡：已结/未结两栏 + 计件/固定/总三列 + 工序数 + 动作行 */
+.head-card { margin-top: 16rpx; }
+.sum-duo { display: flex; align-items: center; }
+.sum-duo-item { flex: 1; display: flex; align-items: baseline; justify-content: center; }
+.sum-duo-label { font-size: 30rpx; font-weight: 600; color: var(--color-text); }
+.sum-duo-num { font-size: 40rpx; font-weight: 600; }
+.sum-duo-num.settled { color: var(--color-success); }
+.sum-duo-num.unset { color: var(--color-primary); }
+.sum-duo-divider { width: 2rpx; height: 48rpx; background: var(--color-border); }
+.sum-trio { display: flex; margin-top: 20rpx; padding-top: 20rpx; border-top: 2rpx dashed var(--color-border); }
+.sum-trio-item { flex: 1; text-align: center; }
+.sum-trio-label { font-size: 24rpx; color: var(--color-text-3); }
+.sum-trio-num { font-size: 32rpx; font-weight: 600; margin-top: 6rpx; }
+.sum-links { display: flex; align-items: center; margin-top: 20rpx; padding-top: 16rpx; border-top: 2rpx dashed var(--color-border); }
+.sum-link { flex: 1; text-align: center; color: var(--color-primary); font-size: 26rpx; }
+.sum-link.dim { color: var(--color-text-3); }
+.sum-link-divider { width: 2rpx; height: 28rpx; background: var(--color-border); }
+.sum-acts { display: flex; align-items: center; margin-top: 20rpx; padding-top: 16rpx; border-top: 2rpx solid var(--color-border); }
+.sum-act { flex: 1; text-align: center; font-size: 28rpx; color: var(--color-text); }
+.sum-act-divider { width: 2rpx; height: 32rpx; background: var(--color-border); }
+
+/* 主 Tab / 子 Tab */
+.seg { background: var(--color-bg); border-radius: 12rpx; padding: 6rpx; margin: 16rpx 0; }
+.seg-item { flex: 1; text-align: center; padding: 12rpx 0; border-radius: 10rpx; color: var(--color-text-2); font-size: 26rpx; }
+.seg-item.on { background: var(--color-primary); color: var(--color-card); }
+.subseg { margin-bottom: 16rpx; }
+.subseg-item { padding: 8rpx 24rpx; border-radius: 999rpx; font-size: 24rpx; color: var(--color-text-2); background: var(--color-bg); margin-right: 16rpx; }
+.subseg-item.on { background: var(--color-primary-light); color: var(--color-primary); }
+
+/* 汇总行 + 三视图列表 */
+.sum-card { margin-bottom: 16rpx; }
+.list-card { padding: 8rpx 24rpx; }
+.date-row { padding: 22rpx 0; border-bottom: 1rpx solid var(--color-border); }
+.list-card .date-row:last-child { border-bottom: none; }
+.date-mid { color: var(--color-text-2); }
+.date-amount { color: var(--color-primary); font-size: 30rpx; font-weight: 600; }
+
+/* 按裁床查看 */
+.card-list { margin-bottom: 16rpx; }
+.bed-card { margin-bottom: 16rpx; }
+.bed-title { font-size: 30rpx; font-weight: 600; }
+.bed-right { text-align: right; }
+.bed-amount { color: var(--color-primary); font-size: 32rpx; font-weight: 600; }
+.bed-grid { display: flex; margin-top: 16rpx; padding-top: 16rpx; border-top: 2rpx dashed var(--color-border); }
+.bed-grid-item { flex: 1; text-align: center; }
+.bed-grid-num { font-size: 30rpx; font-weight: 600; }
+.bed-grid-label { font-size: 24rpx; color: var(--color-text-3); margin-top: 4rpx; }
+
+/* 汇总查看（按款式） */
+.style-card { margin-bottom: 16rpx; }
+.style-main { flex: 1; min-width: 0; }
+.style-no { font-size: 30rpx; font-weight: 600; }
+.style-thumb { width: 120rpx; height: 120rpx; border-radius: var(--radius); background: var(--color-bg); flex-shrink: 0; }
+.style-grid { display: flex; margin-top: 16rpx; padding-top: 16rpx; border-top: 2rpx dashed var(--color-border); }
+.style-grid-item { flex: 1; font-size: 26rpx; }
+.style-amount { color: var(--color-primary); font-weight: 600; }
+
+/* 固定工资 */
+.f-row { padding: 16rpx 0; border-bottom: 1rpx solid var(--color-border); }
+.f-row:last-child { border-bottom: none; }
+.note-input { background: var(--color-bg); border-radius: 12rpx; padding: 16rpx 20rpx; margin: 16rpx 0; }
+
+/* 结算记录 */
+.r-card { margin-bottom: 16rpx; }
+.load-more { text-align: center; padding: 20rpx 0; }
+
+/* 工资计算方式标签（四类工资制头部展示） */
+.st-tag { margin-left: 12rpx; padding: 2rpx 12rpx; border-radius: 8rpx; font-size: 22rpx; color: var(--color-primary); background: rgba(47, 111, 91, 0.08); flex-shrink: 0; }

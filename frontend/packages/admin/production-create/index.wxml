@@ -1,0 +1,354 @@
+<!-- 建床向导（重设计 §2.6.1，2026-10-23 精简）：①选单选款（订单入口直达）②生成扎 + 成功页；
+     裁剪计划/工序工价环节已去掉（订单类型/客户/面料以订单页为准，床次号自动顺延，
+     工序在床次详情配置） -->
+<view class="page">
+
+  <!-- ================= 步骤条 ================= -->
+  <view class="card wiz-card" wx:if="{{step <= 4}}">
+    <view class="wiz-steps">
+      <block wx:for="{{steps}}" wx:key="no">
+        <view class="wiz-step {{step >= item.no ? 'on' : ''}}">
+          <view class="wiz-dot num">{{index + 1}}</view>
+          <view class="wiz-name">{{item.name}}</view>
+        </view>
+        <view wx:if="{{index < steps.length - 1}}" class="wiz-line {{step > (index + 1) ? 'on' : ''}}"></view>
+      </block>
+    </view>
+  </view>
+
+  <!-- ================= 第 1 步：选单选款 ================= -->
+  <block wx:if="{{step === 1}}">
+    <!-- 挂单（可选）：订单入口带客户+色码余量，可跳过 -->
+    <view class="card">
+      <view class="row">
+        <view class="h2">挂单</view>
+        <view class="spacer"></view>
+        <view class="text-3">可选</view>
+      </view>
+      <block wx:if="{{order}}">
+        <view class="row order-brief">
+          <view class="order-main">
+            <view class="num order-no">{{order.order_no}}</view>
+            <view class="text-3">{{order.customer_name || '未指定客户'}}{{order.delivery_date ? ' · 交期 ' + order.delivery_date : ''}}</view>
+            <view class="text-3 num" wx:if="{{orderRemainingTotal > 0}}">订单余量 {{orderRemainingTotal}} 件（生成扎时自动预填）</view>
+          </view>
+          <view class="spacer"></view>
+          <view class="mini-btn ghost" bindtap="onSkipOrder">不挂单</view>
+        </view>
+      </block>
+      <block wx:else>
+        <view class="text-3 order-brief">散单 / 翻单可不挂单，直接选款式开床</view>
+        <view class="row order-brief">
+          <view class="mini-btn" bindtap="onOpenOrderPanel">选择生产中订单</view>
+        </view>
+      </block>
+    </view>
+
+    <!-- 款式：挂单带款式=只读继承；挂单无款式（老订单）=补选；无单=必选 -->
+    <view class="card">
+      <block wx:if="{{order && order.style}}">
+        <view class="field">
+          <text class="label">款式</text>
+          <view class="input">
+            {{order.style_name || (style ? style.style_no + ' ' + style.name : '随订单自动带出')}}（由订单带出）
+          </view>
+        </view>
+        <hint-toggle text="挂单开床：款式随订单继承，无需选择；工序工价可在保存后于床次详情配置" />
+      </block>
+      <block wx:elif="{{order}}">
+        <view class="field" bindtap="onOpenStylePanel">
+          <text class="label">款式 *</text>
+          <view class="input {{style ? '' : 'placeholder'}}">
+            {{style ? style.style_no + ' ' + style.name : '该订单未关联款式，点按补选'}} ›
+          </view>
+        </view>
+        <hint-toggle text="该订单创建时未关联款式（老订单），补选一次即可；工序工价可在保存后于床次详情配置" />
+      </block>
+      <block wx:else>
+        <view class="field" bindtap="onOpenStylePanel">
+          <text class="label">款式 *</text>
+          <view class="input {{style ? '' : 'placeholder'}}">
+            {{style ? style.style_no + ' ' + style.name : '点按选择款式'}} ›
+          </view>
+        </view>
+        <hint-toggle text="工序工价可在保存后于床次详情逐条配置" />
+      </block>
+    </view>
+
+    <button class="btn btn-primary" bindtap="goNext">下一步</button>
+  </block>
+
+  <!-- 裁剪计划/工序工价环节已去掉（2026-10-23 / 2026-10-21 用户拍板）：
+       床次号自动顺延、订单类型/客户/面料随订单或取默认、工序在床次详情配置 -->
+
+<!-- ================= 生成扎（编菲矩阵，订单入口直达本页） ================= -->
+  <block wx:if="{{step === 4}}">
+
+    <!-- 床次上下文 + 实时尾扎预览 -->
+    <view class="card">
+      <view class="row">
+        <view class="h2">编菲 {{prodStyleNo}}</view>
+        <view class="spacer"></view>
+        <view class="badge">床次 {{prodBedNo}}</view>
+      </view>
+      <view wx:if="{{prodStyleName}}" class="text-3">{{prodStyleName}}</view>
+      <view wx:if="{{order}}" class="text-3 num">挂单 {{order.order_no}} · 订单余量 {{orderRemainingTotal}} 件</view>
+      <!-- 实时尾扎预览（竞品细节）：输入每扎上限后显示 -->
+      <view wx:if="{{tailSummary}}" class="tail-summary num">{{tailSummary}}</view>
+
+      <!-- 颜色 / 尺码 chips -->
+      <view class="chip-row">
+        <text class="chip-label">颜色</text>
+        <view class="chip" wx:for="{{colors}}" wx:key="*this">
+          <text>{{item}}</text>
+          <text class="chip-x" data-color="{{item}}" catchtap="onRemoveColor">⊗</text>
+        </view>
+        <view class="chip chip-add" bindtap="onAddColor">+ 添加</view>
+      </view>
+      <!-- 颜色点选面板：厂内常用色（历史用量倒序）+ 内置常用色，点选代替手写 -->
+      <view wx:if="{{colorPanelVisible}}" class="color-panel">
+        <view class="text-3 cp-title">点选常用色 · 再点「＋添加」收起</view>
+        <view class="cp-chips">
+          <view
+            wx:for="{{colorOptions}}"
+            wx:key="name"
+            class="cp-chip {{item.added ? 'cp-added' : ''}}"
+            data-name="{{item.name}}"
+            bindtap="onPickColorChip"
+          >{{item.name}}</view>
+          <view class="cp-chip cp-custom" bindtap="onOpenColorCustom">自定义…</view>
+        </view>
+      </view>
+      <view class="chip-row">
+        <text class="chip-label">尺码</text>
+        <view class="chip" wx:for="{{sizes}}" wx:key="*this">
+          <text>{{item}}</text>
+          <text class="chip-x" data-size="{{item}}" catchtap="onRemoveSize">⊗</text>
+        </view>
+        <view class="chip chip-add" bindtap="onAddSize">+ 添加</view>
+      </view>
+      <!-- 尺码点选面板：厂内历史尺码（用量倒序）+ 内置尺码池，点选代替手写 -->
+      <view wx:if="{{sizePanelVisible}}" class="color-panel">
+        <view class="text-3 cp-title">点选常用尺码 · 再点「＋添加」收起</view>
+        <view class="cp-chips">
+          <view
+            wx:for="{{sizeOptions}}"
+            wx:key="name"
+            class="cp-chip {{item.added ? 'cp-added' : ''}}"
+            data-name="{{item.name}}"
+            bindtap="onPickSizeChip"
+          >{{item.name}}</view>
+          <view class="cp-chip cp-custom" bindtap="onOpenSizeCustom">自定义…</view>
+        </view>
+      </view>
+      <view wx:if="{{!colors.length}}" class="text-3">请先添加颜色，再点格子录入件数</view>
+    </view>
+
+    <!-- 视图页签 -->
+    <view class="tabs">
+      <view
+        wx:for="{{views}}"
+        wx:key="key"
+        class="tab {{view === item.key ? 'on' : ''}}"
+        data-key="{{item.key}}"
+        bindtap="onSwitchView"
+      >{{item.name}}</view>
+    </view>
+
+    <!-- 矩阵（横向 / 纵向 / 倍数 / 排列 共用表格） -->
+    <view class="card" wx:if="{{view === 'h' || view === 'v' || view === 'multi' || view === 'array'}}">
+      <view wx:if="{{view === 'multi'}}" class="row multi-head">
+        <text class="text-2">基数（件/份）</text>
+        <view class="spacer"></view>
+        <view class="mini-input num" bindtap="onTapMultiBase">{{multiBase || '点按输入'}} ›</view>
+      </view>
+      <view wx:if="{{view === 'array'}}" class="row multi-head">
+        <text class="text-2">每格件数</text>
+        <view class="spacer"></view>
+        <view class="mini-input num" bindtap="onInputArrayQty">{{arrayQty || '点按输入'}} ›</view>
+        <view class="mini-btn" bindtap="onApplyArray">一键铺满</view>
+      </view>
+
+      <!-- 矩阵标题：行/列轴 + 数量格标识 -->
+      <view class="mtx-cap">
+        <text class="text-3">{{view === 'v' ? '行：尺码 · 列：颜色' : '行：颜色 · 列：尺码'}}</text>
+        <view class="spacer"></view>
+        <text class="text-3 num">数量（件）</text>
+      </view>
+      <scroll-view scroll-x class="mtx-scroll">
+        <view class="mtx">
+          <view class="mtx-row mtx-head">
+            <view class="mtx-label head">{{view === 'v' ? '尺码＼颜色' : '颜色＼尺码'}}</view>
+            <view class="mtx-cell head {{view !== 'array' ? 'cpy' : ''}}" wx:for="{{mtxCols}}" wx:key="*this" data-col="{{index}}" bindtap="onTapColHead">{{item}}</view>
+            <view class="mtx-total head">合计</view>
+          </view>
+          <view class="mtx-row" wx:for="{{mtxRows}}" wx:key="label" wx:for-item="row">
+            <view class="mtx-label {{view !== 'array' ? 'cpy' : ''}}" data-row="{{index}}" bindtap="onTapRowHead">{{row.label}}</view>
+            <view
+              wx:for="{{row.cells}}"
+              wx:key="key"
+              wx:for-item="cell"
+              class="mtx-cell {{cell.main ? 'filled' : ''}} {{mtxEditable ? 'tappable' : ''}}"
+              data-key="{{cell.key}}"
+              bindtap="onTapCell"
+            >
+              <view class="mtx-main num">{{cell.main || '·'}}</view>
+              <view wx:if="{{cell.sub}}" class="mtx-sub">{{cell.sub}}</view>
+            </view>
+            <view class="mtx-total num">{{row.total}}</view>
+          </view>
+        </view>
+      </scroll-view>
+      <view class="row mtx-foot">
+        <hint-toggle text="{{view === 'multi' ? '格子输入份数，件数=基数×份数；点行/列头整行整列复制' : (view === 'array' ? '预览：等差铺满结果，点「一键铺满」生效' : '点格子录入件数；点行头/列头整行/整列复制')}}" />
+        <view class="spacer"></view>
+        <view class="badge">总件数 {{grandTotal}}</view>
+      </view>
+    </view>
+
+    <!-- 扎号视图：起始扎号 + 每扎上限 + 拆扎预览（尾扎可微调 + 实时尾扎预览） -->
+    <view class="card" wx:if="{{view === 'bundle'}}">
+      <view class="row">
+        <text class="text-2">起始扎号</text>
+        <view class="spacer"></view>
+        <view class="mini-input num" bindtap="onTapStartBundleNo">{{startBundleNo}} ›</view>
+      </view>
+      <view class="row">
+        <text class="text-2">每扎上限（件）</text>
+        <view class="spacer"></view>
+        <view class="mini-input num" bindtap="onTapBundleLimit">{{bundleLimit}} ›</view>
+      </view>
+      <view wx:if="{{tailSummary}}" class="tail-preview num">{{tailSummary}}</view>
+      <view class="row bundle-head">
+        <view class="h2">拆扎预览</view>
+        <view class="spacer"></view>
+        <view class="badge">共 {{bundleRows.length}} 扎 / {{bundleTotal}} 件</view>
+      </view>
+      <view wx:if="{{!bundleRows.length}}" class="text-3">尚无件数录入，请先在横向/排列视图填格子</view>
+      <view wx:else class="bundle-list">
+        <view
+          wx:for="{{bundleRows}}"
+          wx:key="no"
+          class="row bundle-item {{item.isTail ? 'tail' : ''}}"
+          data-index="{{index}}"
+          bindtap="onTapBundle"
+        >
+          <view class="bundle-no num">{{item.no}}</view>
+          <view class="bundle-info">
+            <view>{{item.color}} · {{item.size}}</view>
+            <view class="text-3">{{item.isTail ? '尾扎 · 点按微调件数' : '整扎'}}</view>
+          </view>
+          <view class="spacer"></view>
+          <view class="num bundle-qty">{{item.qty}} 件</view>
+        </view>
+      </view>
+      <hint-toggle text="保存时按「每扎上限」提交，扎号唯一性由后端兜底顺延" />
+    </view>
+
+    <!-- 匹号与物料视图已下线（2026-10-21 用户拍板） -->
+
+    <!-- 底部操作：上一步（橙描边）/ 清空（橙）/ 保存（蓝） -->
+    <view class="row save-bar">
+      <button class="btn btn-plain back-btn" bindtap="goPrev">上一步</button>
+      <button class="btn btn-clear clear-btn" bindtap="onClearMatrix">清空</button>
+      <button class="btn btn-info save-btn" loading="{{saving}}" bindtap="onSaveMatrix">保存菲票</button>
+    </view>
+  </block>
+
+  <!-- ================= 第 5 步：成功页（落床次详情 + 引导打印，可跳过） ================= -->
+  <block wx:if="{{step === 5}}">
+    <view class="card done-card">
+      <view class="done-icon">✓</view>
+      <view class="h2 done-title">编菲完成</view>
+      <view class="text-3 num">已生成 {{createdCount}} 张菲票 · 床次 {{prodBedNo}}</view>
+
+      <button class="btn btn-primary done-btn" wx:if="{{canPrint}}" bindtap="onPreviewPrint">打印菲票（{{createdCount}} 张）</button>
+      <hint-toggle text="{{canPrint ? '未连接打印机？可跳过，稍后在「打印管理」补打' : '当前账号无打印权限，可到「打印管理」查看打印队列'}}" />
+      <button class="btn btn-info done-btn" bindtap="goProductionDetail">查看床次详情</button>
+      <button class="btn btn-plain done-btn" bindtap="finishWizard">稍后再说</button>
+    </view>
+  </block>
+
+  <!-- ================= 款式选择面板 ================= -->
+  <view class="mask" wx:if="{{stylePanelVisible}}" bindtap="onCloseStylePanel">
+    <view class="sheet" catchtap="noop">
+      <view class="row sheet-head">
+        <view class="h2">选择款式</view>
+        <view class="spacer"></view>
+        <view class="text-3" bindtap="onCloseStylePanel">关闭</view>
+      </view>
+      <view class="row search-row">
+        <input class="search" placeholder="款号 / 名称" value="{{styleKeyword}}" bindinput="onStyleKeyword" bindconfirm="onStyleSearch" confirm-type="search" />
+        <view class="search-btn" bindtap="onStyleSearch">搜索</view>
+      </view>
+
+      <scroll-view scroll-y class="style-list">
+        <view wx:if="{{styleLoading}}" class="text-3 state-tip">加载中…</view>
+        <view wx:elif="{{styleError}}" class="text-3 state-tip">加载失败，请重试</view>
+        <empty-state wx:elif="{{!styleOptions.length}}" text="未找到款式" sub="换个关键字试试" />
+        <view wx:else>
+          <view class="row style-item" wx:for="{{styleOptions}}" wx:key="id" data-index="{{index}}" bindtap="onPickStyle">
+            <view class="style-main">
+              <view class="s-no">{{item.style_no}}</view>
+              <view class="text-3">{{item.name}}{{item.customer_name ? ' · ' + item.customer_name : ''}}</view>
+            </view>
+            <view class="spacer"></view>
+            <view class="text-3">选择 ›</view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+
+  <!-- ================= 挂单选择面板 ================= -->
+  <view class="mask" wx:if="{{orderPanelVisible}}" bindtap="onCloseOrderPanel">
+    <view class="sheet" catchtap="noop">
+      <view class="row sheet-head">
+        <view class="h2">选择生产中订单</view>
+        <view class="spacer"></view>
+        <view class="text-3" bindtap="onCloseOrderPanel">关闭</view>
+      </view>
+      <scroll-view scroll-y class="style-list">
+        <view wx:if="{{orderLoading}}" class="text-3 state-tip">加载中…</view>
+        <view wx:elif="{{!orderOptions.length}}" class="text-3 state-tip">暂无生产中订单，可不挂单直接开床</view>
+        <view wx:else>
+          <view class="row style-item" wx:for="{{orderOptions}}" wx:key="id" data-index="{{index}}" bindtap="onPickOrder">
+            <view class="style-main">
+              <view class="s-no num">{{item.order_no}}</view>
+              <view class="text-3">{{item.customer_name || '未指定客户'}}{{item.delivery_date ? ' · 交期 ' + item.delivery_date : ''}}</view>
+            </view>
+            <view class="spacer"></view>
+            <view class="text-3">挂单 ›</view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+
+  <!-- 数字键盘弹层（编菲主输入源，规格 §21.3） -->
+  <view class="mask" wx:if="{{sheetVisible}}" bindtap="onCloseSheet">
+    <view class="sheet" catchtap="noop">
+      <view class="row sheet-head">
+        <view class="h2">{{sheetTitle}}</view>
+        <view class="spacer"></view>
+        <view class="text-3" bindtap="onCloseSheet">取消</view>
+      </view>
+      <numeric-keypad
+        id="mtx-keypad"
+        decimal="{{false}}"
+        placeholder="0"
+        bind:input="onSheetInput"
+        bind:confirm="onSheetConfirm"
+      />
+    </view>
+  </view>
+
+  <!-- 打印预览弹层（成功页引导打印；确认后发蓝牙，可跳过） -->
+  <label-preview
+    show="{{previewShow}}"
+    tickets="{{previewTickets}}"
+    company="{{previewCompany}}"
+    bind:confirm="onPreviewConfirm"
+    bind:cancel="onPreviewCancel"
+  />
+</view>

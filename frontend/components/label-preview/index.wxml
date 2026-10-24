@@ -1,0 +1,20 @@
+<!-- 打印预览弹层：按当前模板渲染标签实打效果（二维码+字段+纸张比例），确认后发蓝牙 -->
+<view class="lp-mask" wx:if="{{show}}" catchtap="onCancel" catchtouchmove="noop">
+  <view class="lp-panel" catchtap="noop">
+    <view class="lp-title">打印预览</view>
+    <view class="lp-hint">{{styleLabel}} · 预览与实打同一排版坐标</view>
+
+    <view class="lp-stage">
+      <view wx:if="{{canPrev}}" class="lp-nav lp-nav-l" catchtap="onPrev">‹</view>
+      <canvas type="2d" id="lp-canvas" class="lp-canvas" style="width: {{canvasCssW}}px; height: {{canvasCssH}}px;"></canvas>
+      <view wx:if="{{canNext}}" class="lp-nav lp-nav-r" catchtap="onNext">›</view>
+    </view>
+    <view class="lp-index" wx:if="{{count > 1}}">{{index + 1}} / {{count}}</view>
+    <view class="lp-ticket">床次 {{curTicket.bed_no || '—'}} · 第 {{curTicket.bundle_no || '—'}} 扎 · {{curTicket.color || '—'}} {{curTicket.size || '—'}} · {{curTicket.qty}} 件</view>
+
+    <view class="lp-btns">
+      <button class="lp-btn lp-cancel" catchtap="onCancel">取消</button>
+      <button class="lp-btn lp-ok" catchtap="onConfirm">确认打印{{count > 1 ? '（共 ' + count + ' 张）' : ''}}</button>
+    </view>
+  </view>
+</view>

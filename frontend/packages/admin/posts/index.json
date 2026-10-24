@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "岗位管理",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index",
+    "hint-toggle": "/components/hint-toggle/index"
+  }
+}

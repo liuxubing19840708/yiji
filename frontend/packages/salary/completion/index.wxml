@@ -1,0 +1,113 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading text-3">加载中…</view>
+
+  <block wx:elif="{{!error}}">
+    <date-range-bar start="{{start}}" end="{{end}}" quick="{{quick}}" bind:change="onRangeChange" />
+
+    <!-- 汇总头 + 筛选（§13.1） -->
+    <view class="card head-card">
+      <view class="row">
+        <view class="h2 num">完成总数(件)：{{totalQty}}</view>
+      </view>
+      <view class="row filter-row">
+        <picker class="filter-picker" mode="selector" range="{{userOptions}}" range-key="name" value="{{userIndex}}" bindchange="onUserFilter">
+          <view class="filter-btn">员工：{{userOptions.length ? (userOptions[userIndex].name || '全部') : '加载中'}} ▾</view>
+        </picker>
+        <picker class="filter-picker" mode="selector" range="{{customerOptions}}" range-key="name" value="{{customerIndex}}" bindchange="onCustomerFilter">
+          <view class="filter-btn">客户：{{customerOptions.length ? (customerOptions[customerIndex].name || '全部') : '加载中'}} ▾</view>
+        </picker>
+      </view>
+    </view>
+
+    <!-- 层 2/3 面包屑返回 -->
+    <view wx:if="{{level >= 2}}" class="row crumb-row">
+      <view class="crumb" bindtap="onBackLevel1">‹ 款式列表</view>
+      <view class="spacer" />
+      <view class="h2">{{styleNo}}</view>
+    </view>
+    <view wx:if="{{level >= 3}}" class="row crumb-row">
+      <view class="crumb" bindtap="onBackLevel2">‹ 工序列表</view>
+      <view class="spacer" />
+      <view class="text-2">工序：{{processName}}</view>
+    </view>
+
+    <!-- 层 1：款式卡 -->
+    <block wx:if="{{level === 1}}">
+      <empty-state wx:if="{{!styles.length}}" text="该期间暂无完成登记" sub="切换日期或筛选后重试" />
+      <view class="card s-card" wx:for="{{styles}}" wx:key="styleId"
+            data-id="{{item.styleId}}" data-no="{{item.styleNo}}" bindtap="onOpenStyle">
+        <view class="row">
+          <view class="h2">款号：{{item.styleNo}}</view>
+          <view class="spacer" />
+          <view class="num qty-badge">{{item.qty}}(件)</view>
+        </view>
+        <view class="row s-nums">
+          <view class="text-3 num">单价：{{item.priceText}}元</view>
+          <view class="spacer" />
+          <view class="num text-primary s-amount">总额：{{item.amountText}}元</view>
+        </view>
+        <view class="row s-foot">
+          <view class="text-3 num">{{item.processCount}} 道工序</view>
+          <view class="spacer" />
+          <view class="text-3">查看工序 ›</view>
+        </view>
+      </view>
+    </block>
+
+    <!-- 层 2：工序行（§13.1 工序：整件 | 数量：476 >） -->
+    <block wx:if="{{level === 2}}">
+      <empty-state wx:if="{{!processes.length}}" text="该款式暂无完成登记" />
+      <view class="card p-card" wx:for="{{processes}}" wx:key="processId"
+            data-id="{{item.processId}}" data-name="{{item.name}}" bindtap="onOpenProcess">
+        <view class="row">
+          <view class="text-2">工序：{{item.name}}</view>
+          <view class="spacer" />
+          <view class="num">数量：{{item.qty}}</view>
+          <view class="text-3 p-caret">›</view>
+        </view>
+        <view class="row">
+          <view class="text-3 num">单价：{{item.priceText}}元 · {{item.users}} 人参与</view>
+          <view class="spacer" />
+          <view class="num text-primary">金额：{{item.amountText}}元</view>
+        </view>
+      </view>
+    </block>
+
+    <!-- 层 3：颜色×尺码矩阵 + 逐员工工资表 -->
+    <block wx:if="{{level === 3}}">
+      <view class="card">
+        <view class="h2">颜色 × 尺码</view>
+        <empty-state wx:if="{{!matrix.length}}" text="暂无矩阵数据" />
+        <view class="row m-row" wx:for="{{matrix}}" wx:key="color">
+          <view class="m-color text-2">{{item.color}}</view>
+          <view class="spacer" />
+          <view class="num text-3">{{item.sizesText}}</view>
+        </view>
+      </view>
+      <view class="card">
+        <view class="h2">逐员工工资</view>
+        <empty-state wx:if="{{!employees.length}}" text="暂无员工明细" />
+        <view wx:else>
+          <view class="row e-head text-3">
+            <view class="e-col">姓名</view>
+            <view class="e-col num">数量</view>
+            <view class="e-col num">单价</view>
+            <view class="e-col num e-right">金额</view>
+          </view>
+          <view class="row e-row" wx:for="{{employees}}" wx:key="userId">
+            <view class="e-col text-2">{{item.userName}}</view>
+            <view class="e-col num">{{item.qty}}</view>
+            <view class="e-col num">{{item.priceText}}</view>
+            <view class="e-col num e-right text-primary">{{item.amountText}}</view>
+          </view>
+        </view>
+      </view>
+    </block>
+  </block>
+
+  <block wx:else>
+    <view class="card">
+      <empty-state text="{{error}}" sub="下拉刷新重试" />
+    </view>
+  </block>
+</view>

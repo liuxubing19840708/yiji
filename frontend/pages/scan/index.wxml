@@ -1,0 +1,204 @@
+<!-- 扫菲页：扫码态 / 菲票卡+工序选择 / 件数确认（规格 §9.2） -->
+<view class="page scan-page">
+
+  <!-- 今日累计常驻条（即时反馈，调研 §8.3；协助模式下不显示） -->
+  <view wx:if="{{todayQty !== null && !assistUserId}}" class="card today-bar">
+    <view class="badge badge-green">今日累计</view>
+    <view class="today-num"><text class="num today-qty">{{todayQty}}</text> 件</view>
+    <view class="spacer"></view>
+    <view class="today-amt num" wx:if="{{!hidePrice}}">¥{{todayAmount}}</view>
+  </view>
+
+  <!-- 协助扫菲横幅 -->
+  <view wx:if="{{assistUserId}}" class="card assist-bar">
+    <view class="row">
+      <view class="badge">协助扫菲</view>
+      <view class="assist-name">正为「{{assistName || '员工'}}」登记</view>
+    </view>
+    <view class="row assist-actions">
+      <view class="link" bindtap="onSwitchEmployee">切换员工</view>
+      <view class="link link-danger" bindtap="onExitAssist">退出协助</view>
+    </view>
+  </view>
+
+  <!-- 态一：扫码 -->
+  <block wx:if="{{state === 'idle'}}">
+    <view class="scan-hero">
+      <view class="scan-frame">
+        <view class="scan-corner tl"></view>
+        <view class="scan-corner tr"></view>
+        <view class="scan-corner bl"></view>
+        <view class="scan-corner br"></view>
+        <view class="scan-icon">⌁</view>
+      </view>
+      <view class="scan-hint">请扫描菲票</view>
+      <view wx:if="{{offlineCount > 0}}" class="text-3 offline-entry" bindtap="onTapOfflineOpen">本地待同步登记 {{offlineCount}} 条，点此查看</view>
+    </view>
+    <button class="btn btn-primary scan-btn" bindtap="onTapScan">扫 码</button>
+    <button class="btn btn-ghost scan-btn-album" bindtap="onTapScanAlbum">从相册识别</button>
+    <view class="lookup-entry" bindtap="onTapLookupOpen">⌨️ 手输查找</view>
+    <view class="scan-exit-hint">
+      <text class="text-3" wx:if="{{assistUserId}}">代登记中：点「退出协助」结束代登记</text>
+      <text class="text-3" wx:else>点相机 ✕ 关闭扫码即自动返回首页</text>
+      <view class="link" bindtap="onBackHome">返回首页</view>
+    </view>
+  </block>
+
+  <!-- 菲票信息卡（选工序 / 录件数两态共用；双击款号看款式信息） -->
+  <template name="ticket-card">
+    <view class="card ticket-card">
+      <view class="row">
+        <view class="h2 num" bindtap="onTicketStyleTap">{{ticket.styleNo}}</view>
+        <view class="spacer"></view>
+        <view class="badge">床次 {{ticket.bedNo}}</view>
+      </view>
+      <view wx:if="{{ticket.styleName}}" class="text-2">{{ticket.styleName}}</view>
+      <view class="ticket-grid">
+        <view class="ticket-item"><text class="ticket-label">扎号</text><text class="num">{{ticket.bundleNo}}</text></view>
+        <view class="ticket-item"><text class="ticket-label">颜色</text><text>{{ticket.color}}</text></view>
+        <view class="ticket-item"><text class="ticket-label">尺码</text><text>{{ticket.size}}</text></view>
+        <view class="ticket-item"><text class="ticket-label">菲票数量</text><text class="num">{{ticket.qty}}</text></view>
+      </view>
+      <view wx:if="{{ticket.registeredQty !== null}}" class="text-3">该菲票已登记 {{ticket.registeredQty}} 件</view>
+      <view wx:if="{{ticket.canPrint && ticket.prodId}}" class="link ticket-print-link" catchtap="onGotoTicketPrint">查看菲票 / 补打</view>
+    </view>
+  </template>
+
+  <!-- 态二：选择工序 -->
+  <block wx:if="{{state === 'process' && ticket}}">
+    <template is="ticket-card" data="{{ticket}}" />
+    <view class="card">
+      <view class="h2">选择工序</view>
+      <view class="text-3">多工序时选择本次登记的工序</view>
+      <view class="proc-grid">
+        <view
+          wx:for="{{processes}}"
+          wx:key="id"
+          class="proc-chip {{selectedId === item.id ? 'on' : ''}} {{item.unpriced ? 'off' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="onChooseProcess"
+        >
+          <view class="proc-name">{{item.name}}</view>
+          <view wx:if="{{item.registeredQty !== null}}" class="proc-cap num {{item.capQty !== null && item.registeredQty >= item.capQty ? 'full' : ''}}">{{item.registeredQty}}{{item.capQty !== null ? '/' + item.capQty : ''}}</view>
+          <view wx:if="{{item.unpriced}}" class="proc-badge">未上价</view>
+          <view wx:elif="{{item.priceText}}" class="proc-price num">{{item.priceText}}</view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- 态三：件数录入 + 确认登记 -->
+  <block wx:if="{{(state === 'qty' || state === 'submitting') && ticket}}">
+    <template is="ticket-card" data="{{ticket}}" />
+    <view class="card">
+      <view class="row">
+        <view class="h2">登记工序</view>
+        <view class="spacer"></view>
+        <view class="badge">{{selectedName}}</view>
+        <view wx:if="{{processes.length > 1}}" class="link switch-proc" bindtap="onSwitchProcess">切换</view>
+      </view>
+      <!-- 默认不弹键盘：直接展示默认件数（推导=余量锁定；手选=菲票扎数，可点「修改数量」展开键盘） -->
+      <block wx:if="{{fixedQty || !qtyEditing}}">
+        <view class="qty-fixed">
+          <view class="text-3">{{fixedQty ? '本次登记件数（按菲票自动推导，不可修改）' : '本次登记件数'}}</view>
+          <view class="qty-big num">{{qtyValue}}</view>
+          <view wx:if="{{!fixedQty}}" class="link qty-edit-link" bindtap="onEditQty">修改数量</view>
+        </view>
+      </block>
+      <numeric-keypad
+        wx:else
+        id="qty-keypad"
+        decimal="{{false}}"
+        placeholder="0"
+        bind:input="onQtyInput"
+        bind:confirm="onQtyConfirm"
+      />
+      <button
+        class="btn btn-primary submit-btn {{state === 'submitting' ? 'disabled' : ''}}"
+        disabled="{{state === 'submitting'}}"
+        bindtap="onTapSubmit"
+      >{{state === 'submitting' ? '登记中…' : '确认登记'}}</button>
+    </view>
+  </block>
+
+  <!-- 手输码兜底弹层（规格 §2.7.2 P0）：遮罩/sheet 均绑真实方法拦冒泡（catchtap 空串不拦） -->
+  <view wx:if="{{lookupShow}}" class="mask" catchtap="onLookupMaskTap">
+    <view class="sheet" catchtap="noop">
+      <view class="row">
+        <view class="h2">手输查找菲票</view>
+        <view class="spacer"></view>
+        <view class="link" bindtap="onLookupClose">关闭</view>
+      </view>
+      <hint-toggle text="码破损或扫码失败时，输入床次号和扎号查找" />
+      <view class="lookup-form">
+        <input class="lookup-input" value="{{lookupBed}}" placeholder="床次号" bindinput="onLookupBedInput" />
+        <input class="lookup-input" value="{{lookupBundle}}" placeholder="扎号" bindinput="onLookupBundleInput" />
+      </view>
+      <button
+        class="btn btn-primary lookup-search {{lookupLoading ? 'disabled' : ''}}"
+        disabled="{{lookupLoading}}"
+        bindtap="onLookupSearch"
+      >{{lookupLoading ? '查询中…' : '查 找'}}</button>
+      <view wx:if="{{lookupError}}" class="lookup-error">{{lookupError}}</view>
+      <view
+        wx:for="{{lookupRows}}"
+        wx:key="id"
+        class="lookup-row"
+        data-id="{{item.id}}"
+        bindtap="onPickLookupRow"
+      >
+        <view class="row">
+          <view class="h2 num">{{item.styleNo}}</view>
+          <view class="spacer"></view>
+          <view class="badge">床次 {{item.bedNo}}</view>
+        </view>
+        <view class="lookup-sub text-2">
+          <text>色 {{item.color || '-'}}</text>
+          <text>码 {{item.size || '-'}}</text>
+          <text>扎号 <text class="num">{{item.bundleNo}}</text></text>
+          <text class="spacer"></text>
+          <text class="num">{{item.qty}} 件</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 离线显式暂存弹层（规格 §2.7.3 P3）：条目摘要 + 手动重发 -->
+  <view wx:if="{{offlineShow}}" class="mask" catchtap="onOfflineMaskTap">
+    <view class="sheet" catchtap="noop">
+      <view class="row">
+        <view class="h2">离线暂存（{{offlineRows.length}}）</view>
+        <view class="spacer"></view>
+        <view class="link" bindtap="onOfflineClose">关闭</view>
+      </view>
+      <hint-toggle text="以下登记因网络不稳暂存本机，可手动重发" />
+      <view wx:for="{{offlineRows}}" wx:key="time" class="lookup-row">
+        <view class="row">
+          <view class="text-2">菲票 #{{item.ticketId}}</view>
+          <view class="spacer"></view>
+          <view class="num">{{item.qty}} 件</view>
+        </view>
+        <view class="text-3">{{item.time}} 暂存</view>
+      </view>
+      <view wx:if="{{!offlineRows.length}}" class="text-3 lookup-tip">暂无待同步条目</view>
+      <button
+        class="btn btn-primary lookup-search {{resending ? 'disabled' : ''}}"
+        disabled="{{resending}}"
+        bindtap="onOfflineResend"
+      >{{resending ? '重发中…' : '手动重发'}}</button>
+    </view>
+  </view>
+
+  <!-- 款式信息弹层（双击菲票卡款号触发）：款式图直显、产品视频点击即播 -->
+  <view wx:if="{{styleSheet}}" class="mask" bindtap="onCloseStyleSheet">
+    <view class="sheet" catchtap="noop">
+      <view class="row">
+        <view class="h2">款式信息</view>
+        <view class="spacer"></view>
+        <view class="link" bindtap="onCloseStyleSheet">关闭</view>
+      </view>
+      <style-craft wx:if="{{styleCraft}}" styleInfo="{{styleCraft}}" />
+    </view>
+  </view>
+
+</view>

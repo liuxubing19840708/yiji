@@ -1,0 +1,72 @@
+<!-- 指定工序（规格 §9.1）：搜索工序名称 + 员工维度多选管理 -->
+<view class="page">
+
+  <!-- 员工选择（横向滚动 chips） -->
+  <view class="card sec">
+    <view class="row sec-head">
+      <view class="h2">选择员工</view>
+      <view class="spacer" />
+      <view class="text-3">指定工序 = 员工扫菲时可选的额外工序</view>
+    </view>
+    <view wx:if="{{loading}}" class="state-tip text-3">加载中…</view>
+    <view wx:elif="{{!employees.length}}">
+      <empty-state text="暂无在职员工" sub="请先在员工管理中添加员工" />
+    </view>
+    <scroll-view wx:else scroll-x class="emp-scroll" enable-flex>
+      <view
+        wx:for="{{employees}}"
+        wx:key="id"
+        class="emp-chip {{empIndex === index ? 'on' : ''}}"
+        data-index="{{index}}"
+        bindtap="onPickEmployee"
+      >{{item.name}}</view>
+    </scroll-view>
+  </view>
+
+  <!-- 工序多选 -->
+  <view class="card sec" wx:if="{{!loading && employees.length}}">
+    <view class="search-bar">
+      <view class="search-icon">⌕</view>
+      <input
+        class="search-input"
+        placeholder="搜索工序名称"
+        value="{{keyword}}"
+        confirm-type="search"
+        bindinput="onSearchInput"
+      />
+      <view wx:if="{{keyword}}" class="search-clear" bindtap="onClearSearch">✕</view>
+    </view>
+
+    <view wx:if="{{loadError}}" class="state-tip text-danger">工序列表加载失败，请下拉重试</view>
+    <block wx:elif="{{!processes.length}}">
+      <empty-state
+        text="{{keyword ? '未找到匹配工序' : '暂无工序'}}"
+        sub="{{keyword ? '换个关键词试试' : '请先在工序管理中添加工序'}}"
+      />
+    </block>
+    <block wx:else><view class="proc-list">
+      <view
+        wx:for="{{processes}}"
+        wx:key="id"
+        class="proc-item {{item.checked ? 'on' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="onToggle"
+      >
+        <view class="proc-check">{{item.checked ? '✓' : ''}}</view>
+        <view class="proc-name">{{item.name}}</view>
+        <view wx:if="{{item.is_fixed}}" class="badge badge-gray">固定</view>
+      </view>
+    </view></block>
+
+    <view class="row save-row">
+      <view class="text-3">已选 {{selectedCount}} 项工序</view>
+      <view class="spacer" />
+      <button
+        class="btn btn-primary btn-save {{saving || loadError ? 'disabled' : ''}}"
+        bindtap="onSave"
+      >保存</button>
+    </view>
+  </view>
+
+  <hint-toggle text="未指定的员工仅可选择固定工序；保存后立即生效" />
+</view>

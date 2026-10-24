@@ -1,0 +1,85 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading text-3">加载中…</view>
+
+  <block wx:else>
+    <!-- 岗位数量头（对齐衣扫） -->
+    <view class="count-head" wx:if="{{list.length}}">共 <text class="num">{{list.length}}</text> 个岗位</view>
+
+    <empty-state wx:if="{{!list.length}}" text="暂无岗位" sub="点击下方按钮创建第一个岗位" />
+
+    <view wx:for="{{list}}" wx:key="id" class="card post">
+      <view class="row">
+        <view class="h2">{{item.name}}</view>
+        <view wx:if="{{item.is_admin}}" class="badge post-badge">管理员</view>
+        <view wx:if="{{item.is_system}}" class="badge badge-gray post-badge">系统</view>
+        <view class="spacer" />
+        <view class="text-3 num">{{item.member_count}} 人</view>
+      </view>
+      <view class="row post-perms" wx:if="{{item.permLabels.length}}">
+        <view wx:for="{{item.permLabels}}" wx:for-item="label" wx:key="*this" class="perm-tag">{{label}}</view>
+      </view>
+      <view class="row post-perms" wx:else>
+        <view class="text-3">未配置权限点</view>
+      </view>
+      <view class="row post-actions">
+        <view class="spacer" />
+        <view class="act" data-id="{{item.id}}" bindtap="onMore">⋯ 更多</view>
+      </view>
+    </view>
+
+    <button class="btn btn-primary post-add" bindtap="openCreate">＋ 添加岗位</button>
+  </block>
+
+  <!-- 新建/编辑弹层 -->
+  <view wx:if="{{formVisible}}" class="mask" bindtap="closeForm">
+    <view class="panel" catchtap="noop">
+      <view class="row panel-head">
+        <view class="h2">{{editingId ? '编辑岗位' : '新建岗位'}}</view>
+        <view class="spacer" />
+        <view class="panel-close" bindtap="closeForm">×</view>
+      </view>
+      <view class="field">
+        <input class="input" placeholder="岗位名称" value="{{name}}" bindinput="onNameInput" maxlength="20" />
+        <!-- 常用岗位词点选（可再手改） -->
+        <view class="name-chips">
+          <view
+            wx:for="{{nameChips}}"
+            wx:key="*this"
+            class="name-chip {{name === item ? 'on' : ''}}"
+            data-name="{{item}}"
+            bindtap="onPickNameChip"
+          >{{item}}</view>
+        </view>
+      </view>
+      <hint-toggle text="勾选该岗位可执行的权限点（按模块分组；「全部权限」拥有一切）" />
+      <!-- 全部权限开关（= 保存 '*'） -->
+      <view class="perm-all {{allPerms ? 'on' : ''}}" bindtap="onToggleAllPerms">
+        <view class="perm-check">{{allPerms ? '✓' : ''}}</view>
+        <view>全部权限（管理员级）</view>
+      </view>
+      <!-- 分组勾选（Plan A 细粒度权限点） -->
+      <scroll-view scroll-y class="perm-groups {{allPerms ? 'muted' : ''}}">
+        <view class="perm-group" wx:for="{{groups}}" wx:for-item="g" wx:key="module">
+          <view class="pg-title">{{g.label}}</view>
+          <view class="pg-chips">
+            <view
+              wx:for="{{g.points}}"
+              wx:for-item="pt"
+              wx:key="key"
+              class="perm-item {{pt.checked ? 'on' : ''}}"
+              data-key="{{pt.key}}"
+              bindtap="onTogglePerm"
+            >
+              <view class="perm-check">{{pt.checked ? '✓' : ''}}</view>
+              <view>{{pt.label}}</view>
+            </view>
+          </view>
+        </view>
+        <view wx:if="{{!groups.length}}" class="text-3 pg-empty">权限点字典加载中…</view>
+      </scroll-view>
+      <button class="btn btn-primary {{submitting ? 'disabled' : ''}}" bindtap="onSubmit">
+        {{editingId ? '保存' : '创建岗位'}}
+      </button>
+    </view>
+  </view>
+</view>

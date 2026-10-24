@@ -1,0 +1,281 @@
+.progress {
+  height: 12rpx;
+  border-radius: 999rpx;
+  background: var(--color-border);
+  margin-top: 16rpx;
+  overflow: hidden;
+}
+
+.progress-inner {
+  height: 100%;
+  border-radius: 999rpx;
+  background: var(--color-primary);
+}
+
+/* ---- 状态筛选 Tab ---- */
+.tabs {
+  display: flex;
+  background: var(--color-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 8rpx;
+  margin-bottom: 24rpx;
+}
+
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 16rpx 0;
+  color: var(--color-text-3);
+  font-size: 26rpx;
+  border-radius: 999rpx;
+}
+
+.tab.on {
+  color: var(--color-primary);
+  font-weight: 600;
+  background: var(--color-primary-light);
+}
+
+.loading {
+  text-align: center;
+  padding: 120rpx 0;
+}
+
+/* ---- 岗位筛选行（chips + 岗位管理入口） ---- */
+.post-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+
+.post-chips {
+  flex: 1;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.p-chip {
+  display: inline-block;
+  padding: 10rpx 26rpx;
+  margin-right: 14rpx;
+  font-size: 24rpx;
+  color: var(--color-text-2);
+  background: var(--color-card);
+  border-radius: 999rpx;
+  box-shadow: var(--shadow);
+}
+
+.p-chip.on {
+  color: #ffffff;
+  background: var(--color-primary);
+  font-weight: 600;
+}
+
+.posts-entry {
+  flex-shrink: 0;
+  margin-left: 8rpx;
+  padding: 10rpx 20rpx;
+  font-size: 24rpx;
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+  border-radius: 999rpx;
+}
+
+/* ---- 员工卡片 ---- */
+.emp {
+  padding: 24rpx;
+}
+
+.emp-pinned {
+  border: 2rpx solid var(--color-primary-light);
+}
+
+.avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-size: 30rpx;
+  font-weight: 600;
+  text-align: center;
+  line-height: 72rpx;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+
+/* 姓氏色块头像：按姓名散列取色（对齐衣扫视觉） */
+.avatar.av-0 { background: #e8f3ff; color: #2f7ef6; }
+.avatar.av-1 { background: #ffece8; color: #f0603f; }
+.avatar.av-2 { background: #e8f7ee; color: #2ba471; }
+.avatar.av-3 { background: #fff4e5; color: #d97a00; }
+.avatar.av-4 { background: #f1ecff; color: #7a5af5; }
+.avatar.av-5 { background: #fdeaf4; color: #d64f97; }
+
+.avatar-img {
+  background: var(--color-border);
+}
+
+/* 性别角标（名字后 ♂/♀） */
+.gender {
+  margin-left: 8rpx;
+  font-size: 26rpx;
+  line-height: 1;
+}
+
+.gender-m {
+  color: #2f7ef6;
+}
+
+.gender-f {
+  color: #f0568c;
+}
+
+.emp-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.emp-badge {
+  margin-left: 12rpx;
+}
+
+.pin-star {
+  margin-left: 12rpx;
+  color: var(--color-warning);
+  font-size: 26rpx;
+}
+
+/* ---- 操作：置顶 / 菜单 / 通过拒绝 ---- */
+.pin {
+  color: var(--color-text-3);
+  font-size: 36rpx;
+  padding: 8rpx 12rpx;
+  line-height: 1;
+}
+
+.pin.pin-on {
+  color: var(--color-warning);
+}
+
+.more {
+  color: var(--color-text-2);
+  font-size: 40rpx;
+  line-height: 1;
+  padding: 8rpx 4rpx 8rpx 16rpx;
+  font-weight: 700;
+}
+
+.act {
+  font-size: 24rpx;
+  padding: 8rpx 28rpx;
+  border-radius: 999rpx;
+  margin-left: 12rpx;
+}
+
+.act-primary {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.act-plain {
+  background: var(--color-card);
+  color: var(--color-text-2);
+  border: 2rpx solid var(--color-border);
+}
+
+/* ---- 邀请员工 ---- */
+.invite-row {
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+}
+
+.invite-btn {
+  font-size: 24rpx;
+  color: #ffffff;
+  background: var(--color-primary);
+  border-radius: 999rpx;
+  padding: 10rpx 24rpx;
+  margin-left: 16rpx;
+  flex-shrink: 0;
+}
+
+.mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+}
+
+.panel {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--color-card);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+}
+
+.panel-head {
+  margin-bottom: 16rpx;
+}
+
+.panel-close {
+  font-size: 44rpx;
+  line-height: 1;
+  color: var(--color-text-3);
+  padding: 0 8rpx;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  border-bottom: 2rpx solid var(--color-border);
+  padding: 20rpx 4rpx;
+  margin-bottom: 12rpx;
+}
+
+.input {
+  flex: 1;
+  font-size: 30rpx;
+}
+
+.picker-value {
+  flex: 1;
+  font-size: 30rpx;
+  display: flex;
+  align-items: center;
+}
+
+.picker-arrow {
+  margin-left: auto;
+  color: var(--color-text-3);
+}
+
+.panel-tip {
+  margin: 8rpx 0 24rpx;
+}
+
+/* ---- 工资设置：计算方式 chips ---- */
+.s-chip {
+  flex-shrink: 0;
+  padding: 10rpx 26rpx;
+  margin-left: 14rpx;
+  font-size: 24rpx;
+  color: var(--color-text-2);
+  background: var(--color-card);
+  border: 2rpx solid var(--color-border);
+  border-radius: 999rpx;
+}
+
+.s-chip.on {
+  color: #ffffff;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  font-weight: 600;
+}

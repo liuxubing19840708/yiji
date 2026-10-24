@@ -1,0 +1,58 @@
+.section-title {
+  margin-bottom: 8rpx;
+}
+
+.field {
+  padding: 24rpx 4rpx;
+  border-bottom: 2rpx solid var(--color-border);
+}
+
+.field-last {
+  border-bottom: none;
+}
+
+.field-label {
+  width: 160rpx;
+  color: var(--color-text-3);
+  font-size: 26rpx;
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  font-size: 28rpx;
+  text-align: right;
+}
+
+.arrow {
+  color: var(--color-text-3);
+  font-size: 32rpx;
+  margin-left: 12rpx;
+  line-height: 1;
+}
+
+.avatar-hint {
+  margin-right: 16rpx;
+}
+
+.avatar-img {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background: var(--color-bg);
+  flex-shrink: 0;
+}
+
+.avatar-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-3);
+  font-size: 26rpx;
+  border: 2rpx dashed var(--color-border);
+  box-sizing: border-box;
+}
+
+.save-btn {
+  margin-top: 32rpx;
+}

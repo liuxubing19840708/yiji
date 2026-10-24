@@ -1,0 +1,299 @@
+/* 款式管理页样式（颜色/圆角/阴影一律取自 app.wxss 变量） */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+
+.search {
+  flex: 1;
+  background: var(--color-card);
+  border-radius: 999rpx;
+  padding: 16rpx 28rpx;
+  font-size: 28rpx;
+  box-shadow: var(--shadow);
+}
+
+.add-btn {
+  margin-left: 16rpx;
+  background: var(--color-primary);
+  color: #ffffff;
+  font-size: 26rpx;
+  padding: 16rpx 24rpx;
+  border-radius: 999rpx;
+  white-space: nowrap;
+}
+
+.style-card {
+  padding: 24rpx;
+}
+
+.style-img {
+  width: 144rpx;
+  height: 144rpx;
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  flex-shrink: 0;
+}
+
+.style-img-ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx dashed var(--color-border);
+}
+
+.style-main {
+  flex: 1;
+  margin-left: 20rpx;
+  min-width: 0;
+}
+
+.item-title {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.menu-dot {
+  padding: 10rpx 8rpx 10rpx 24rpx;
+  color: var(--color-text-3);
+  font-size: 48rpx;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.price-row {
+  margin-top: 8rpx;
+}
+
+.price {
+  color: var(--color-primary);
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.stats {
+  justify-content: space-between;
+  margin-top: 20rpx;
+}
+
+.progress {
+  height: 12rpx;
+  border-radius: 999rpx;
+  background: var(--color-bg);
+  margin-top: 12rpx;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  border-radius: 999rpx;
+  background: var(--color-primary);
+}
+
+.bundle-btn {
+  margin-top: 24rpx;
+  font-size: 28rpx;
+  padding: 14rpx 0;
+}
+
+.state {
+  text-align: center;
+  padding: 120rpx 0;
+}
+
+.state-btn {
+  margin-top: 24rpx;
+  width: 240rpx;
+  font-size: 28rpx;
+  padding: 14rpx 0;
+}
+
+.load-more {
+  text-align: center;
+  padding: 24rpx 0;
+}
+
+/* ---- 编辑弹层 ---- */
+.mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+}
+
+.sheet {
+  width: 100%;
+  background: var(--color-card);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.sheet-head {
+  margin-bottom: 16rpx;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  border-bottom: 2rpx solid var(--color-border);
+  padding: 22rpx 4rpx;
+}
+
+.label {
+  width: 160rpx;
+  color: var(--color-text-2);
+  font-size: 28rpx;
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  font-size: 30rpx;
+}
+
+.tip {
+  margin-top: 16rpx;
+}
+
+.form-img-wrap {
+  position: relative;
+  margin-left: auto;
+}
+
+.form-img {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: var(--radius);
+  background: var(--color-bg);
+}
+
+.form-img-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx dashed var(--color-border);
+  color: var(--color-text-3);
+  font-size: 22rpx;
+  box-sizing: border-box;
+  padding: 0 8rpx;
+  text-align: center;
+}
+
+.form-img-del {
+  position: absolute;
+  top: -14rpx;
+  right: -14rpx;
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  background: var(--color-danger);
+  color: #ffffff;
+  font-size: 26rpx;
+  line-height: 36rpx;
+  text-align: center;
+}
+
+.sheet-save {
+  margin-top: 32rpx;
+}
+
+/* ---- 弹层体可滚（新增工艺信息后表单变长） ---- */
+.sheet-body {
+  max-height: 64vh;
+}
+
+/* ---- 工艺说明 / 工艺图片 / 产品视频 ---- */
+.field-top {
+  align-items: flex-start;
+}
+.field-top .label {
+  padding-top: 6rpx;
+}
+.craft-textarea {
+  flex: 1;
+  min-height: 120rpx;
+  font-size: 28rpx;
+  line-height: 1.5;
+}
+.craft-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  padding: 12rpx 4rpx;
+}
+.craft-cell {
+  width: 136rpx;
+  height: 136rpx;
+  position: relative;
+}
+.craft-thumb {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius);
+  background: var(--color-bg);
+}
+.craft-cell .form-img-del {
+  top: -12rpx;
+  right: -12rpx;
+}
+.craft-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx dashed var(--color-border);
+  border-radius: var(--radius);
+  color: var(--color-text-3);
+  font-size: 44rpx;
+  background: var(--color-bg);
+}
+.video-row {
+  padding: 12rpx 4rpx;
+}
+.craft-video {
+  width: 100%;
+  height: 320rpx;
+  border-radius: var(--radius);
+  background: #000000;
+}
+.craft-video-add {
+  width: 100%;
+  height: 140rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx dashed var(--color-border);
+  border-radius: var(--radius);
+  color: var(--color-text-3);
+  font-size: 26rpx;
+  background: var(--color-bg);
+}
+
+/* ---- 面料点选 chips（与建床向导面料历史点选同款） ---- */
+.fh-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 12rpx;
+}
+
+.fh-chip {
+  padding: 6rpx 20rpx;
+  border-radius: 999rpx;
+  background: var(--color-bg);
+  border: 2rpx solid var(--color-border);
+  font-size: 24rpx;
+  color: var(--color-text-2);
+}
+
+.fh-chip.fh-on {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}

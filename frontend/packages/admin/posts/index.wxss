@@ -1,0 +1,203 @@
+.loading {
+  text-align: center;
+  padding: 120rpx 0;
+}
+
+/* 岗位数量头 */
+.count-head {
+  font-size: 26rpx;
+  color: var(--color-text-3);
+  margin: 0 4rpx 20rpx;
+}
+
+.count-head .num {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.post-badge {
+  margin-left: 12rpx;
+}
+
+.post-perms {
+  margin-top: 16rpx;
+  flex-wrap: wrap;
+}
+
+.perm-tag {
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 8rpx;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  margin: 0 12rpx 12rpx 0;
+}
+
+.post-actions {
+  margin-top: 8rpx;
+}
+
+.act {
+  font-size: 24rpx;
+  color: var(--color-info);
+  padding: 8rpx 0 8rpx 32rpx;
+}
+
+.act-danger {
+  color: var(--color-danger);
+}
+
+.post-add {
+  margin-top: 8rpx;
+}
+
+/* ---- 新建/编辑弹层 ---- */
+.mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+}
+
+.panel {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--color-card);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+}
+
+.panel-head {
+  margin-bottom: 16rpx;
+}
+
+.panel-close {
+  font-size: 44rpx;
+  line-height: 1;
+  color: var(--color-text-3);
+  padding: 0 8rpx;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  border-bottom: 2rpx solid var(--color-border);
+  padding: 20rpx 4rpx;
+  margin-bottom: 12rpx;
+}
+
+.input {
+  flex: 1;
+  font-size: 30rpx;
+}
+
+.panel-tip {
+  margin-bottom: 16rpx;
+}
+
+.perm-all {
+  display: flex;
+  align-items: center;
+  border: 2rpx solid var(--color-border);
+  border-radius: 999rpx;
+  padding: 12rpx 24rpx;
+  margin-bottom: 16rpx;
+  font-size: 26rpx;
+  color: var(--color-text-2);
+}
+
+.perm-all.on {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+/* 分组勾选区：弹层内滚动，避免长列表顶飞按钮 */
+.perm-groups {
+  max-height: 60vh;
+  margin-bottom: 24rpx;
+}
+
+.perm-groups.muted {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.perm-group {
+  margin-bottom: 8rpx;
+}
+
+.pg-title {
+  font-size: 24rpx;
+  color: var(--color-text-3);
+  padding: 12rpx 4rpx 8rpx;
+}
+
+.pg-chips {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.pg-empty {
+  padding: 24rpx 4rpx;
+}
+
+.perm-item {
+  display: flex;
+  align-items: center;
+  border: 2rpx solid var(--color-border);
+  border-radius: 999rpx;
+  padding: 12rpx 24rpx;
+  margin: 0 16rpx 16rpx 0;
+  font-size: 26rpx;
+  color: var(--color-text-2);
+}
+
+.perm-item.on {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.perm-check {
+  width: 28rpx;
+  height: 28rpx;
+  border-radius: 50%;
+  border: 2rpx solid var(--color-border);
+  font-size: 20rpx;
+  line-height: 28rpx;
+  text-align: center;
+  margin-right: 10rpx;
+  color: #ffffff;
+}
+
+.perm-item.on .perm-check {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+/* 常用岗位词点选 */
+.name-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 16rpx;
+}
+.name-chip {
+  padding: 8rpx 22rpx;
+  border-radius: 999rpx;
+  background: var(--color-bg);
+  border: 2rpx solid var(--color-border);
+  font-size: 24rpx;
+  color: var(--color-text-2);
+}
+.name-chip.on {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}

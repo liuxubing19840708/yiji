@@ -1,0 +1,61 @@
+<view class="page">
+  <!-- 看板下钻筛选横幅（§2.9 P0）：带款预过滤进入，点 ✕ 解除回全量 -->
+  <view class="drill-banner" wx:if="{{drillStyleId || drillStyleNo}}" bindtap="onClearDrill">
+    <text class="drill-label">看板下钻</text>
+    <text class="drill-value">{{drillStyleNo || (drillStyleId ? '款式 #' + drillStyleId : '')}}</text>
+    <text class="drill-clear">✕ 解除筛选</text>
+  </view>
+
+  <view class="toolbar">
+    <input class="search" placeholder="搜索款号 / 床次 / 名称" value="{{keyword}}" bindinput="onKeyword" bindconfirm="onSearch" confirm-type="search" />
+  </view>
+
+  <view class="filters">
+    <view class="filter {{filterIndex === index ? 'active' : ''}}"
+          wx:for="{{filters}}" wx:key="key"
+          data-index="{{index}}" bindtap="onFilter">{{item.label}}</view>
+  </view>
+
+  <view wx:if="{{loading && !productions.length}}" class="state text-3">加载中…</view>
+  <view wx:elif="{{error && !productions.length}}" class="state">
+    <view class="text-3">加载失败，请重试</view>
+    <button class="btn btn-ghost state-btn" bindtap="reload">重新加载</button>
+  </view>
+  <empty-state wx:elif="{{!productions.length}}" text="暂无床次订单" sub="点击首页 FAB 扫菲，或在款式卡片中发起编菲" />
+  <view wx:else>
+    <view class="card prod-card" wx:for="{{productions}}" wx:key="id">
+      <view class="row" data-index="{{index}}" bindtap="onOpenDetail">
+        <image wx:if="{{item.imageUrl}}" class="prod-thumb" src="{{item.imageUrl}}" mode="aspectFill" />
+        <view class="prod-main">
+          <view class="row">
+            <view class="bed-no">床次 {{item.bed_no}}</view>
+            <view class="badge badge-gray" wx:if="{{item.is_locked}}">已锁定</view>
+            <view class="badge badge-green" wx:if="{{item.is_cut_done}}">裁完</view>
+            <view class="spacer"></view>
+            <view class="menu-dot" data-index="{{index}}" catchtap="onCardMenu">⋮</view>
+          </view>
+          <view class="row prod-sub">
+            <view class="text-2">{{item.style_no}}</view>
+            <view class="text-3 style-name">{{item.style_name}}</view>
+          </view>
+          <view class="row prod-sub">
+            <view class="text-3 num">总量 {{item.total_qty}} 件</view>
+            <view class="text-3 num">菲票 {{item.ticketCount}} 扎</view>
+            <view class="text-3 num">已登记 {{item.registeredQty}} 件</view>
+          </view>
+          <view class="row prod-sub" wx:if="{{item.customer_name || item.fabric}}">
+            <view class="text-3" wx:if="{{item.customer_name}}">客户：{{item.customer_name}}</view>
+            <view class="text-3" wx:if="{{item.fabric}}">面料：{{item.fabric}}</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="load-more text-3" wx:if="{{hasMore}}" bindtap="loadMore">
+      {{loading ? '加载中…' : '上拉加载更多'}}
+    </view>
+  </view>
+</view>
+
+<!-- 打印预览：按当前模板渲染标签，确认后发蓝牙 -->
+<label-preview show="{{previewShow}}" tickets="{{previewTickets}}" company="{{previewCompany}}" bind:confirm="onPreviewConfirm" bind:cancel="onPreviewCancel" />

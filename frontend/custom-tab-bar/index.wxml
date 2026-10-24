@@ -1,0 +1,41 @@
+<!-- 自定义 tabBar：4 个常规项 + 中央凸起橙色扫码 FAB（规格 §21.2） -->
+<view class="tabbar">
+  <view
+    wx:for="{{leftItems}}"
+    wx:key="key"
+    class="tab-item {{selected === item.index ? 'active' : ''}}"
+    data-path="{{item.path}}"
+    data-index="{{item.index}}"
+    bindtap="onTap"
+  >
+    <view class="tab-icon tab-icon-{{item.key}}"></view>
+    <view class="tab-text">{{item.text}}</view>
+  </view>
+
+  <!-- 中央扫码 FAB -->
+  <view class="fab-wrap">
+    <view class="fab" bindtap="onScan">
+      <view class="fab-frame">
+        <view class="fab-line"></view>
+        <view class="fab-corner tl"></view>
+        <view class="fab-corner tr"></view>
+        <view class="fab-corner bl"></view>
+        <view class="fab-corner br"></view>
+      </view>
+    </view>
+    <view class="fab-text">扫菲</view>
+  </view>
+
+  <view
+    wx:for="{{rightItems}}"
+    wx:key="key"
+    class="tab-item {{selected === item.index ? 'active' : ''}}"
+    data-path="{{item.path}}"
+    data-index="{{item.index}}"
+    bindtap="onTap"
+  >
+    <view class="tab-icon tab-icon-{{item.key}}"></view>
+    <view class="tab-text">{{item.text}}</view>
+    <view wx:if="{{item.key === 'notifications' && unread > 0}}" class="tab-dot">{{unread > 99 ? '99+' : unread}}</view>
+  </view>
+</view>

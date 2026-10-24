@@ -1,0 +1,199 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading text-3">加载中…</view>
+
+  <block wx:elif="{{!error}}">
+    <date-range-bar start="{{start}}" end="{{end}}" quick="{{quick}}" bind:change="onRangeChange" />
+
+    <!-- 头部卡（2026-10-22 参考竞品改版）：已结/未结两栏 + 计件/固定/总三列 + 工序数 + 动作行 -->
+    <view class="card head-card">
+      <view class="sum-duo">
+        <view class="sum-duo-item"><text class="sum-duo-label">已结：</text><text class="sum-duo-num settled num">¥{{settledText}}</text></view>
+        <view class="sum-duo-divider"></view>
+        <view class="sum-duo-item"><text class="sum-duo-label">未结：</text><text class="sum-duo-num unset num">¥{{unsettledText}}</text></view>
+        <view wx:if="{{salaryTypeLabel}}" class="st-tag">{{salaryTypeLabel}}</view>
+      </view>
+      <view class="sum-trio">
+        <view class="sum-trio-item"><view class="sum-trio-label">计件工资</view><view class="sum-trio-num num">¥{{pieceText}}</view></view>
+        <view class="sum-trio-item"><view class="sum-trio-label">固定工资</view><view class="sum-trio-num num">¥{{fixedText}}</view></view>
+        <view class="sum-trio-item"><view class="sum-trio-label">总工资</view><view class="sum-trio-num num">¥{{totalWageText}}</view></view>
+      </view>
+      <view class="sum-links">
+        <view class="sum-link dim">完成工序数: {{processCount}}</view>
+        <view class="sum-link-divider"></view>
+        <view class="sum-link dim">无单价工序数: {{noPriceCount}}</view>
+      </view>
+      <view class="sum-acts">
+        <view class="sum-act" bindtap="onToggleRecords">▦ 结算记录</view>
+        <view class="sum-act-divider" wx:if="{{isSelf}}"></view>
+        <view class="sum-act {{canApply ? '' : 'dim'}}" wx:if="{{isSelf}}" bindtap="onToggleApply">◔ 申请结算</view>
+      </view>
+    </view>
+
+    <!-- 结算申请进度（申请后流程到哪了一眼可见；无申请不显示） -->
+    <view wx:if="{{progress}}" class="card progress-card">
+      <view class="row">
+        <view class="h2">结算申请进度</view>
+        <view class="spacer" />
+        <view class="badge {{progress.statusClass}}">{{progress.statusDisplay}}</view>
+      </view>
+      <view class="row stepper">
+        <view class="step">
+          <view class="step-dot {{progress.step >= 1 ? 'done' : ''}}"></view>
+          <view class="step-label">提交申请</view>
+        </view>
+        <view class="step-line {{progress.step >= 2 ? 'on' : ''}}"></view>
+        <view class="step">
+          <view class="step-dot {{progress.step >= 2 ? 'done' : ''}}"></view>
+          <view class="step-label">管理员审核</view>
+        </view>
+        <view class="step-line {{progress.step >= 3 ? 'on' : ''}}"></view>
+        <view class="step">
+          <view class="step-dot {{progress.step >= 3 ? 'done' : ''}}"></view>
+          <view class="step-label">发放工资</view>
+        </view>
+      </view>
+      <view class="text-3">¥{{progress.amountText}} · {{progress.periodText}}</view>
+      <view wx:if="{{progress.hint}}" class="text-2">当前节点：{{progress.hint}}</view>
+      <view wx:if="{{progress.reason}}" class="text-3 text-danger">处理意见：{{progress.reason}}</view>
+      <view wx:if="{{progress.active}}" class="text-3">处理完成前不能重复提交申请</view>
+    </view>
+
+    <!-- 三主 Tab：工资 / 计数 / 固定工资 -->
+    <view class="row seg">
+      <view class="seg-item {{mainTab === 'pay' ? 'on' : ''}}" data-tab="pay" bindtap="onMainTab">工资</view>
+      <view class="seg-item {{mainTab === 'count' ? 'on' : ''}}" data-tab="count" bindtap="onMainTab">计数</view>
+      <view class="seg-item {{mainTab === 'fixed' ? 'on' : ''}}" data-tab="fixed" bindtap="onMainTab">固定工资</view>
+    </view>
+
+    <!-- 工资 / 计数 的子 Tab（2026-10-22 参考竞品：按日期/按裁床/汇总查看） -->
+    <view wx:if="{{mainTab !== 'fixed'}}" class="row subseg">
+      <view class="subseg-item {{subTab === 'date' ? 'on' : ''}}" data-tab="date" bindtap="onSubTab">按日期查看</view>
+      <view class="subseg-item {{subTab === 'bed' ? 'on' : ''}}" data-tab="bed" bindtap="onSubTab">按裁床查看</view>
+      <view class="subseg-item {{subTab === 'style' ? 'on' : ''}}" data-tab="style" bindtap="onSubTab">汇总查看</view>
+    </view>
+
+    <!-- 汇总行 -->
+    <view wx:if="{{mainTab !== 'fixed'}}" class="card sum-card">
+      <view class="row">
+        <view class="text-3 num">期间 {{summaryQty}} 件 / {{summaryTickets}} 扎</view>
+        <view class="spacer" />
+        <view wx:if="{{mainTab === 'pay'}}" class="num h2 text-primary">¥{{summaryAmountText}}</view>
+      </view>
+    </view>
+
+    <!-- 按日期查看 -->
+    <view wx:if="{{mainTab !== 'fixed' && subTab === 'date'}}" class="card list-card">
+      <empty-state wx:if="{{!dateRows.length}}" text="{{mainTab === 'pay' ? '暂无工资明细' : '暂无完成计数'}}" sub="该期间没有扫菲登记" />
+      <view class="row date-row" wx:for="{{dateRows}}" wx:key="key">
+        <view class="text-2 num">{{item.key}}</view>
+        <view class="spacer" />
+        <view class="text-2 num date-mid">{{item.qty}}(件) / {{item.tickets}}扎</view>
+        <view class="spacer" />
+        <view wx:if="{{item.amountText}}" class="num date-amount">¥{{item.amountText}}</view>
+      </view>
+    </view>
+
+    <!-- 按裁床查看 -->
+    <view wx:if="{{mainTab !== 'fixed' && subTab === 'bed'}}" class="card-list">
+      <empty-state wx:if="{{!bedRows.length}}" text="该期间没有扫菲登记" />
+      <view class="card bed-card" wx:for="{{bedRows}}" wx:key="key">
+        <view class="row">
+          <view class="bed-title num">床次: {{item.bedNo}}</view>
+          <view class="spacer" />
+          <view class="bed-right">
+            <view wx:if="{{item.amountText}}" class="num bed-amount">¥{{item.amountText}}</view>
+            <view class="text-3">{{item.settledText}}</view>
+          </view>
+        </view>
+        <view class="text-3" wx:if="{{item.styleNo}}">款号: {{item.styleNo}}<text wx:if="{{item.styleName}}"> {{item.styleName}}</text></view>
+        <view class="bed-grid">
+          <view class="bed-grid-item"><view class="num bed-grid-num">{{item.bedTotal}}</view><view class="bed-grid-label">总件数</view></view>
+          <view class="bed-grid-item"><view class="num bed-grid-num">{{item.qty}}</view><view class="bed-grid-label">完成件数</view></view>
+          <view class="bed-grid-item" wx:if="{{mainTab === 'pay'}}"><view class="num bed-grid-num">{{item.amountText}}</view><view class="bed-grid-label">总金额</view></view>
+          <view class="bed-grid-item" wx:if="{{mainTab === 'pay'}}"><view class="num bed-grid-num">{{item.settledAmount}}</view><view class="bed-grid-label">已结算</view></view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 汇总查看（按款式） -->
+    <view wx:if="{{mainTab !== 'fixed' && subTab === 'style'}}" class="card-list">
+      <empty-state wx:if="{{!styleRows.length}}" text="该期间没有扫菲登记" />
+      <view class="card style-card" wx:for="{{styleRows}}" wx:key="key">
+        <view class="row">
+          <view class="style-main">
+            <view class="style-no num">款号: {{item.styleNo}}</view>
+            <view class="text-3" wx:if="{{item.styleName}}">名称: {{item.styleName}}</view>
+          </view>
+          <image wx:if="{{item.imageUrl}}" class="style-thumb" src="{{item.imageUrl}}" mode="aspectFill" data-url="{{item.imageUrl}}" bindtap="onPreviewStyle" />
+        </view>
+        <view class="style-grid">
+          <view class="style-grid-item"><text class="text-3">完成件数：</text><text class="num">{{item.qty}}</text></view>
+          <view class="style-grid-item" wx:if="{{item.avgPrice}}"><text class="text-3">单价：</text><text class="num">{{item.avgPrice}}</text></view>
+          <view class="style-grid-item" wx:if="{{item.amountText}}"><text class="text-3">金额：</text><text class="num style-amount">¥{{item.amountText}}</text></view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 固定工资（§10.2） -->
+    <view wx:if="{{mainTab === 'fixed'}}" class="card">
+      <empty-state wx:if="{{!fixed}}" text="未设置固定工资" sub="请联系管理员在员工管理中配置" />
+      <block wx:else>
+        <view class="row f-row">
+          <view class="text-3">固定工资</view>
+          <view class="spacer" />
+          <view class="text-2 num">¥{{fixed.fixed_salary}} / {{fixed.fixed_type_display}}</view>
+        </view>
+        <view class="row f-row">
+          <view class="text-3">期间出勤</view>
+          <view class="spacer" />
+          <view class="text-2 num">{{fixed.worked_days}} 天</view>
+        </view>
+        <view class="row f-row">
+          <view class="text-3">计薪月数</view>
+          <view class="spacer" />
+          <view class="text-2 num">{{fixed.months}} 个月</view>
+        </view>
+        <view class="row f-row">
+          <view class="text-3">期间固定工资</view>
+          <view class="spacer" />
+          <view class="num h2 text-primary">¥{{fixed.amount}}</view>
+        </view>
+      </block>
+    </view>
+
+    <!-- 申请结算面板（入口在头部卡动作行） -->
+    <view wx:if="{{showApply}}" class="card">
+      <view class="h2">申请结算</view>
+      <view class="row">
+        <view class="text-3">未结金额（默认）</view>
+        <view class="spacer" />
+        <view class="num h2 text-primary">¥{{applyAmountHint}}</view>
+      </view>
+      <view class="text-3">申请期间：本月（实际核算金额以后端统计为准）</view>
+      <input class="note-input" placeholder="补充说明（可空）" value="{{applyNote}}" bindinput="onNoteInput" maxlength="100" />
+      <button class="btn btn-primary {{submitting ? 'disabled' : ''}}" bindtap="onSubmitApply">提交申请</button>
+    </view>
+
+    <!-- 结算记录列表 -->
+    <view wx:if="{{showRecords}}" class="card-list">
+      <empty-state wx:if="{{!records.length && !recordLoading}}" text="暂无结算申请记录" />
+      <view class="card r-card" wx:for="{{records}}" wx:key="id">
+        <view class="row">
+          <view class="num text-primary">¥{{item.amountText}}</view>
+          <view class="spacer" />
+          <view class="badge {{item.statusClass}}">{{item.statusDisplay}}</view>
+        </view>
+        <view class="text-3">申请时间：{{item.createdAt}} · 期间：{{item.periodText}}</view>
+        <view wx:if="{{item.hint}}" class="text-2">{{item.hint}}</view>
+        <view wx:if="{{item.note}}" class="text-3">说明：{{item.note}}</view>
+      </view>
+      <view wx:if="{{recordHasMore}}" class="load-more text-3" bindtap="onRecordMore">{{recordLoading ? '加载中…' : '上拉加载更多'}}</view>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view class="card">
+      <empty-state text="{{error}}" sub="下拉刷新重试" />
+    </view>
+  </block>
+</view>

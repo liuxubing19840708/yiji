@@ -1,0 +1,66 @@
+<!-- 员工选择器（规格 §11.3）：底部弹层 = 搜索 + 角色 Tab + 3 列姓名网格 + 橙色确定 -->
+<view class="ep-mask" wx:if="{{visible}}" bindtap="onClose">
+  <view class="ep-sheet" catchtap="noop">
+
+    <view class="row ep-head">
+      <view class="h2">选择员工</view>
+      <view class="spacer"></view>
+      <view class="text-3" bindtap="onClose">关闭</view>
+    </view>
+
+    <!-- 搜索 -->
+    <view class="ep-search-row">
+      <view class="ep-search">
+        <text class="ep-search-icon">⌕</text>
+        <input
+          class="ep-search-input"
+          placeholder="搜索姓名 / 手机号"
+          value="{{keyword}}"
+          confirm-type="search"
+          bindinput="onSearchInput"
+          bindconfirm="onSearch"
+        />
+        <text wx:if="{{keyword}}" class="ep-search-clear" bindtap="onClearKeyword">✕</text>
+      </view>
+      <view class="ep-search-btn" bindtap="onSearch">搜索</view>
+    </view>
+
+    <!-- 角色 Tab -->
+    <view class="ep-tabs">
+      <view
+        wx:for="{{tabs}}"
+        wx:key="key"
+        class="ep-tab {{curTab === item.key ? 'on' : ''}}"
+        data-key="{{item.key}}"
+        bindtap="onTapTab"
+      >{{item.name}}</view>
+    </view>
+
+    <!-- 3 列姓名网格 -->
+    <scroll-view scroll-y class="ep-grid-wrap">
+      <view wx:if="{{loading}}" class="ep-state">加载中…</view>
+      <block wx:elif="{{loadError}}">
+        <view class="ep-state text-danger">员工列表加载失败</view>
+        <button class="btn btn-plain ep-retry" bindtap="onRetry">重试</button>
+      </block>
+      <view wx:elif="{{!list.length}}" class="ep-state">该分类下暂无员工</view>
+      <view wx:else class="ep-grid">
+        <view
+          wx:for="{{list}}"
+          wx:key="id"
+          class="ep-cell {{item.picked ? 'picked' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="onTapEmp"
+        >
+          <view class="ep-avatar">{{item.initial}}</view>
+          <view class="ep-name">{{item.name}}</view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <!-- 橙色确定 -->
+    <button class="btn btn-primary ep-confirm" bindtap="onConfirm">
+      确 定{{multi && pickedIds.length ? '（已选 ' + pickedIds.length + ' 人）' : ''}}
+    </button>
+  </view>
+</view>

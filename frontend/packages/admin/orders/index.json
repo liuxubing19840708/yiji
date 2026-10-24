@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "订单管理",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index",
+    "numeric-keypad": "/components/numeric-keypad/index",
+    "style-craft": "/components/style-craft/index",
+    "hint-toggle": "/components/hint-toggle/index"
+  }
+}

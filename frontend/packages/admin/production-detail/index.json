@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "床次详情",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index",
+    "hint-toggle": "/components/hint-toggle/index",
+    "label-preview": "/components/label-preview/index"
+  }
+}

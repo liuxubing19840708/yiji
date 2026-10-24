@@ -1,0 +1,20 @@
+/* 与我相关的变更：复用全局令牌，样式对齐日志管理页 */
+.chg-item {
+  padding: 24rpx;
+}
+
+.chg-message {
+  margin: 16rpx 0;
+  font-size: 28rpx;
+  color: var(--color-text);
+  word-break: break-all;
+}
+
+.chg-center {
+  text-align: center;
+  padding: 24rpx 0;
+}
+
+.chg-more {
+  padding: 8rpx 0 24rpx;
+}

@@ -1,0 +1,50 @@
+<view class="page">
+  <!-- 头部 -->
+  <view class="card profile-head">
+    <image wx:if="{{avatar}}" class="pf-avatar-img" src="{{avatar}}" mode="aspectFill" />
+    <view wx:else class="pf-avatar">{{avatarText}}</view>
+    <view class="pf-info">
+      <view class="row">
+        <view class="h2">{{userName || '未登录'}}</view>
+        <view wx:if="{{isAdmin}}" class="badge pf-admin-badge">管理员</view>
+      </view>
+      <view class="text-3 pf-phone">{{phone}}</view>
+      <view class="text-2 pf-company" wx:if="{{companyName}}">{{companyName}}<text wx:if="{{postName}}" class="pf-post"> · {{postName}}</text></view>
+      <view class="text-3 pf-company" wx:else>未加入公司</view>
+    </view>
+  </view>
+
+  <!-- 待我处理（管理员：员工加入审核 / 工资结算审核 / 发放；无待办不显示） -->
+  <view class="card pf-menu" wx:if="{{todos.length}}">
+    <view class="pf-menu-item pf-todo-head">
+      <view class="pf-menu-label">待我处理</view>
+    </view>
+    <view class="pf-menu-item" wx:for="{{todos}}" wx:key="key" data-url="{{item.url}}" bindtap="onTodoTap">
+      <view class="pf-menu-main">
+        <view class="pf-menu-label">{{item.label}}</view>
+      </view>
+      <view class="badge pf-todo-badge">{{item.count}}</view>
+      <view class="pf-arrow">›</view>
+    </view>
+  </view>
+
+  <!-- 菜单 -->
+  <view class="card pf-menu">
+    <block wx:for="{{menu}}" wx:key="key">
+      <view
+        class="pf-menu-item {{item.danger ? 'pf-danger' : ''}}"
+        data-key="{{item.key}}"
+        bindtap="onAction"
+      >
+        <view class="pf-menu-main">
+          <view class="pf-menu-label">{{item.label}}</view>
+          <view wx:if="{{item.desc}}" class="text-3">{{item.desc}}</view>
+        </view>
+        <text class="pf-arrow">›</text>
+      </view>
+    </block>
+  </view>
+
+  <view class="text-3 pf-foot">衣计 · 计件生产管理</view>
+  <view class="text-3 pf-version">系统版本 {{appVersion}}</view>
+</view>

@@ -1,0 +1,37 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading text-3">加载中…</view>
+
+  <block wx:elif="{{!error}}">
+    <date-range-bar start="{{start}}" end="{{end}}" quick="{{quick}}" bind:change="onRangeChange" />
+
+    <view class="card total-card">
+      <view class="row">
+        <view class="text-3 num">完成总数 {{totalQty}} 件</view>
+        <view class="spacer" />
+        <view class="link-btn" bindtap="onGoCompletion">完成汇总 ›</view>
+      </view>
+    </view>
+
+    <empty-state wx:if="{{!styles.length}}" text="该期间暂无薪酬支出" sub="员工扫菲登记后在此汇总" />
+    <view class="card o-card" wx:for="{{styles}}" wx:key="styleId" wx:for-item="s">
+      <view class="row">
+        <view class="h2">款号：{{s.styleNo}}</view>
+        <view class="spacer" />
+        <view class="num qty-badge">{{s.qty}}(件)</view>
+      </view>
+      <view wx:if="{{s.styleName}}" class="text-3">{{s.styleName}}</view>
+      <view class="row o-nums">
+        <view class="text-3 num">单价：{{s.priceText}}元</view>
+        <view class="spacer" />
+        <view class="num text-primary o-amount">总额：{{s.amountText}}元</view>
+      </view>
+      <view class="text-3 num">{{s.processCount}} 道工序</view>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view class="card">
+      <empty-state text="{{error}}" sub="下拉刷新重试" />
+    </view>
+  </block>
+</view>

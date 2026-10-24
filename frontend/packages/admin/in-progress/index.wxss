@@ -1,0 +1,43 @@
+/* 工作中页样式 */
+.state-tip {
+  text-align: center;
+  color: var(--color-text-3);
+  padding: 48rpx 0 8rpx;
+}
+.retry-btn {
+  width: 40%;
+  margin: 24rpx auto 0;
+}
+
+/* 床次卡片样式已收敛进共用组件 components/bed-progress（P3B beds 合并，P3B 前样式见组件 wxss） */
+
+/* 登记记录 */
+.rec-item {
+  padding: 24rpx 0;
+  border-bottom: 2rpx solid var(--color-border);
+}
+.rec-item:last-child {
+  border-bottom: none;
+}
+.rec-style {
+  font-weight: 600;
+  font-size: 30rpx;
+}
+.rec-line2,
+.rec-line3 {
+  margin-top: 12rpx;
+}
+.rec-qty {
+  font-weight: 600;
+  color: var(--color-text);
+}
+.revoke-btn {
+  color: var(--color-danger);
+  font-size: 26rpx;
+  padding: 4rpx 20rpx;
+  border: 2rpx solid var(--color-danger);
+  border-radius: 999rpx;
+}
+.revoke-btn.disabled {
+  opacity: 0.5;
+}

@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "工序",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index"
+  }
+}

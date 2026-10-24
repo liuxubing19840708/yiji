@@ -1,0 +1,13 @@
+{
+  "name": "yisao-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "衣计（扫菲）微信小程序前端 —— 仅含开发期工具链，运行时零 npm 依赖",
+  "scripts": {
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "miniprogram-api-typings": "^3.12.3",
+    "typescript": "^5.5.4"
+  }
+}

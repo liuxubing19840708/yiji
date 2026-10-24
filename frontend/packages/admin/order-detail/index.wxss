@@ -1,0 +1,217 @@
+/* 订单详情页样式（颜色/圆角一律取自 app.wxss 变量） */
+
+.state {
+  text-align: center;
+  padding: 120rpx 0;
+}
+
+.state-btn {
+  margin-top: 24rpx;
+  width: 240rpx;
+  font-size: 28rpx;
+  padding: 14rpx 0;
+}
+
+.state-tip {
+  margin-top: 16rpx;
+}
+
+/* ---- 基本信息 ---- */
+.order-no {
+  font-size: 34rpx;
+  font-weight: 600;
+}
+
+.info-row {
+  margin-top: 14rpx;
+}
+
+/* 交期灯 */
+.lamp {
+  width: 18rpx;
+  height: 18rpx;
+  border-radius: 50%;
+  margin-left: 12rpx;
+  flex-shrink: 0;
+}
+
+.lamp-green { background: var(--color-success); }
+.lamp-yellow { background: var(--color-warning); }
+.lamp-red { background: var(--color-danger); }
+
+/* 完成率进度条 */
+.progress-track {
+  flex: 1;
+  height: 14rpx;
+  border-radius: 999rpx;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  border-radius: 999rpx;
+  background: var(--color-primary);
+}
+
+.progress-low {
+  background: var(--color-danger);
+}
+
+.progress-text {
+  margin-left: 16rpx;
+  flex-shrink: 0;
+}
+
+/* 满登记一键标完成提示 */
+.full-tip {
+  display: flex;
+  align-items: center;
+  margin-top: 16rpx;
+  padding: 14rpx 20rpx;
+  background: var(--color-primary-light);
+  border-radius: var(--radius);
+}
+
+.mini-btn {
+  margin-left: 16rpx;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 24rpx;
+  border-radius: 999rpx;
+  padding: 8rpx 20rpx;
+  white-space: nowrap;
+}
+
+/* 状态操作按钮 */
+.act-row {
+  margin-top: 20rpx;
+  gap: 16rpx;
+}
+
+.act-btn {
+  flex: 1;
+  width: auto;
+  font-size: 26rpx;
+  padding: 16rpx 0;
+}
+
+.btn-danger {
+  background: var(--color-card);
+  color: var(--color-danger);
+  border: 2rpx solid var(--color-danger);
+}
+
+/* 款式卡（默认收起）：标题行 + 按需展开的款式卡内容 */
+.style-brief {
+  margin-left: 16rpx;
+}
+
+.style-body {
+  margin-top: 16rpx;
+}
+
+/* ---- 完成度矩阵（表格格式与床次完成矩阵完全一致，仅内容不同：订单数/已登记/完成率） ---- */
+.legend {
+  display: flex;
+  align-items: center;
+  margin-top: 12rpx;
+}
+
+.legend-lamp {
+  margin-left: 0;
+  width: 14rpx;
+  height: 14rpx;
+}
+
+.mx-scroll { width: 100%; margin-top: 16rpx; }
+.mx { display: inline-block; min-width: 100%; }
+.mx-row { display: flex; align-items: stretch; gap: 6rpx; margin-bottom: 6rpx; }
+.mx-headcell {
+  box-sizing: border-box;
+  background: #F2F3F5;
+  color: #1D2129;
+  font-weight: 600;
+  text-align: center;
+  padding: 14rpx 0;
+  border-radius: 8rpx;
+}
+.mx-block { display: flex; gap: 6rpx; margin-bottom: 20rpx; }
+.mx-colorcol {
+  flex: 0 0 140rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  background: #F2F3F5;
+  color: #1D2129;
+  border-radius: 8rpx;
+}
+.mx-body { flex: 1; min-width: 0; }
+.mx-color { flex: 0 0 140rpx; }
+.mx-label {
+  box-sizing: border-box;
+  flex: 0 0 140rpx;
+  text-align: center;
+  padding: 14rpx 0;
+  border-radius: 8rpx;
+  font-size: 26rpx;
+}
+.mx-cell {
+  box-sizing: border-box;
+  flex: 1 1 0;
+  min-width: 110rpx;
+  text-align: center;
+  padding: 14rpx 0;
+  border-radius: 8rpx;
+  font-size: 26rpx;
+}
+.mx-total {
+  box-sizing: border-box;
+  flex: 0 0 110rpx;
+  text-align: center;
+  padding: 14rpx 0;
+  border-radius: 8rpx;
+  font-size: 26rpx;
+}
+/* 三行配色（与床次矩阵一致：浅红/浅蓝/浅绿） */
+.mx-cut { background: #FDE9E8; color: #E65444; }
+.mx-done { background: #E8F1FD; color: #4A78C2; }
+.mx-left { background: #E9F9EE; color: #3E9B5F; }
+/* 落后格（完成率<80%）：红底红字，沿用 §2.5.2 决策 */
+.mx-lowbg { background: #FDE9E8; color: #E65444; font-weight: 600; }
+.pct-low { color: #E65444; font-weight: 600; }
+
+/* ---- 关联床次 ---- */
+.prod-item {
+  padding: 20rpx 0;
+  border-bottom: 2rpx solid var(--color-border);
+}
+
+.prod-item:last-child {
+  border-bottom: none;
+}
+
+.prod-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.arrow {
+  margin-left: 12rpx;
+  font-size: 34rpx;
+}
+
+/* ---- 备注图片九宫格（previewImage 预览） ---- */
+.img-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  padding: 8rpx 0 4rpx;
+}
+.img-thumb {
+  width: 152rpx;
+  height: 152rpx;
+  border-radius: var(--radius);
+  background: var(--color-bg);
+}

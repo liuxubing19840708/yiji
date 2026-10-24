@@ -1,0 +1,108 @@
+<view class="page">
+  <!-- Tab -->
+  <view class="tabs">
+    <view class="tab {{tab === 'groups' ? 'active' : ''}}" data-tab="groups" bindtap="onTab">客户分组</view>
+    <view class="tab {{tab === 'customers' ? 'active' : ''}}" data-tab="customers" bindtap="onTab">全部客户</view>
+  </view>
+
+  <!-- ============ 客户分组 ============ -->
+  <block wx:if="{{tab === 'groups'}}">
+    <view class="toolbar">
+      <input class="search" placeholder="搜索分组" value="{{groupKeyword}}" bindinput="onGroupKeyword" confirm-type="search" />
+      <view class="add-btn" bindtap="onAddGroup">＋ 添加分组</view>
+    </view>
+
+    <view wx:if="{{loading}}" class="state text-3">加载中…</view>
+    <view wx:elif="{{error}}" class="state">
+      <view class="text-3">加载失败，请重试</view>
+      <button class="btn btn-ghost state-btn" bindtap="reloadGroups">重新加载</button>
+    </view>
+    <empty-state wx:elif="{{!groupView.length}}" text="暂无客户分组" sub="点击「＋ 添加分组」创建第一个分组" />
+    <view wx:else>
+      <view class="card row item" wx:for="{{groupView}}" wx:key="id" data-index="{{index}}" bindtap="onEditGroup">
+        <view class="item-main">
+          <view class="item-title">{{item.name}}</view>
+        </view>
+        <view class="text-3 num">{{item.customerCount || 0}} 个客户</view>
+        <view class="arrow text-3">›</view>
+      </view>
+    </view>
+  </block>
+
+  <!-- ============ 全部客户 ============ -->
+  <block wx:else>
+    <view class="toolbar">
+      <input class="search" placeholder="搜索客户编号 / 名称" value="{{keyword}}" bindinput="onKeyword" bindconfirm="onSearch" confirm-type="search" />
+      <view class="add-btn" bindtap="onAddCustomer">＋ 添加客户</view>
+    </view>
+
+    <picker mode="selector" range="{{groupNames}}" bindchange="onGroupFilter">
+      <view class="filter-row">
+        <text class="text-2">分组：{{groupIndex > 0 ? groupNames[groupIndex] : '全部'}}</text>
+        <text class="text-3">点按切换 ▾</text>
+      </view>
+    </picker>
+
+    <view wx:if="{{loading && !customers.length}}" class="state text-3">加载中…</view>
+    <view wx:elif="{{error && !customers.length}}" class="state">
+      <view class="text-3">加载失败，请重试</view>
+      <button class="btn btn-ghost state-btn" bindtap="reloadCustomers">重新加载</button>
+    </view>
+    <empty-state wx:elif="{{!customers.length}}" text="暂无客户" sub="点击「＋ 添加客户」新建客户档案" />
+    <view wx:else>
+      <view class="card item" wx:for="{{customers}}" wx:key="id" data-index="{{index}}" bindtap="onEditCustomer">
+        <view class="row">
+          <view class="item-title">{{item.name}}</view>
+          <view class="spacer"></view>
+          <view class="badge {{item.group ? '' : 'badge-gray'}}">{{item.group_name || '未分组'}}</view>
+        </view>
+        <view class="row item-sub">
+          <view class="text-3">编号：{{item.customer_no || '空'}}</view>
+          <view class="spacer"></view>
+          <view class="text-3" wx:if="{{item.phone}}">{{item.phone}}</view>
+        </view>
+        <view class="text-3 item-sub" wx:if="{{item.remark}}">备注：{{item.remark}}</view>
+      </view>
+      <view class="load-more text-3" wx:if="{{hasMore}}" bindtap="loadMoreCustomers">
+        {{loading ? '加载中…' : '上拉加载更多'}}
+      </view>
+    </view>
+  </block>
+
+  <!-- ============ 客户编辑弹层 ============ -->
+  <view class="mask" wx:if="{{formVisible}}" bindtap="onCloseForm">
+    <view class="sheet" catchtap="noop">
+      <view class="row sheet-head">
+        <view class="h2">{{form.id ? '编辑客户' : '新建客户'}}</view>
+        <view class="spacer"></view>
+        <view class="text-3" bindtap="onCloseForm">关闭</view>
+      </view>
+
+      <view class="field">
+        <text class="label">客户编号</text>
+        <input class="input" placeholder="{{form.id ? '' : '留空自动生成（KH0001…）'}}" value="{{form.customer_no}}" bindinput="onFormNo" />
+      </view>
+      <view class="field">
+        <text class="label">名称 *</text>
+        <input class="input" placeholder="请输入客户名称" value="{{form.name}}" bindinput="onFormName" />
+      </view>
+      <view class="field">
+        <text class="label">电话</text>
+        <input class="input" type="number" placeholder="选填" value="{{form.phone}}" bindinput="onFormPhone" />
+      </view>
+      <picker mode="selector" range="{{groupNames}}" value="{{form.groupIndex}}" bindchange="onFormGroup">
+        <view class="field">
+          <text class="label">分组</text>
+          <view class="input">{{form.groupIndex > 0 ? groupNames[form.groupIndex] : '不分组'}} ▾</view>
+        </view>
+      </picker>
+      <view class="field">
+        <text class="label">备注</text>
+        <input class="input" placeholder="选填" value="{{form.remark}}" bindinput="onFormRemark" />
+      </view>
+
+      <button class="btn btn-info sheet-save" loading="{{saving}}" bindtap="onSaveCustomer">保存</button>
+      <button class="btn btn-plain sheet-delete" wx:if="{{form.id}}" bindtap="onDeleteCustomer">删除客户</button>
+    </view>
+  </view>
+</view>

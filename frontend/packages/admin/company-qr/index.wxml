@@ -1,0 +1,34 @@
+<view class="qr-page">
+  <!-- 加载态 -->
+  <view wx:if="{{loading}}" class="state">
+    <view class="state-text">加载中…</view>
+  </view>
+
+  <!-- 失败态 -->
+  <view wx:elif="{{loadError}}" class="state">
+    <view class="state-text">{{loadError}}</view>
+    <button class="retry-btn" bindtap="onRetry">重新加载</button>
+  </view>
+
+  <!-- 正常态（规格 §3.1：橙色全屏 / 公司名+城市卡片 / 大二维码 / 企业编号大字 / 文案 / 分享） -->
+  <block wx:else>
+    <view class="co-card">
+      <view class="co-name">{{name}}</view>
+      <view class="co-city">{{city || '未填写城市'}}</view>
+    </view>
+
+    <view class="qr-box">
+      <!-- 已配微信凭据：小程序码（微信扫一扫直达登录页并预填编号）；否则本地文本码 -->
+      <image wx:if="{{wxacodePath}}" class="qr-canvas qr-image" src="{{wxacodePath}}" mode="aspectFit" />
+      <canvas wx:else type="2d" id="qr-canvas" class="qr-canvas"></canvas>
+    </view>
+
+    <view class="no-label">企业编号</view>
+    <view class="no-value num">{{companyNo}}</view>
+
+    <view class="slogan">用衣计，扫码加入公司</view>
+
+    <button class="btn share-btn" open-type="share">分享</button>
+    <view class="save-btn" bindtap="onSaveQr">{{saving ? '保存中…' : '保存图片到相册'}}</view>
+  </block>
+</view>

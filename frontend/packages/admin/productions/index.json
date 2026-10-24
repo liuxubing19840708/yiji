@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "生产管理",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index",
+    "label-preview": "/components/label-preview/index"
+  }
+}

@@ -1,0 +1,30 @@
+/* 说明图标：默认只显示 ⓘ，点击展开说明文字 */
+.ht {
+  margin-top: 8rpx;
+}
+
+.ht-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: 50%;
+  border: 2rpx solid var(--color-text-3);
+  color: var(--color-text-3);
+  font-size: 24rpx;
+  font-style: italic;
+  font-weight: 600;
+  line-height: 1;
+  font-family: Georgia, serif;
+}
+
+.ht-text {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: var(--color-text-3);
+  line-height: 1.6;
+  background: var(--color-bg);
+  border-radius: var(--radius, 8rpx);
+  padding: 12rpx 20rpx;
+}

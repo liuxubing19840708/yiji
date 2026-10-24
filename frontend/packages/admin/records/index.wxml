@@ -1,0 +1,88 @@
+<!-- 登记记录列表：员工/日期/工序筛选 + 分页 + 撤销 -->
+<view class="page">
+
+  <!-- 筛选条 -->
+  <view class="card filter-bar">
+    <!-- 菲票预过滤 chip（下钻第三级）：✕ 解除恢复今日区间 -->
+    <view class="ticket-chip" wx:if="{{ticketId}}" bindtap="onClearTicket">
+      <text>菲票 #{{ticketId}} 的登记明细</text>
+      <text class="ticket-chip-clear">✕ 解除</text>
+    </view>
+    <view class="row filter-row" wx:if="{{!ticketId}}">
+      <picker class="filter-picker" range="{{employeeNames}}" value="{{employeeIndex}}" bindchange="onEmployeeChange">
+        <view class="filter-field">
+          <text class="filter-label">员工</text>
+          <text class="filter-value">{{employeeNames[employeeIndex]}}</text>
+          <text class="filter-caret">▾</text>
+        </view>
+      </picker>
+      <picker class="filter-picker" range="{{processNames}}" value="{{processIndex}}" bindchange="onProcessChange">
+        <view class="filter-field">
+          <text class="filter-label">工序</text>
+          <text class="filter-value">{{processNames[processIndex]}}</text>
+          <text class="filter-caret">▾</text>
+        </view>
+      </picker>
+      <view class="filter-reset" bindtap="onResetRange">本月</view>
+    </view>
+    <date-range-bar
+      wx:if="{{!ticketId}}"
+      start="{{startDate}}"
+      end="{{endDate}}"
+      quick="{{quick}}"
+      bind:change="onRangeChange"
+    />
+  </view>
+
+  <view class="text-3 list-count">共 {{count}} 条登记</view>
+
+  <!-- 加载中 -->
+  <view wx:if="{{loading}}" class="card">
+    <view class="state-tip">加载中…</view>
+  </view>
+
+  <!-- 失败态 -->
+  <view wx:elif="{{loadError}}" class="card">
+    <view class="state-tip text-danger">记录加载失败</view>
+    <button class="btn btn-plain retry-btn" bindtap="onRetry">重试</button>
+  </view>
+
+  <!-- 空态 -->
+  <view wx:elif="{{!list.length}}" class="card">
+    <empty-state text="暂无登记记录" sub="调整筛选条件或日期区间试试" />
+  </view>
+
+  <!-- 列表 -->
+  <block wx:else>
+    <view wx:for="{{list}}" wx:key="id" class="card rec-card">
+      <view class="row">
+        <view class="rec-title num">{{item.style_no || '-'}}</view>
+        <view class="spacer"></view>
+        <view class="badge {{item.settlement ? 'badge-green' : ''}}">{{item.settlement ? '已结算' : '未结算'}}</view>
+      </view>
+      <view class="text-3">
+        {{item.user_name || '-'}} · {{item.bed_no || '-'}} · 扎{{item.bundle_no || '-'}} · {{item.color || '-'}}/{{item.size || '-'}}
+      </view>
+      <view class="row rec-meta">
+        <view class="badge badge-gray">{{item.process_name || '-'}}</view>
+        <view class="spacer"></view>
+        <view class="rec-amount num">{{item.amountText}} 元</view>
+        <view class="rec-qty num">（{{item.qty}} 件）</view>
+      </view>
+      <view class="row rec-footer">
+        <view class="text-3">{{item.timeText}}<text wx:if="{{item.operator_name}}"> · 代登：{{item.operator_name}}</text></view>
+        <view class="spacer"></view>
+        <view
+          wx:if="{{item.canRevoke}}"
+          class="revoke-btn {{revokingId === item.id ? 'disabled' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="onRevoke"
+        >撤销</view>
+      </view>
+    </view>
+
+    <view wx:if="{{loadingMore}}" class="state-tip">加载更多…</view>
+    <view wx:elif="{{!hasMore}}" class="state-tip text-3">没有更多了</view>
+  </block>
+
+</view>

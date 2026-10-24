@@ -1,0 +1,52 @@
+<view class="page">
+  <!-- 顶部筛选 + 全部已读 -->
+  <view class="nt-bar">
+    <view
+      wx:for="{{filters}}"
+      wx:key="key"
+      class="nt-filter {{activeFilter === item.key ? 'on' : ''}}"
+      data-key="{{item.key}}"
+      bindtap="onFilterTap"
+    >{{item.label}}</view>
+    <view class="spacer"></view>
+    <view class="nt-read-all {{unread ? '' : 'dim'}}" bindtap="onMarkAll">全部已读</view>
+  </view>
+
+  <!-- 加载态（首屏） -->
+  <view wx:if="{{loading && !items.length}}" class="card">
+    <view class="text-3 nt-center">加载中…</view>
+  </view>
+
+  <!-- 失败态 -->
+  <view wx:elif="{{error}}" class="card" bindtap="onRetry">
+    <empty-state text="加载失败" sub="网络异常，点击重试" />
+  </view>
+
+  <!-- 空态 -->
+  <view wx:elif="{{!items.length}}" class="card">
+    <empty-state text="数据为空" sub="暂无{{activeFilter === 'unread' ? '未读' : (activeFilter === 'read' ? '已读' : '')}}通知" />
+  </view>
+
+  <!-- 列表：未读加粗 + 红点 -->
+  <block wx:else>
+    <view
+      class="card nt-item"
+      wx:for="{{items}}"
+      wx:key="id"
+      data-index="{{index}}"
+      bindtap="onItemTap"
+    >
+      <view class="row">
+        <view wx:if="{{!item.is_read}}" class="nt-dot"></view>
+        <view class="nt-title {{item.is_read ? '' : 'nt-title-unread'}}">{{item.title}}</view>
+        <view class="spacer"></view>
+        <view class="text-3">{{item.timeText}}</view>
+      </view>
+      <view class="nt-message {{item.is_read ? 'text-2' : ''}}">{{item.message}}</view>
+    </view>
+
+    <view class="text-3 nt-center nt-more">
+      {{loading ? '加载中…' : (hasMore ? '上拉加载更多' : '没有更多了')}}
+    </view>
+  </block>
+</view>

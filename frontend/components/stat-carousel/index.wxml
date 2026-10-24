@@ -1,0 +1,34 @@
+<!-- 统计卡轮播：第 1 页统计格，第 2 页日历选择（规格 §4.1） -->
+<view class="stat-carousel">
+  <swiper class="swiper" style="height: {{swiperH}}rpx;" current="{{current}}" circular="{{false}}" bindchange="onSwiperChange" duration="200">
+    <swiper-item>
+      <view class="stat-page">
+        <block wx:for="{{rows}}" wx:for-item="row" wx:for-index="ri" wx:key="ri">
+          <view class="stat-row {{ri > 0 ? 'stat-row-half' : ''}}">
+            <view wx:for="{{row}}" wx:key="title" class="stat">
+              <view class="stat-value num">{{item.value}}<text wx:if="{{item.unit}}" class="stat-unit">{{item.unit}}</text></view>
+              <view class="stat-title">{{item.title}}</view>
+              <view wx:if="{{item.sub}}" class="stat-sub">{{item.sub}}</view>
+            </view>
+          </view>
+        </block>
+      </view>
+    </swiper-item>
+    <swiper-item>
+      <view class="calendar-page">
+        <view class="cal-title">选择自定义区间</view>
+        <picker mode="date" value="{{start}}" bindchange="onStartPick">
+          <view class="cal-field"><text class="cal-label">开始</text><text>{{start || '选择日期'}}</text></view>
+        </picker>
+        <picker mode="date" value="{{end}}" bindchange="onEndPick">
+          <view class="cal-field"><text class="cal-label">结束</text><text>{{end || '选择日期'}}</text></view>
+        </picker>
+        <view class="cal-ok" bindtap="onCalendarOk">应用</view>
+      </view>
+    </swiper-item>
+  </swiper>
+  <view class="dots">
+    <view class="dot {{current === 0 ? 'on' : ''}}"></view>
+    <view class="dot {{current === 1 ? 'on' : ''}}"></view>
+  </view>
+</view>

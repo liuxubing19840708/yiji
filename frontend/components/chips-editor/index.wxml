@@ -1,0 +1,20 @@
+<!-- chips 编辑器：颜色/尺码等标签选择 + 添加（编菲矩阵表头用，规格 §6.1） -->
+<view class="chips">
+  <view
+    wx:for="{{items}}"
+    wx:key="index"
+    class="chip {{activeIndex === index ? 'on' : ''}}"
+    data-index="{{index}}"
+    bindtap="onTap"
+  >
+    {{item.label}}
+    <view wx:if="{{item.badge}}" class="chip-badge">{{item.badge}}</view>
+    <view
+      wx:if="{{removable}}"
+      class="chip-x"
+      data-index="{{index}}"
+      catchtap="onRemove"
+    >×</view>
+  </view>
+  <view wx:if="{{addable}}" class="chip chip-add" bindtap="onAddInput">＋</view>
+</view>

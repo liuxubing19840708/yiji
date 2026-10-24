@@ -1,0 +1,184 @@
+<view class="page">
+  <!-- 容量进度（规格 §11.1：免费版有员工数上限） -->
+  <view class="card" wx:if="{{capacity > 0}}">
+    <view class="row">
+      <view class="h2">员工容量</view>
+      <view class="spacer" />
+      <view class="text-2 num">{{memberCount}}/{{capacity}}</view>
+      <view class="invite-btn" wx:if="{{canManage}}" bindtap="openInvite">⊕ 邀请员工</view>
+    </view>
+    <view class="progress">
+      <view class="progress-inner" style="width: {{capacityPercent}}%;" />
+    </view>
+  </view>
+
+  <!-- 邀请员工入口（无容量卡时也展示） -->
+  <view class="card invite-row" wx:if="{{capacity <= 0}}">
+    <view class="h2">添加员工</view>
+    <view class="spacer" />
+    <view class="invite-btn" wx:if="{{canManage}}" bindtap="openInvite">⊕ 邀请员工</view>
+  </view>
+
+  <!-- 状态筛选 -->
+  <view class="tabs">
+    <view
+      wx:for="{{tabs}}"
+      wx:key="key"
+      class="tab {{tab === item.key ? 'on' : ''}}"
+      data-key="{{item.key}}"
+      bindtap="onTab"
+    >{{item.label}}</view>
+  </view>
+
+  <!-- 岗位筛选 + 岗位管理入口（对齐衣扫：第二行岗位 chips，右侧「岗位管理」） -->
+  <view class="post-row">
+    <scroll-view class="post-chips" scroll-x enable-flex>
+      <view
+        class="p-chip {{postFilter === 0 ? 'on' : ''}}"
+        data-id="0"
+        bindtap="onPickPostFilter"
+      >全部</view>
+      <view
+        wx:for="{{posts}}"
+        wx:key="id"
+        class="p-chip {{postFilter === item.id ? 'on' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="onPickPostFilter"
+      >{{item.name}}</view>
+    </scroll-view>
+    <view class="posts-entry" wx:if="{{canManage}}" bindtap="onOpenPosts">👤 岗位管理</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading text-3">加载中…</view>
+
+  <block wx:else>
+    <empty-state
+      wx:if="{{!list.length}}"
+      text="列表为空"
+      sub="{{tab === 'pending' ? '暂无待审核的入职申请' : tab === 'resigned' ? '暂无离职员工' : '暂无员工'}}"
+    />
+
+    <view
+      wx:for="{{list}}"
+      wx:key="id"
+      class="card emp {{item.is_pinned ? 'emp-pinned' : ''}}"
+    >
+      <view class="row">
+        <image wx:if="{{item.avatar}}" class="avatar avatar-img" src="{{item.avatar}}" mode="aspectFill" />
+        <view wx:else class="avatar av-{{item.avColor}}">{{item.initial}}</view>
+        <view class="emp-info">
+          <view class="row">
+            <view class="h2">{{item.name}}</view>
+            <view wx:if="{{item.genderMark}}" class="gender {{item.gender === 1 ? 'gender-m' : 'gender-f'}}">{{item.genderMark}}</view>
+            <view wx:if="{{item.is_admin}}" class="badge emp-badge">管理员</view>
+            <view wx:if="{{item.status === 0}}" class="badge emp-badge">{{item.status_display}}</view>
+            <view wx:if="{{item.status === 2}}" class="badge badge-gray emp-badge">{{item.status_display}}</view>
+            <view wx:if="{{item.is_pinned}}" class="pin-star">★</view>
+          </view>
+          <view class="text-3">
+            {{item.post_name || '未设置岗位'}} · {{item.group_no}}组{{item.phone ? ' · ' + item.phone : ''}}
+          </view>
+        </view>
+        <view class="spacer" />
+
+        <!-- 待审核：通过 / 拒绝 -->
+        <block wx:if="{{item.status === 0}}">
+          <block wx:if="{{canManage}}">
+            <view class="act act-plain" data-id="{{item.id}}" bindtap="onReject">拒绝</view>
+            <view class="act act-primary" data-id="{{item.id}}" bindtap="onApprove">通过</view>
+          </block>
+        </block>
+
+        <!-- 在职/离职：置顶 + ⋯ 菜单 -->
+        <block wx:if="{{item.status === 1 || item.status === 2}}">
+          <view
+            class="pin {{item.is_pinned ? 'pin-on' : ''}}"
+            data-id="{{item.id}}"
+            bindtap="onTogglePin"
+          >★</view>
+          <view class="more" wx:if="{{canManage}}" data-id="{{item.id}}" bindtap="onMenu">⋯</view>
+        </block>
+      </view>
+    </view>
+  </block>
+
+  <!-- 邀请员工弹层（规格 §11.1：手机号邀请 + 录入姓名/岗位） -->
+  <view wx:if="{{inviteVisible}}" class="mask" bindtap="closeInvite">
+    <view class="panel" catchtap="noop">
+      <view class="row panel-head">
+        <view class="h2">邀请员工</view>
+        <view class="spacer" />
+        <view class="panel-close" bindtap="closeInvite">×</view>
+      </view>
+      <view class="field">
+        <input class="input" type="number" maxlength="11" placeholder="手机号"
+               value="{{invitePhone}}" bindinput="onInvitePhone" />
+      </view>
+      <view class="field">
+        <input class="input" placeholder="姓名（可不填）" maxlength="30"
+               value="{{inviteName}}" bindinput="onInviteName" />
+      </view>
+      <view class="field">
+        <picker mode="selector" range="{{invitePosts}}" value="{{invitePostIndex}}"
+                bindchange="onInvitePickPost">
+          <view class="picker-value">
+            {{invitePosts[invitePostIndex] || '选择岗位（可不填）'}}
+            <view class="picker-arrow">></view>
+          </view>
+        </picker>
+      </view>
+      <hint-toggle text="对方登录后出现在「待审核」列表，由管理员审核通过后正式入职" />
+      <button class="btn btn-primary {{inviteSubmitting ? 'disabled' : ''}}" bindtap="submitInvite">
+        发送邀请
+      </button>
+    </view>
+  </view>
+
+  <!-- 工资设置弹层（固定工资 = 金额 + 按天/按月；计件无需设置） -->
+  <view wx:if="{{salaryVisible}}" class="mask" bindtap="closeSalary">
+    <view class="panel" catchtap="noop">
+      <view class="row panel-head">
+        <view class="h2">设置工资（{{salaryEmpName}}）</view>
+        <view class="spacer" />
+        <view class="panel-close" bindtap="closeSalary">×</view>
+      </view>
+      <view class="field">
+        <view class="picker-value">工资方式（四选一）</view>
+        <view class="s-chip {{salaryType === 'process' ? 'on' : ''}}" data-type="process" bindtap="onPickSalaryType">工序计件</view>
+        <view class="s-chip {{salaryType === 'whole' ? 'on' : ''}}" data-type="whole" bindtap="onPickSalaryType">整件计件</view>
+        <view class="s-chip {{salaryType === 'commission' ? 'on' : ''}}" data-type="commission" bindtap="onPickSalaryType">计件提成</view>
+        <view class="s-chip {{salaryType === 'fixed' ? 'on' : ''}}" data-type="fixed" bindtap="onPickSalaryType">固定工资</view>
+      </view>
+      <block wx:if="{{salaryType === 'fixed'}}">
+        <view class="field">
+          <input class="input" type="digit" placeholder="固定工资金额（留空或 0 取消固定工资）"
+                 value="{{salaryAmount}}" bindinput="onSalaryAmount" />
+        </view>
+        <view class="field">
+          <view class="picker-value">计算方式</view>
+          <view class="s-chip {{salaryFixedKind === 'day' ? 'on' : ''}}" data-kind="day" bindtap="onPickFixedKind">按天</view>
+          <view class="s-chip {{salaryFixedKind === 'month' ? 'on' : ''}}" data-kind="month" bindtap="onPickFixedKind">按月</view>
+        </view>
+        <hint-toggle text="固定工资＝金额×出勤天数（按天）或月数（按月）" />
+      </block>
+      <block wx:if="{{salaryType === 'whole'}}">
+        <view class="field">
+          <input class="input" type="digit" placeholder="整件单价（元/件）"
+                 value="{{salaryRate}}" bindinput="onSalaryRate" />
+        </view>
+        <hint-toggle text="完成的菲票按参与人数均摊件数×单价；多人合作不重复计件" />
+      </block>
+      <block wx:if="{{salaryType === 'commission'}}">
+        <view class="field">
+          <input class="input" type="digit" placeholder="提成比例（%，0~100）"
+                 value="{{salaryRate}}" bindinput="onSalaryRate" />
+        </view>
+        <hint-toggle text="提成＝本组期间计件总额×比例；组编号在员工编辑里设置" />
+      </block>
+      <hint-toggle wx:if="{{salaryType === 'process'}}" text="按登记工序单价实时累计（默认方式）" />
+      <button class="btn btn-primary {{salarySubmitting ? 'disabled' : ''}}" bindtap="submitSalary">
+        保存
+      </button>
+    </view>
+  </view>
+</view>

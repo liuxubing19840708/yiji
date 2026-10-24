@@ -1,0 +1,151 @@
+/* 工序 Tab 样式：走 app.wxss 设计令牌 */
+.state-tip {
+  text-align: center;
+  color: var(--color-text-3);
+  padding: 48rpx 0 8rpx;
+}
+.retry-btn {
+  width: 40%;
+  margin: 24rpx auto 0;
+}
+
+.proc-list {
+  margin-top: 16rpx;
+}
+.proc-row {
+  padding: 24rpx 0;
+  border-bottom: 2rpx solid var(--color-border);
+}
+.proc-row:last-child {
+  border-bottom: none;
+}
+.proc-name {
+  font-size: 30rpx;
+}
+
+/* 自定义开关（不写死色值） */
+.toggle {
+  width: 92rpx;
+  height: 52rpx;
+  border-radius: 999rpx;
+  background: var(--color-border);
+  padding: 4rpx;
+  box-sizing: border-box;
+  transition: background 0.2s;
+}
+.toggle.on {
+  background: var(--color-primary);
+}
+.toggle.disabled {
+  opacity: 0.5;
+}
+.toggle-knob {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  background: var(--color-card);
+  box-shadow: var(--shadow);
+  transition: transform 0.2s;
+}
+.toggle.on .toggle-knob {
+  transform: translateX(40rpx);
+}
+
+.assigned-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+
+/* 管理员新建工序：入口 + 底部弹层（样式与客户管理页弹层同风格） */
+.add-proc-btn {
+  color: var(--color-primary);
+  font-size: 28rpx;
+  padding: 8rpx 0 8rpx 24rpx;
+}
+.mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+}
+.sheet {
+  width: 100%;
+  background: var(--color-card);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+/* 取消/创建放标题行：键盘弹出不遮挡 */
+.sheet-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+.sheet-title {
+  font-size: 34rpx;
+  font-weight: 600;
+}
+.head-btn {
+  width: 140rpx;
+  padding: 12rpx 0;
+  font-size: 26rpx;
+  margin-left: 16rpx;
+}
+.sheet-field {
+  display: flex;
+  align-items: center;
+  border-bottom: 2rpx solid var(--color-border);
+  padding: 22rpx 4rpx;
+}
+.sheet-label {
+  width: 150rpx;
+  color: var(--color-text-2);
+  font-size: 28rpx;
+}
+.sheet-input {
+  flex: 1;
+  font-size: 28rpx;
+}
+.sheet-tip {
+  margin-top: 20rpx;
+}
+
+/* 弹层加高 + 内部滚动：内容多时不被压扁，键盘弹出时底部补 kbHeight 不被盖 */
+.sheet-body {
+  max-height: 62vh;
+}
+
+/* ---- 工序模板 ---- */
+.tpl-summary {
+  margin-top: 6rpx;
+  word-break: break-all;
+}
+.tpl-chips-tip {
+  margin-top: 20rpx;
+}
+.tpl-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 12rpx;
+}
+.tpl-chip {
+  padding: 8rpx 22rpx;
+  border-radius: 999rpx;
+  background: var(--color-bg);
+  border: 2rpx solid var(--color-border);
+  font-size: 26rpx;
+  color: var(--color-text);
+}
+.tpl-chip.tpl-chip-on {
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}

@@ -1,0 +1,12 @@
+<!-- 数字软键盘：车间快速录入（规格 §21.3）。input 逐键 / confirm 确认 -->
+<view class="keypad">
+  <view class="keypad-display">
+    <text class="keypad-value">{{display || placeholder}}</text>
+    <view class="keypad-back" bindtap="onBackspace">⌫</view>
+  </view>
+  <view class="keypad-grid">
+    <view wx:for="{{keys}}" wx:key="*this" class="key" data-key="{{item}}" bindtap="onKey">{{item}}</view>
+    <view class="key key-clear" bindtap="onClear">清空</view>
+    <view class="key key-confirm" bindtap="onConfirm">确认</view>
+  </view>
+</view>

@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "客户端日志",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "date-range-bar": "/components/date-range-bar/index",
+    "empty-state": "/components/empty-state/index",
+    "employee-picker": "/components/employee-picker/index"
+  }
+}

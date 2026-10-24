@@ -1,0 +1,94 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/process/index",
+    "pages/scan/index",
+    "pages/notifications/index",
+    "pages/profile/index",
+    "pages/login/index"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#FF7A00",
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "衣计",
+    "backgroundColor": "#F5F6F8",
+    "backgroundTextStyle": "light"
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#86909C",
+    "selectedColor": "#FF7A00",
+    "backgroundColor": "#FFFFFF",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/process/index",
+        "text": "工序"
+      },
+      {
+        "pagePath": "pages/scan/index",
+        "text": "扫菲"
+      },
+      {
+        "pagePath": "pages/notifications/index",
+        "text": "通知"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的"
+      }
+    ]
+  },
+  "subPackages": [
+    {
+      "root": "packages/salary",
+      "pages": [
+        "placeholder/index",
+        "company/index",
+        "mine/index",
+        "order/index",
+        "completion/index",
+        "changes/index"
+      ]
+    },
+    {
+      "root": "packages/admin",
+      "pages": [
+        "placeholder/index",
+        "company/index",
+        "employees/index",
+        "assigned/index",
+        "company-qr/index",
+        "posts/index",
+        "profile-edit/index",
+        "customers/index",
+        "orders/index",
+        "order-detail/index",
+        "styles/index",
+        "style-process/index",
+        "productions/index",
+        "production-detail/index",
+        "production-create/index",
+        "assist/index",
+        "in-progress/index",
+        "records/index",
+        "help/index",
+        "settings/index",
+        "cloud-printer/index",
+        "logs/index",
+        "client-logs/index",
+        "kanban/index",
+        "trace/index",
+        "trace-detail/index",
+        "warehouse/index",
+        "style-detail/index"
+      ]
+    }
+  ],
+  "lazyCodeLoading": "requiredComponents",
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

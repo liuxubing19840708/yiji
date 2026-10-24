@@ -1,0 +1,110 @@
+/* 打印预览弹层样式（浅色令牌色系，与全站一致） */
+.lp-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lp-panel {
+  width: 640rpx;
+  max-width: 92vw;
+  background: var(--color-card, #ffffff);
+  border-radius: 24rpx;
+  padding: 32rpx 28rpx 28rpx;
+  box-sizing: border-box;
+}
+
+.lp-title {
+  text-align: center;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--color-text, #1f2329);
+}
+
+.lp-hint {
+  margin-top: 8rpx;
+  text-align: center;
+  font-size: 22rpx;
+  color: var(--color-text-3, #8f959e);
+}
+
+/* 舞台：标签纸居中，两侧翻页箭头 */
+.lp-stage {
+  margin-top: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 360rpx;
+}
+
+.lp-canvas {
+  background: #ffffff;
+  border: 2rpx solid var(--color-border, #e5e6eb);
+  border-radius: 8rpx;
+}
+
+.lp-nav {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: var(--color-bg, #f5f6f7);
+  color: var(--color-text-2, #4e5969);
+  font-size: 44rpx;
+  line-height: 66rpx;
+  text-align: center;
+  margin: 0 16rpx;
+  flex-shrink: 0;
+}
+
+.lp-nav:active {
+  background: var(--color-primary-light, #fff3e5);
+  color: var(--color-primary, #ff6a00);
+}
+
+.lp-index {
+  margin-top: 16rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: var(--color-text-2, #4e5969);
+  font-variant-numeric: tabular-nums;
+}
+
+.lp-ticket {
+  margin-top: 8rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: var(--color-text-3, #8f959e);
+  font-variant-numeric: tabular-nums;
+}
+
+.lp-btns {
+  margin-top: 28rpx;
+  display: flex;
+}
+
+.lp-btn {
+  flex: 1;
+  font-size: 28rpx;
+  border-radius: 999rpx;
+  padding: 8rpx 0;
+}
+
+.lp-btn::after {
+  border: none;
+}
+
+.lp-cancel {
+  margin-right: 20rpx;
+  background: var(--color-bg, #f5f6f7);
+  color: var(--color-text-2, #4e5969);
+}
+
+.lp-ok {
+  background: var(--color-primary, #ff6a00);
+  color: #ffffff;
+  font-weight: 600;
+}

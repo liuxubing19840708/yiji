@@ -1,0 +1,20 @@
+<!-- 协助扫菲：选择被代登记员工（规格 §9.2，选择器见 §11.3） -->
+<view class="page">
+
+  <view class="card assist-hero">
+    <view class="h2">协助扫菲</view>
+    <view class="text-3 assist-desc">为不便操作的员工代登记计件，登记记录记入该员工名下，后端同时留操作者审计。</view>
+    <button class="btn btn-primary assist-btn" bindtap="onOpenPicker">选择员工</button>
+  </view>
+
+  <hint-toggle text="选中员工后进入扫菲页，登记流程与本人扫菲完全一致" />
+
+  <!-- 员工选择器（单选；确认后切扫菲页） -->
+  <employee-picker
+    visible="{{pickerVisible}}"
+    multi="{{false}}"
+    selected="{{[]}}"
+    bind:confirm="onPickerConfirm"
+    bind:close="onClosePicker"
+  />
+</view>

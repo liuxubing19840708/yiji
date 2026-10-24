@@ -1,0 +1,52 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading text-3">加载中…</view>
+
+  <block wx:elif="{{company}}">
+    <view class="card co-head">
+      <view class="h1">{{company.name}}</view>
+      <view class="row co-status-row">
+        <view class="badge badge-green">{{company.status_display || '在职'}}</view>
+      </view>
+      <view class="text-3">员工可凭公司编号申请加入本公司</view>
+    </view>
+
+    <view class="card">
+      <view class="row co-row" bindtap="onCopyNo">
+        <view class="co-label">公司编号</view>
+        <view class="spacer" />
+        <view class="co-no num">{{company.company_no}}</view>
+        <view class="copy-btn">复制</view>
+      </view>
+      <view class="row co-row">
+        <view class="co-label">所在城市</view>
+        <view class="spacer" />
+        <view class="text-2">{{company.city || '未填写'}}</view>
+      </view>
+      <view class="row co-row" bindtap="onChoosePlan">
+        <view class="co-label">版本套餐</view>
+        <view class="spacer" />
+        <view class="text-2">{{company.plan_display || '基础版'}}</view>
+        <view wx:if="{{isAdmin}}" class="copy-btn">变更</view>
+      </view>
+      <view class="row co-row">
+        <view class="co-label">成员数</view>
+        <view class="spacer" />
+        <view class="text-2 num">{{company.member_count}} / {{company.capacity}} 人</view>
+      </view>
+      <view class="progress">
+        <view class="progress-inner" style="width: {{capacityPercent}}%;" />
+      </view>
+      <view class="row co-row co-last">
+        <view class="co-label">创建时间</view>
+        <view class="spacer" />
+        <view class="text-2">{{createdDate || '—'}}</view>
+      </view>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view class="card">
+      <empty-state text="暂无在职公司" sub="请先通过公司编号加入公司" />
+    </view>
+  </block>
+</view>

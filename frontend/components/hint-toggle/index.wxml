@@ -1,0 +1,4 @@
+<view class="ht">
+  <view class="ht-icon" catchtap="onToggle" aria-role="button">i</view>
+  <view wx:if="{{open}}" class="ht-text">{{text}}</view>
+</view>

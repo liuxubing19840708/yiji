@@ -1,0 +1,80 @@
+.chips {
+  white-space: nowrap;
+  margin-bottom: 24rpx;
+}
+
+.chip {
+  display: inline-block;
+  padding: 12rpx 28rpx;
+  margin-right: 16rpx;
+  border-radius: 999rpx;
+  background: var(--color-card);
+  color: var(--color-text-2);
+  font-size: 26rpx;
+  box-shadow: var(--shadow);
+}
+
+.chip-on {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.chip-user {
+  color: var(--color-primary);
+}
+
+.cl-item {
+  padding: 24rpx;
+}
+
+/* 级别徽标：错误红 / 告警橙 / 信息灰 */
+.lv-error {
+  background: #FDECEE;
+  color: #F53F3F;
+}
+
+.lv-warn {
+  background: #FFF3E8;
+  color: #FF7A00;
+}
+
+.lv-info {
+  background: #F2F3F5;
+  color: #4E5969;
+}
+
+.cl-message {
+  margin: 16rpx 0;
+  font-size: 28rpx;
+  color: var(--color-text);
+  word-break: break-all;
+}
+
+.cl-meta {
+  margin-top: 8rpx;
+  flex-wrap: wrap;
+}
+
+.cl-hint {
+  margin-top: 8rpx;
+}
+
+.cl-detail {
+  margin-top: 12rpx;
+  padding: 16rpx;
+  background: #F7F8FA;
+  border-radius: 12rpx;
+  font-size: 24rpx;
+  color: var(--color-text-2);
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.cl-center {
+  text-align: center;
+  padding: 24rpx 0;
+}
+
+.cl-more {
+  padding: 8rpx 0 24rpx;
+}

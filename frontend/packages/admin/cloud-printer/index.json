@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "打印管理",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index",
+    "label-preview": "/components/label-preview/index",
+    "hint-toggle": "/components/hint-toggle/index"
+  }
+}

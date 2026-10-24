@@ -1,0 +1,27 @@
+<!-- 首页工作台：今日两块数字（§2.8 P0 常驻）+ 日期条 + 模块宫格 -->
+<view class="page">
+
+  <!-- 常驻两块数字：今日件数 / 今日预估工资（本人口径，失败静默显示 0） -->
+  <view class="today-strip">
+    <view class="today-cell">
+      <view class="today-num">{{todayQty}}</view>
+      <view class="today-label">今日件数</view>
+    </view>
+    <view class="today-divider"></view>
+    <view class="today-cell">
+      <view class="today-num accent">¥{{todayAmount}}</view>
+      <view class="today-label">今日预估工资</view>
+    </view>
+  </view>
+
+  <date-range-bar
+    start="{{startDate}}"
+    end="{{endDate}}"
+    quick="{{quick}}"
+    bind:change="onRangeChange"
+  />
+
+  <module-grid modules="{{modules}}" />
+
+  <view class="text-3 copyright">衣计 · 计件生产管理</view>
+</view>

@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "建床向导",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index",
+    "numeric-keypad": "/components/numeric-keypad/index",
+    "label-preview": "/components/label-preview/index",
+    "hint-toggle": "/components/hint-toggle/index"
+  }
+}

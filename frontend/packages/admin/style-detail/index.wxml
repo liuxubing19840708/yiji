@@ -1,0 +1,43 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="state text-3">加载中…</view>
+
+  <block wx:elif="{{!error}}">
+    <view class="card">
+      <view class="row">
+        <view class="h2 num">{{styleNo}}</view>
+        <view class="spacer"></view>
+        <view class="num text-primary h2" wx:if="{{!hideStylePrice}}">¥{{priceText}}</view>
+      </view>
+      <view class="text-2">{{name}}</view>
+      <view class="text-3" wx:if="{{fabric}}">面料：{{fabric}}</view>
+      <view class="text-3" wx:if="{{customerName}}">客户：{{customerName}}</view>
+    </view>
+
+    <!-- 款式图片（多图直显，点开预览） -->
+    <view class="card" wx:if="{{imageUrls.length}}">
+      <view class="h2">款式图片</view>
+      <view class="detail-grid">
+        <image
+          wx:for="{{imageUrls}}"
+          wx:key="*this"
+          class="detail-thumb"
+          src="{{item}}"
+          mode="aspectFill"
+          data-index="{{index}}"
+          bindtap="onPreviewImage"
+        />
+      </view>
+    </view>
+
+    <!-- 工艺说明/工艺图片/产品视频（hideHeader：款号/名称/图已在顶部信息卡，不重复渲染） -->
+    <view class="card" wx:if="{{styleInfo}}">
+      <style-craft styleInfo="{{styleInfo}}" hideHeader="{{true}}" />
+    </view>
+  </block>
+
+  <block wx:else>
+    <view class="card">
+      <empty-state text="{{error}}" sub="下拉刷新重试" />
+    </view>
+  </block>
+</view>

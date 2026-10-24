@@ -1,0 +1,47 @@
+<!-- 款式卡 + 工艺信息（建单/订单详情/开床向导共用）：无数据整卡隐藏 -->
+<view class="sc-card" wx:if="{{vm && (hideHeader ? vm.hasCraft : true)}}">
+
+  <!-- 款号/名称/图 -->
+  <view class="row" wx:if="{{!hideHeader}}">
+    <image wx:if="{{vm.imageUrl}}" class="sc-img" src="{{vm.imageUrl}}" mode="aspectFill" />
+    <view wx:else class="sc-img sc-img-ph text-3">图</view>
+    <view class="sc-main">
+      <view class="sc-no">{{vm.styleNo}}</view>
+      <view class="text-2" wx:if="{{vm.styleName}}">{{vm.styleName}}</view>
+    </view>
+  </view>
+
+  <!-- 工艺说明 / 工艺图片 / 产品视频（全空不渲染标题） -->
+  <block wx:if="{{vm.hasCraft}}">
+    <view class="sc-divider"></view>
+    <view class="sc-craft-title text-3">工艺信息</view>
+    <view wx:if="{{vm.craftNote}}" class="sc-craft-note">{{vm.craftNote}}</view>
+    <view wx:if="{{vm.craftImages.length}}" class="sc-grid">
+      <image
+        wx:for="{{vm.craftImages}}"
+        wx:key="*this"
+        class="sc-grid-img"
+        src="{{item}}"
+        mode="aspectFill"
+        data-index="{{index}}"
+        bindtap="onTapCraftImage"
+      />
+    </view>
+    <!-- 产品视频：封面+播放钮，点按才挂 video 组件并 autoplay（点击后立即播放） -->
+    <block wx:if="{{vm.videoUrl}}">
+      <view wx:if="{{!videoPlaying}}" class="sc-video-cover" bindtap="onPlayVideo">
+        <!-- 封面用中性占位（不用款式图，避免误会成图片模式）；点按才挂 video 播放 -->
+        <view class="sc-video sc-video-ph text-3">产品视频</view>
+        <view class="sc-video-btn">▶</view>
+      </view>
+      <video
+        wx:else
+        class="sc-video"
+        src="{{vm.videoUrl}}"
+        object-fit="contain"
+        controls
+        autoplay
+      ></video>
+    </block>
+  </block>
+</view>

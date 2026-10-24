@@ -1,0 +1,131 @@
+<view class="page login">
+  <!-- 阶段一：登录表单 -->
+  <block wx:if="{{stage === 'form'}}">
+    <view class="logo">
+      <view class="logo-mark">衣计</view>
+      <view class="text-3">服装计件生产管理</view>
+    </view>
+
+    <view class="card">
+      <view class="tabs">
+        <view class="tab {{mode === 'sms' ? 'on' : ''}}" data-mode="sms" bindtap="onMode">验证码登录</view>
+        <view class="tab {{mode === 'password' ? 'on' : ''}}" data-mode="password" bindtap="onMode">密码登录</view>
+      </view>
+
+      <view class="field">
+        <input class="input" placeholder="手机号" type="number" maxlength="11" value="{{phone}}" bindinput="onPhone" />
+      </view>
+
+      <block wx:if="{{mode === 'sms'}}">
+        <view class="field">
+          <input class="input" placeholder="验证码" type="number" maxlength="6" value="{{code}}" bindinput="onCode" />
+          <view class="sms-btn {{smsCountdown > 0 ? 'disabled' : ''}}" bindtap="onSendSms">
+            {{smsCountdown > 0 ? smsCountdown + 's' : '获取验证码'}}
+          </view>
+        </view>
+        <button class="btn btn-primary {{submitting ? 'disabled' : ''}}" bindtap="onSmsLogin">登录</button>
+      </block>
+
+      <block wx:else>
+        <view class="field">
+          <input class="input" placeholder="密码" password value="{{password}}" bindinput="onPassword" />
+        </view>
+        <button class="btn btn-primary {{submitting ? 'disabled' : ''}}" bindtap="onPasswordLogin">登录</button>
+      </block>
+
+      <view class="divider">或</view>
+      <button class="btn btn-plain" bindtap="onWechatLogin">微信一键登录</button>
+    </view>
+
+    <view class="agree {{agreedShake ? 'shake' : ''}}" bindtap="toggleAgree">
+      <view class="checkbox {{agreed ? 'on' : ''}}">{{agreed ? '✓' : ''}}</view>
+      <view class="agree-text">
+        已阅读并同意<text class="agree-link">《隐私政策》</text>与<text class="agree-link">《用户协议》</text>
+      </view>
+    </view>
+
+  </block>
+
+  <!-- 阶段二：多个在职公司，弹选择器 -->
+  <block wx:if="{{stage === 'pick'}}">
+    <view class="guide">
+      <view class="h1">选择公司</view>
+      <view class="text-3 guide-sub">你在多家公司在职，请选择要进入的公司</view>
+      <view
+        wx:for="{{activeCompanies}}"
+        wx:key="id"
+        class="card co-item {{switchingId === item.id ? 'co-active' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="onPickCompany"
+      >
+        <view class="row">
+          <view class="h2">{{item.name}}</view>
+          <view class="spacer" />
+          <view wx:if="{{switchingId === item.id}}" class="text-3">进入中…</view>
+          <view wx:else class="co-arrow">›</view>
+        </view>
+        <view class="text-3 co-meta">
+          {{item.city || '未填写城市'}} · {{item.member_count}} 人 · 编号 {{item.company_no}}
+        </view>
+      </view>
+      <view wx:if="{{pendingCompanies.length}}" class="text-3 co-pending-tip">
+        另有 {{pendingCompanies.length}} 家公司的入职申请待审核
+      </view>
+      <button class="btn btn-plain co-logout" bindtap="onLogout">退出登录</button>
+    </view>
+  </block>
+
+  <!-- 阶段三：待审核态页 -->
+  <block wx:if="{{stage === 'pending'}}">
+    <view class="guide">
+      <view class="h1">等待审核</view>
+      <view class="text-3 guide-sub">你的入职申请已提交，管理员审核通过后即可进入</view>
+      <view class="card" wx:for="{{pendingCompanies}}" wx:key="id">
+        <view class="row">
+          <view class="h2">{{item.name}}</view>
+          <view class="spacer" />
+          <view class="badge">{{item.status_display || '待审核'}}</view>
+        </view>
+        <view class="text-3 co-meta">{{item.city || '未填写城市'}} · 编号 {{item.company_no}}</view>
+      </view>
+      <button class="btn btn-primary co-btn" bindtap="onRefreshStatus">刷新状态</button>
+      <button class="btn btn-plain" bindtap="onLogout">退出登录</button>
+    </view>
+  </block>
+
+  <!-- 阶段四：无公司引导 -->
+  <block wx:if="{{stage === 'noCompany'}}">
+    <view class="guide">
+      <view class="h1">加入公司</view>
+      <view class="text-3 guide-sub">输入公司编号，向公司提交入职申请（可向管理员索取）</view>
+      <view class="card">
+        <view class="field">
+          <input class="input" placeholder="公司编号" type="number" value="{{joinNo}}" bindinput="onJoinNo" />
+        </view>
+        <button class="btn btn-primary" bindtap="onJoin">申请加入</button>
+      </view>
+      <view class="card">
+        <view class="text-2">还没有公司？</view>
+        <button class="btn btn-ghost co-btn" bindtap="onCreateCompany">创建公司</button>
+        <view class="text-3">创建后自动成为公司管理员，也可先用编号加入</view>
+      </view>
+      <button class="btn btn-plain" bindtap="onLogout">退出登录</button>
+    </view>
+  </block>
+
+  <!-- 创建公司弹层（盖在任意阶段之上） -->
+  <view class="mask" wx:if="{{createVisible}}" bindtap="onCloseCreate">
+    <view class="modal" catchtap="noop">
+      <view class="h2">创建公司</view>
+      <view class="text-3 modal-sub">创建后你将成为该公司的管理员</view>
+      <view class="field">
+        <input class="input" placeholder="公司名称（必填）" value="{{coName}}" bindinput="onCoName" maxlength="30" />
+      </view>
+      <view class="field">
+        <input class="input" placeholder="所在城市（选填）" value="{{coCity}}" bindinput="onCoCity" maxlength="20" />
+      </view>
+      <button class="btn btn-primary modal-btn {{creating ? 'disabled' : ''}}" bindtap="onCreateSubmit">创建</button>
+      <view class="text-3 modal-cancel" bindtap="onCloseCreate">取消</view>
+    </view>
+  </view>
+</view>

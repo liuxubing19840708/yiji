@@ -1,0 +1,10 @@
+/* 订单薪酬（按款式汇总） */
+.loading { padding: 40rpx 0; text-align: center; }
+
+.total-card { margin-top: 16rpx; }
+.link-btn { color: var(--color-primary); font-size: 26rpx; }
+
+.o-card { margin-bottom: 16rpx; }
+.qty-badge { background: var(--color-primary-light); color: var(--color-primary); border-radius: 999rpx; padding: 4rpx 20rpx; font-size: 24rpx; }
+.o-nums { margin: 12rpx 0 4rpx; }
+.o-amount { font-weight: 600; }

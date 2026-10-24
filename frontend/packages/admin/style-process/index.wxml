@@ -1,0 +1,35 @@
+<view class="page">
+  <view class="card head-card">
+    <view class="h2">款式：{{styleNo}}</view>
+    <view class="text-3">配置该款式各工序单价，款式总单价按工序自动汇总</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="state text-3">加载中…</view>
+  <view wx:elif="{{error}}" class="state">
+    <view class="text-3">加载失败，请重试</view>
+    <button class="btn btn-ghost state-btn" bindtap="reload">重新加载</button>
+  </view>
+  <empty-state wx:elif="{{!rows.length}}" text="尚未配置工序单价" sub="点击下方「＋ 添加工序」开始配置" />
+  <view wx:else>
+    <view class="card row p-row" wx:for="{{rows}}" wx:key="process">
+      <view class="p-name">{{item.process_name}}</view>
+      <view class="spacer"></view>
+      <text class="text-3">跳序</text>
+      <switch class="p-skip" checked="{{item.allow_skip}}" color="#3a7afe"
+              data-index="{{index}}" bindchange="onToggleAllowSkip" />
+      <text class="text-3">单价</text>
+      <input class="p-price num" type="digit" placeholder="0.000"
+             value="{{item.price}}" data-index="{{index}}" bindinput="onPrice" />
+      <view class="p-del" wx:if="{{canEdit}}" data-index="{{index}}" bindtap="onRemoveRow">✕</view>
+    </view>
+  </view>
+
+  <picker wx:if="{{processNames.length}}" mode="selector" range="{{processNames}}" bindchange="onPickProcess">
+    <button class="btn btn-ghost add-process">＋ 添加工序</button>
+  </picker>
+  <view wx:else class="text-3 state-tip">工序档案为空，请先在「工序」Tab 中创建工序</view>
+
+  <view class="save-wrap" wx:if="{{rows.length && canEdit}}">
+    <button class="btn btn-info" loading="{{saving}}" bindtap="onSave">保存配置</button>
+  </view>
+</view>

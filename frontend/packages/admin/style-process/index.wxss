@@ -1,0 +1,61 @@
+/* 款式工序单价页样式（颜色/圆角取自 app.wxss 变量） */
+
+.head-card {
+  margin-bottom: 24rpx;
+}
+
+.p-row {
+  margin-bottom: 20rpx;
+}
+
+.p-name {
+  font-size: 30rpx;
+  font-weight: 500;
+  margin-right: 16rpx;
+}
+
+.p-skip {
+  transform: scale(0.8);
+  margin-left: 8rpx;
+}
+
+.p-price {
+  width: 180rpx;
+  text-align: right;
+  font-size: 30rpx;
+  margin-left: 12rpx;
+  border-bottom: 2rpx solid var(--color-border);
+  padding: 6rpx 8rpx;
+}
+
+.p-del {
+  margin-left: 20rpx;
+  color: var(--color-text-3);
+  font-size: 32rpx;
+  padding: 8rpx;
+}
+
+.add-process {
+  margin-top: 8rpx;
+}
+
+.state {
+  text-align: center;
+  padding: 120rpx 0;
+}
+
+.state-btn {
+  margin-top: 24rpx;
+  width: 240rpx;
+  font-size: 28rpx;
+  padding: 14rpx 0;
+}
+
+.state-tip {
+  text-align: center;
+  padding: 40rpx 0;
+}
+
+.save-wrap {
+  margin-top: 32rpx;
+}

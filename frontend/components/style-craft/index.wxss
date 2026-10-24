@@ -1,0 +1,102 @@
+/* 款式卡 + 工艺信息共用组件样式（走 app.wxss 设计令牌） */
+.sc-card {
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  padding: 20rpx;
+}
+
+.sc-img {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: var(--radius);
+  flex-shrink: 0;
+  background: var(--color-card);
+}
+
+.sc-img-ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sc-main {
+  margin-left: 20rpx;
+  min-width: 0;
+}
+
+.sc-no {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.sc-divider {
+  height: 2rpx;
+  background: var(--color-border);
+  margin: 20rpx 0;
+}
+
+.sc-craft-title {
+  margin-bottom: 8rpx;
+}
+
+.sc-craft-note {
+  font-size: 26rpx;
+  color: var(--color-text-2);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.sc-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 16rpx;
+}
+
+.sc-grid-img {
+  width: 152rpx;
+  height: 152rpx;
+  border-radius: var(--radius);
+  background: var(--color-card);
+}
+
+.sc-video {
+  width: 100%;
+  height: 360rpx;
+  margin-top: 16rpx;
+  border-radius: var(--radius);
+  background: #000000;
+}
+
+/* 封面态：款式图铺底 + 居中播放钮，点按挂载 video 并 autoplay */
+.sc-video-cover {
+  position: relative;
+  margin-top: 16rpx;
+}
+
+.sc-video-cover .sc-video {
+  margin-top: 0;
+}
+
+.sc-video-ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #cccccc;
+}
+
+.sc-video-btn {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 88rpx;
+  height: 88rpx;
+  line-height: 84rpx;
+  text-align: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #ffffff;
+  font-size: 32rpx;
+  padding-left: 6rpx;
+}

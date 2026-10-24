@@ -1,0 +1,58 @@
+<!-- 工作中：进行中床次 + 本人今日登记（规格 §9.3） -->
+<view class="page">
+
+  <!-- 进行中床次 -->
+  <view class="card">
+    <view class="h2">进行中床次</view>
+
+    <view wx:if="{{loading}}" class="state-tip">加载中…</view>
+
+    <block wx:elif="{{loadError}}">
+      <view class="state-tip text-danger">加载失败</view>
+      <button class="btn btn-plain retry-btn" bindtap="onRetry">重试</button>
+    </block>
+
+    <empty-state wx:elif="{{!beds.length}}" text="暂无进行中的床次" sub="裁完或锁定的床次不在此列" />
+
+    <!-- P3B beds 合并：渲染收敛到共用组件 components/bed-progress（与看板大屏同形状；
+         保持原有全部字段：床次号/款号/款名/进度条/已登记件数/完工扎数；工作台卡片不可点） -->
+    <bed-progress wx:elif="{{beds.length}}" beds="{{beds}}" />
+  </view>
+
+  <!-- 本人今日登记 -->
+  <view class="card">
+    <view class="h2">我的今日登记</view>
+
+    <view wx:if="{{loading}}" class="state-tip">加载中…</view>
+
+    <empty-state wx:elif="{{!records.length}}" text="今日暂无登记记录" sub="去首页扫菲开始今天的活儿" />
+
+    <view wx:else class="rec-list">
+      <view wx:for="{{records}}" wx:key="id" class="rec-item">
+        <view class="row">
+          <view class="rec-style num">{{item.style_no || item.bed_no || '-'}}</view>
+          <view class="spacer"></view>
+          <view class="badge badge-gray">{{item.process_name || '-'}}</view>
+        </view>
+        <view class="row rec-line2">
+          <view class="text-3">
+            {{item.bed_no || '-'}} · 扎{{item.bundle_no || '-'}} · {{item.color}}{{item.size ? ' / ' + item.size : ''}}
+          </view>
+          <view class="spacer"></view>
+          <view class="rec-qty num">{{item.qty}} 件</view>
+        </view>
+        <view class="row rec-line3">
+          <view class="text-3">{{item.timeText}}</view>
+          <view class="spacer"></view>
+          <view
+            wx:if="{{item.canRevoke}}"
+            class="revoke-btn {{revokingId === item.id ? 'disabled' : ''}}"
+            data-id="{{item.id}}"
+            bindtap="onRevoke"
+          >撤销</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+</view>

@@ -1,0 +1,189 @@
+.login {
+  padding-top: 100rpx;
+}
+
+.logo {
+  text-align: center;
+  margin-bottom: 40rpx;
+}
+
+.logo-mark {
+  font-size: 64rpx;
+  font-weight: 700;
+  color: var(--color-primary);
+  letter-spacing: 8rpx;
+}
+
+/* ---- 登录方式 Tab ---- */
+.tabs {
+  display: flex;
+  margin-bottom: 16rpx;
+  border-bottom: 2rpx solid var(--color-border);
+}
+
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx 0;
+  color: var(--color-text-3);
+  font-size: 28rpx;
+  border-bottom: 4rpx solid transparent;
+}
+
+.tab.on {
+  color: var(--color-primary);
+  font-weight: 600;
+  border-bottom-color: var(--color-primary);
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  border-bottom: 2rpx solid var(--color-border);
+  padding: 20rpx 4rpx;
+  margin-bottom: 12rpx;
+}
+
+.input {
+  flex: 1;
+  font-size: 30rpx;
+}
+
+.sms-btn {
+  color: var(--color-primary);
+  font-size: 26rpx;
+  padding: 8rpx 0 8rpx 24rpx;
+}
+
+.sms-btn.disabled {
+  color: var(--color-text-3);
+}
+
+.divider {
+  text-align: center;
+  color: var(--color-text-3);
+  font-size: 24rpx;
+  margin: 24rpx 0;
+}
+
+/* ---- 协议勾选 ---- */
+.agree {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 32rpx;
+}
+
+.agree.shake {
+  animation: agree-shake 0.4s;
+}
+
+@keyframes agree-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-10rpx); }
+  75% { transform: translateX(10rpx); }
+}
+
+.checkbox {
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: 8rpx;
+  border: 2rpx solid var(--color-border);
+  color: #ffffff;
+  font-size: 22rpx;
+  line-height: 32rpx;
+  text-align: center;
+  margin-right: 12rpx;
+  flex-shrink: 0;
+}
+
+.checkbox.on {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.agree-text {
+  font-size: 24rpx;
+  color: var(--color-text-3);
+}
+
+.agree-link {
+  color: var(--color-info);
+}
+
+/* ---- 公司引导（选择/待审核/无公司共用） ---- */
+.guide {
+  padding-top: 80rpx;
+}
+
+.guide-sub {
+  margin: 12rpx 0 32rpx;
+}
+
+.co-item {
+  padding: 28rpx 24rpx;
+}
+
+.co-item.co-active {
+  opacity: 0.6;
+}
+
+.co-arrow {
+  color: var(--color-text-3);
+  font-size: 40rpx;
+  line-height: 1;
+}
+
+.co-meta {
+  margin-top: 8rpx;
+}
+
+.co-pending-tip {
+  text-align: center;
+  margin: 8rpx 0 24rpx;
+}
+
+.co-btn {
+  margin-top: 24rpx;
+}
+
+.co-logout {
+  margin-top: 24rpx;
+}
+
+/* ---- 创建公司弹层 ---- */
+.mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 48rpx;
+}
+
+.modal {
+  width: 100%;
+  background: var(--color-card);
+  border-radius: var(--radius-lg);
+  padding: 40rpx 32rpx 32rpx;
+  box-sizing: border-box;
+}
+
+.modal-sub {
+  margin: 8rpx 0 24rpx;
+}
+
+.modal-btn {
+  margin-top: 32rpx;
+}
+
+.modal-cancel {
+  text-align: center;
+  margin-top: 24rpx;
+  padding: 8rpx 0;
+}

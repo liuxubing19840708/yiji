@@ -1,0 +1,55 @@
+.loading {
+  text-align: center;
+  padding: 120rpx 0;
+}
+
+.co-head {
+  padding: 40rpx 24rpx;
+}
+
+.co-status-row {
+  margin: 16rpx 0 8rpx;
+}
+
+.co-row {
+  padding: 20rpx 0;
+  border-bottom: 2rpx solid var(--color-border);
+}
+
+.co-row.co-last {
+  border-bottom: none;
+  padding-bottom: 4rpx;
+}
+
+.co-label {
+  color: var(--color-text-3);
+  font-size: 26rpx;
+}
+
+.co-no {
+  font-size: 32rpx;
+  font-weight: 600;
+  margin-right: 16rpx;
+}
+
+.copy-btn {
+  font-size: 22rpx;
+  padding: 4rpx 20rpx;
+  border-radius: 999rpx;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.progress {
+  height: 12rpx;
+  border-radius: 999rpx;
+  background: var(--color-border);
+  margin: 8rpx 0 20rpx;
+  overflow: hidden;
+}
+
+.progress-inner {
+  height: 100%;
+  border-radius: 999rpx;
+  background: var(--color-primary);
+}

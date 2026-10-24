@@ -1,0 +1,69 @@
+.nt-bar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+
+.nt-filter {
+  padding: 12rpx 28rpx;
+  margin-right: 16rpx;
+  border-radius: 999rpx;
+  background: var(--color-card);
+  color: var(--color-text-2);
+  font-size: 26rpx;
+  box-shadow: var(--shadow);
+}
+
+.nt-filter.on {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.nt-read-all {
+  color: var(--color-info);
+  font-size: 26rpx;
+  padding: 12rpx 0;
+}
+
+.nt-read-all.dim {
+  color: var(--color-text-3);
+}
+
+.nt-item {
+  padding: 24rpx;
+}
+
+.nt-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: var(--color-danger);
+  margin-right: 12rpx;
+  flex-shrink: 0;
+}
+
+.nt-title {
+  font-size: 28rpx;
+  font-weight: 400;
+  color: var(--color-text);
+}
+
+.nt-title-unread {
+  font-weight: 600;
+}
+
+.nt-message {
+  margin-top: 12rpx;
+  font-size: 26rpx;
+  color: var(--color-text);
+  word-break: break-all;
+}
+
+.nt-center {
+  text-align: center;
+  padding: 24rpx 0;
+}
+
+.nt-more {
+  padding: 8rpx 0 24rpx;
+}

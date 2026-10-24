@@ -1,0 +1,83 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="state text-3">加载中…</view>
+  <view wx:elif="{{error}}" class="state text-3">加载失败，请返回重试</view>
+
+  <!-- ============ 终端：一张菲票的全链路 ============ -->
+  <block wx:elif="{{mode === 'ticket' && ticket}}">
+    <view class="card">
+      <view class="sec-title">菲票</view>
+      <view class="kv"><text class="k">床次/扎号</text><text>{{ticket.bed_no}} 第{{ticket.bundle_no}}扎</text></view>
+      <view class="kv"><text class="k">颜色/尺码</text><text>{{ticket.color || '-'}} / {{ticket.size || '-'}}</text></view>
+      <view class="kv"><text class="k">数量</text><text>{{ticket.qty}}</text></view>
+      <view class="kv"><text class="k">打印</text><text>{{print.is_printed ? '已打印 ' + print.print_count + ' 次' : '未打印'}}</text></view>
+    </view>
+
+    <view class="card">
+      <view class="sec-title">床次订单</view>
+      <view class="kv"><text class="k">款号</text><text>{{production.style_no}} {{production.style_name}}</text></view>
+      <view class="kv"><text class="k">客户</text><text>{{production.customer_name || '-'}}</text></view>
+      <view class="kv"><text class="k">来源单号</text><text class="hl">{{production.source_order_no || '-'}}</text></view>
+      <view class="kv"><text class="k">订单类型</text><text>{{production.order_type}}</text></view>
+    </view>
+
+    <view class="card">
+      <view class="sec-title">面料批次</view>
+      <view wx:if="{{!lots.length}}" class="text-3">该床次未挂批次</view>
+      <view class="kv" wx:for="{{lots}}" wx:key="id">
+        <text class="k">批次</text><text class="hl">{{item.lot_no}}（{{item.fabric_name || '-'}} {{item.color || '-'}} 用量{{item.qty || 0}}）</text>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="sec-title">登记时间线（谁 · 哪道工序 · 何时）</view>
+      <view wx:if="{{!records.length}}" class="text-3">该菲票暂无登记记录</view>
+      <view class="tl-row" wx:for="{{records}}" wx:key="id">
+        <view class="tl-dot"></view>
+        <view class="tl-main">
+          <view>{{item.process}} · {{item.user}}<text wx:if="{{item.operator}}" class="text-3">（代登 {{item.operator}}）</text></view>
+          <view class="text-3">{{item.qty}} 件 · {{item.time}}</view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- ============ 正向：批次 → 受影响床次 ============ -->
+  <block wx:elif="{{mode === 'lot' && lotInfo}}">
+    <view class="card">
+      <view class="sec-title">批次 {{lotInfo.lot_no}}</view>
+      <view class="kv"><text class="k">面料/颜色</text><text>{{lotInfo.fabric_name || '-'}} / {{lotInfo.color || '-'}}</text></view>
+      <view class="kv"><text class="k">批次日期</text><text>{{lotInfo.batch_date || '-'}}</text></view>
+      <view class="kv"><text class="k">波及面</text><text class="hl">{{impact.production_count}} 个床次 / {{impact.ticket_count}} 扎 / {{impact.qty_total}} 件</text></view>
+    </view>
+    <view class="card" wx:for="{{lotProductions}}" wx:key="id">
+      <view class="sec-title">{{item.style_no}} · 床次 {{item.bed_no}}</view>
+      <view class="kv"><text class="k">客户</text><text>{{item.customer_name || '-'}}</text></view>
+      <view class="kv"><text class="k">来源单号</text><text class="hl">{{item.source_order_no || '-'}}</text></view>
+      <view class="kv"><text class="k">裁货/菲票</text><text>{{item.total_qty}} 件 / {{item.ticket_count}} 扎（用本批次 {{item.issue_qty}}）</text></view>
+    </view>
+  </block>
+
+  <!-- ============ 床次视角 ============ -->
+  <block wx:elif="{{mode === 'production' && production}}">
+    <view class="card">
+      <view class="sec-title">床次 {{production.bed_no}}</view>
+      <view class="kv"><text class="k">款号</text><text>{{production.style_no}} {{production.style_name}}</text></view>
+      <view class="kv"><text class="k">客户</text><text>{{production.customer_name || '-'}}</text></view>
+      <view class="kv"><text class="k">来源单号</text><text class="hl">{{production.source_order_no || '-'}}</text></view>
+      <view class="kv"><text class="k">裁货</text><text>{{ticketCount}} 扎 / {{qtyTotal}} 件</text></view>
+    </view>
+    <view class="card">
+      <view class="sec-title">面料批次</view>
+      <view wx:if="{{!lots.length}}" class="text-3">未挂批次</view>
+      <view class="kv" wx:for="{{lots}}" wx:key="id">
+        <text class="k">批次</text><text class="hl">{{item.lot_no}}（{{item.fabric_name || '-'}} {{item.color || '-'}} 用量{{item.qty || 0}}）</text>
+      </view>
+    </view>
+    <view class="card" wx:if="{{issueRows.length}}">
+      <view class="sec-title">领料流水</view>
+      <view class="kv" wx:for="{{issueRows}}" wx:key="index">
+        <text class="k">{{item.issue_no}}</text><text>{{item.lot_no}} ×{{item.qty}}（{{item.status === 'confirmed' ? '已确认' : '草稿'}}）</text>
+      </view>
+    </view>
+  </block>
+</view>

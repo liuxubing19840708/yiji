@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "协助扫菲",
+  "usingComponents": {
+    "employee-picker": "/components/employee-picker/index",
+    "hint-toggle": "/components/hint-toggle/index"
+  }
+}

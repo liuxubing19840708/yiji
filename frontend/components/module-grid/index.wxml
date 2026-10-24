@@ -1,0 +1,14 @@
+<!-- 首页模块宫格（15 项，配置驱动 + 权限过滤，规格 §4.1/§4.2） -->
+<view class="grid">
+  <view
+    wx:for="{{visible}}"
+    wx:key="key"
+    class="cell"
+    data-path="{{item.path}}"
+    data-key="{{item.key}}"
+    bindtap="onTap"
+  >
+    <view class="cell-icon cell-icon-{{item.key}}">{{item.icon}}</view>
+    <view class="cell-name">{{item.name}}</view>
+  </view>
+</view>

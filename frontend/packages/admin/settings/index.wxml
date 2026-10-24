@@ -1,0 +1,41 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="card">
+    <view class="text-3 center">加载中…</view>
+  </view>
+
+  <view wx:elif="{{error}}" class="card" bindtap="onRetry">
+    <empty-state text="加载失败" sub="网络异常，点击重试" />
+  </view>
+
+  <block wx:else>
+    <view wx:if="{{!isAdmin}}" class="card tip-card">
+      <view class="text-3">仅管理员可修改设置（服务端校验）</view>
+    </view>
+
+    <view class="card">
+      <block wx:for="{{rows}}" wx:key="key">
+        <view class="setting-row {{item.disabled ? 'row-disabled' : ''}}"
+              data-kind="{{item.kind}}" data-key="{{item.key}}"
+              data-disabled="{{item.disabled ? '1' : ''}}" bindtap="onRowTap">
+          <view class="setting-main">
+            <view class="setting-label">{{item.label}}</view>
+            <view class="text-3">{{item.desc}}</view>
+          </view>
+          <view wx:if="{{item.kind === 'choice'}}" class="setting-value">
+            {{item.valueText}}
+            <text class="arrow">›</text>
+          </view>
+          <text wx:elif="{{item.kind === 'link'}}" class="arrow">›</text>
+          <switch
+            wx:else
+            checked="{{item.checked}}"
+            disabled="{{!isAdmin}}"
+            color="#FF7A00"
+            data-key="{{item.key}}"
+            bindchange="onToggle"
+          />
+        </view>
+      </block>
+    </view>
+  </block>
+</view>

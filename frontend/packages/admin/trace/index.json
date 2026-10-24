@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "质量追溯",
+  "usingComponents": {
+    "hint-toggle": "/components/hint-toggle/index"
+  }
+}

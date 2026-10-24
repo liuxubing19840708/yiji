@@ -1,0 +1,114 @@
+/* 生产管理列表样式（颜色/圆角/阴影取自 app.wxss 变量） */
+
+.toolbar {
+  display: flex;
+  margin-bottom: 20rpx;
+}
+
+.search {
+  flex: 1;
+  background: var(--color-card);
+  border-radius: 999rpx;
+  padding: 16rpx 28rpx;
+  font-size: 28rpx;
+  box-shadow: var(--shadow);
+}
+
+.filters {
+  display: flex;
+  margin-bottom: 24rpx;
+}
+
+.filter {
+  padding: 10rpx 26rpx;
+  margin-right: 16rpx;
+  border-radius: 999rpx;
+  background: var(--color-card);
+  color: var(--color-text-2);
+  font-size: 26rpx;
+  box-shadow: var(--shadow);
+}
+
+.filter.active {
+  background: var(--color-primary);
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.prod-card {
+  margin-bottom: 20rpx;
+}
+
+.prod-thumb {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: var(--radius);
+  margin-right: 16rpx;
+  flex-shrink: 0;
+  background: var(--color-bg, #f5f5f5);
+}
+
+.bed-no {
+  font-size: 32rpx;
+  font-weight: 600;
+  margin-right: 16rpx;
+}
+
+.menu-dot {
+  padding: 0 8rpx 0 24rpx;
+  color: var(--color-text-3);
+  font-size: 36rpx;
+  font-weight: 700;
+}
+
+.prod-sub {
+  margin-top: 12rpx;
+}
+
+.style-name {
+  margin-left: 16rpx;
+}
+
+.state {
+  text-align: center;
+  padding: 120rpx 0;
+}
+
+.state-btn {
+  margin-top: 24rpx;
+  width: 240rpx;
+  font-size: 28rpx;
+  padding: 14rpx 0;
+}
+
+.load-more {
+  text-align: center;
+  padding: 24rpx 0;
+}
+
+/* 看板下钻筛选横幅（§2.9 P0）：展示当前预过滤款，点按解除 */
+.drill-banner {
+  display: flex;
+  align-items: center;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  border-radius: 12rpx;
+  padding: 14rpx 20rpx;
+  margin-bottom: 16rpx;
+  font-size: 24rpx;
+}
+
+.drill-label {
+  font-weight: 600;
+  margin-right: 12rpx;
+}
+
+.drill-value {
+  flex: 1;
+  word-break: break-all;
+}
+
+.drill-clear {
+  color: var(--color-text-3);
+  flex-shrink: 0;
+}
