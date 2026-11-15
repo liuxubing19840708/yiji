@@ -1,0 +1,112 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="state text-3">加载中…</view>
+  <view wx:elif="{{error}}" class="state">
+    <view class="text-3">加载失败，请重试</view>
+    <button class="btn btn-ghost state-btn" bindtap="load">重新加载</button>
+  </view>
+  <empty-state wx:elif="{{!quote}}" text="报价单不存在" sub="可能已被删除（软删单不可见）" />
+
+  <block wx:else>
+    <!-- 头部：单号/状态/款式/客户 -->
+    <view class="card">
+      <view class="row">
+        <view class="item-main">
+          <view class="item-title">{{quote.quote_no}}</view>
+          <view class="text-3">{{quote.status_display}} · {{quote.quote_date}}</view>
+        </view>
+      </view>
+      <view class="text-3 info-line">
+        款式 {{quote.style_no}}{{quote.style_name ? ' ' + quote.style_name : ''}} · 客户 {{quote.customer_name || '—'}} · 数量 {{quote.qty}}
+      </view>
+      <view class="text-3 info-line" wx:if="{{quote.order_no}}">关联订单 {{quote.order_no}}</view>
+      <view class="text-3 info-line" wx:if="{{quote.remark}}">备注：{{quote.remark}}</view>
+    </view>
+
+    <!-- 算定合计（服务端重算口径，前端透传） -->
+    <view class="card">
+      <view class="row">
+        <view class="stat">
+          <view class="stat-num num">{{quote.material_total}}</view>
+          <view class="text-3">材料合计</view>
+        </view>
+        <view class="stat">
+          <view class="stat-num num">{{quote.labor ? quote.labor.labor_total : '—'}}</view>
+          <view class="text-3">人工合计</view>
+        </view>
+        <view class="stat">
+          <view class="stat-num num">{{quote.total_price}}</view>
+          <view class="text-3">报价总价</view>
+        </view>
+        <view class="stat">
+          <view class="stat-num num">{{quote.profit_rate === null ? '—' : quote.profit_rate + '%'}}</view>
+          <view class="text-3">毛利率</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 用料行（两级用量：BOM定额行 / 手选物料；amount 随行下发） -->
+    <view class="card">
+      <view class="row"><view class="h2">用料明细</view><view class="spacer"></view>
+        <view class="text-3">共 {{mats.length}} 行</view></view>
+      <empty-state wx:if="{{!mats.length}}" text="无用料行" sub="编辑报价可从 BOM 带出或手选物料" />
+      <view class="mat-row" wx:for="{{mats}}" wx:key="id">
+        <view class="row">
+          <view class="item-main">
+            <view class="mat-name">{{item.title}}</view>
+            <view class="text-3">
+              {{item.bom_item_id ? 'BOM定额行' : '手选物料'}} · 单耗 {{item.quote_unit_usage}} × 单价 {{item.price}}
+            </view>
+          </view>
+          <view class="num mat-amt">{{item.amount}}</view>
+        </view>
+      </view>
+      <view class="text-3 sum-line">材料合计 = Σ(单耗×单价)×报价数量 = {{quote.material_total}}</view>
+    </view>
+
+    <!-- 人工行：倍率超界直显不改值（D2）；附加费单独项 -->
+    <view class="card" wx:if="{{quote.labor}}">
+      <view class="row"><view class="h2">人工行</view><view class="spacer"></view>
+        <view class="text-3">工价快照 × 倍率 × (1+小单溢价%) + 附加费</view></view>
+      <view class="rate-warn" wx:if="{{quote.labor.rate_warning}}">⚠ {{quote.labor.rate_warning_msg}}</view>
+      <view class="text-3 labor-line">工序工价快照 {{quote.labor.labor_base}} · 倍率 {{quote.labor.rate}} · 小单溢价 {{quote.labor.small_lot_addon}}%（{{quote.labor.addon_rule.auto_applied ? '自动' : '手改'}}）</view>
+      <view class="text-3 labor-line">附加费（上机费/制版费等）{{quote.labor.addon_amount}}</view>
+      <view class="text-3 sum-line">人工合计 {{quote.labor.labor_total}}（服务端重算口径）</view>
+    </view>
+
+    <!-- 操作区：流转（won/lost 终态无按钮）+ 管理动作 -->
+    <view class="card">
+      <view class="row act-wrap" wx:if="{{flowActions.length}}">
+        <view wx:for="{{flowActions}}" wx:key="status"
+          class="{{item.cls}}" data-status="{{item.status}}" bindtap="onFlow">{{item.label}}</view>
+      </view>
+      <view class="text-3 final-note" wx:elif="{{quote.status === 'won' || quote.status === 'lost'}}">
+        {{quote.status === 'won' ? '已成单（终态）：如需重报请新建报价单；关联订单后可看回填对比' : '已输单（终态）：如需重报请新建报价单'}}
+      </view>
+      <view class="row act-wrap">
+        <view class="act" bindtap="onGoCompare">回填对比 ›</view>
+        <!-- 2026-11-02 评审#10 防重复转单：won 已关联订单不再出转单入口（订单号头部可见）；
+             won 未关联（旧单/后补）仍可转并自动补挂 -->
+        <view class="act" wx:if="{{canManage && quote.status !== 'won'}}" bindtap="onToOrder">转订单 ›</view>
+        <view class="act" wx:if="{{canManage && quote.status === 'won' && !quote.order}}" bindtap="onToOrder">转订单并关联 ›</view>
+        <view class="act" wx:if="{{canManage}}" bindtap="onEdit">编辑</view>
+        <view class="act act-lost" wx:if="{{canManage}}" bindtap="onDelete">删除</view>
+      </view>
+    </view>
+  </block>
+
+  <!-- ============ 成单弹层：选关联订单 ============ -->
+  <view class="mask" wx:if="{{wonVisible}}" bindtap="onCloseWon">
+    <view class="sheet" catchtap="noop">
+      <view class="row sheet-head">
+        <view class="h2">标记成单</view>
+        <view class="spacer"></view>
+        <view class="text-3" bindtap="onCloseWon">关闭</view>
+      </view>
+      <view class="text-3 sheet-sub">选择关联订单后可在「回填对比」中查看报价 vs 实际成本；成单/输单为终态。</view>
+      <picker mode="selector" range="{{orderNames}}" value="{{orderIndex}}" bindchange="onOrderChange">
+        <view class="picker-box">{{orderNames[orderIndex]}} ▾</view>
+      </picker>
+      <button class="btn btn-primary won-btn" loading="{{wonSaving}}" bindtap="onConfirmWon">确认成单</button>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "到料暂收",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index"
+  }
+}

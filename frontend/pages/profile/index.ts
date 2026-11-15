@@ -102,7 +102,7 @@ Page({
     if (!requireLogin()) return;
     const tab = (this.getTabBar() as unknown) as TabBarLike | undefined;
     if (tab && tab.setSelected) {
-      tab.setSelected(4);
+      tab.setSelected(3);
     }
     this.renderLocal();
     // 拉最新资料与公司列表（失败静默，展示本地缓存）

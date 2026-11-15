@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "包装入库工作台",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index"
+  }
+}

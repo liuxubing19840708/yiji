@@ -1,0 +1,179 @@
+<view class="page">
+  <!-- 无权限防御态（tech.material legacy=False；后端 403 兜底） -->
+  <view wx:if="{{denied}}" class="state">
+    <view class="text-3">暂无「物料主档」权限，请联系管理员开通</view>
+  </view>
+
+  <block wx:else>
+    <view class="toolbar">
+      <input class="search" placeholder="编码/品名/旧编码" value="{{keyword}}" bindinput="onKeyword" bindconfirm="onSearch" confirm-type="search" />
+      <view class="tool-btn" bindtap="onOpenImport">导入</view>
+      <view class="add-btn" bindtap="onAdd">＋ 新建</view>
+    </view>
+
+    <!-- 分类筛选 chips -->
+    <view class="chips">
+      <view
+        wx:for="{{categoryLabels}}"
+        wx:key="*this"
+        class="chip {{categoryIndex === index ? 'chip-on' : ''}}"
+        data-index="{{index}}"
+        bindtap="onCategory"
+      >{{item}}</view>
+    </view>
+
+    <view wx:if="{{loading && !materials.length}}" class="state text-3">加载中…</view>
+    <view wx:elif="{{error && !materials.length}}" class="state">
+      <view class="text-3">加载失败，请重试</view>
+      <button class="btn btn-ghost state-btn" bindtap="reload">重新加载</button>
+    </view>
+    <empty-state wx:elif="{{!materials.length}}" text="暂无物料" sub="点击「＋ 新建」或「导入」批量建档" />
+    <view wx:else>
+      <view class="card mat-card" wx:for="{{materials}}" wx:key="id">
+        <view class="row">
+          <view class="item-title">{{item.code}}</view>
+          <view class="badge badge-warn" wx:if="{{item.pendingParams}}">待补参数</view>
+          <view class="badge badge-gray" wx:if="{{item.disabled}}">已停用</view>
+          <view class="spacer"></view>
+          <view class="menu-dot" data-index="{{index}}" catchtap="onCardMenu">⋮</view>
+        </view>
+        <view class="row mat-line">
+          <view class="text-2 mat-name">{{item.name}}</view>
+          <view class="spacer"></view>
+          <view class="tag">{{item.categoryText}}</view>
+        </view>
+        <view class="row mat-params text-3">
+          <view>主单位 {{item.unit}}</view>
+          <view class="mat-param">副单位 {{item.unitAltText}}</view>
+          <view class="mat-param">克重 {{item.weightText}}</view>
+        </view>
+        <view class="row mat-params text-3">
+          <view>幅宽 {{item.widthText}}</view>
+          <view class="mat-param">缩率 {{item.shrinkText}}</view>
+          <view class="mat-param" wx:if="{{item.legacy_code}}">旧编码 {{item.legacy_code}}</view>
+        </view>
+      </view>
+
+      <view class="load-more text-3" wx:if="{{hasMore}}" bindtap="loadMore">
+        {{loading ? '加载中…' : '上拉加载更多'}}
+      </view>
+    </view>
+  </block>
+
+  <!-- ============ 新建/编辑物料弹层 ============ -->
+  <view class="mask" wx:if="{{formVisible}}" bindtap="onCloseForm">
+    <view class="sheet" catchtap="noop">
+      <view class="row sheet-head">
+        <view class="h2">{{form.id ? '编辑物料' : '新建物料'}}</view>
+        <view class="spacer"></view>
+        <view class="text-3" bindtap="onCloseForm">关闭</view>
+      </view>
+
+      <scroll-view scroll-y class="sheet-body">
+        <view class="field">
+          <text class="label">编码 *</text>
+          <input class="input" placeholder="分类码-流水码，同公司唯一" value="{{form.code}}" bindinput="onFormCode" />
+        </view>
+        <view class="field">
+          <text class="label">品名 *</text>
+          <input class="input" placeholder="请输入品名" value="{{form.name}}" bindinput="onFormName" />
+        </view>
+        <picker mode="selector" range="{{categoryLabels}}" value="{{form.categoryIndex}}" bindchange="onFormCategory">
+          <view class="field">
+            <text class="label">分类</text>
+            <view class="input">{{categoryLabels[form.categoryIndex]}} ▾</view>
+          </view>
+        </picker>
+        <view class="field">
+          <text class="label">主单位 *</text>
+          <input class="input" placeholder="针织公斤 / 梭织米（物料级可配）" value="{{form.unit}}" bindinput="onFormUnit" />
+        </view>
+        <view class="field">
+          <text class="label">副单位</text>
+          <input class="input" placeholder="选填；填后须补克重与幅宽" value="{{form.unit_alt}}" bindinput="onFormUnitAlt" />
+        </view>
+        <view class="field">
+          <text class="label">克重 g/m²</text>
+          <input class="input" type="digit" placeholder="副单位换算参数" value="{{form.weight_gsm}}" bindinput="onFormWeight" />
+        </view>
+        <view class="field">
+          <text class="label">幅宽 cm</text>
+          <input class="input" type="digit" placeholder="副单位换算参数" value="{{form.width_cm}}" bindinput="onFormWidth" />
+        </view>
+        <view class="field">
+          <text class="label">缩率 %</text>
+          <input class="input" type="digit" placeholder="按批次实测，计入定额" value="{{form.shrink_rate}}" bindinput="onFormShrink" />
+        </view>
+        <view class="field">
+          <text class="label">旧编码</text>
+          <input class="input" placeholder="兼容过渡期检索，选填" value="{{form.legacy_code}}" bindinput="onFormLegacy" />
+        </view>
+        <view class="field">
+          <text class="label">安全库存</text>
+          <input class="input" type="digit" placeholder="主单位水位，选填（0=不设）" value="{{form.safety_stock}}" bindinput="onFormSafety" />
+        </view>
+        <picker mode="selector" range="{{priceUnitLabels}}" value="{{form.priceUnitIndex}}" bindchange="onFormPriceUnit">
+          <view class="field">
+            <text class="label">单价单位</text>
+            <view class="input">{{priceUnitLabels[form.priceUnitIndex]}} ▾</view>
+          </view>
+        </picker>
+        <view class="tip text-3">单价单位（D19）：采购/入库按此单位报单价，系统自动折算为主单位价入库；选「元/公斤」或「元/米」须先补录克重与幅宽。</view>
+        <view class="tip text-3">安全库存（P2.5）：设了水位的物料会进「需求汇总」的补货点口径——库存+在途低于水位时自动计入应补量，并可在汇总页一键生成采购单。</view>
+        <view class="tip text-3">
+          停用的物料不可再选用于新单；被 BOM 引用的物料不可删除，请使用「停用」。
+        </view>
+      </scroll-view>
+
+      <button class="btn btn-info sheet-save" loading="{{saving}}" bindtap="onSave">保存</button>
+    </view>
+  </view>
+
+  <!-- ============ Excel 导入弹层 ============ -->
+  <view class="mask" wx:if="{{importVisible}}" bindtap="onCloseImport">
+    <view class="sheet" catchtap="noop">
+      <view class="row sheet-head">
+        <view class="h2">Excel 批量导入</view>
+        <view class="spacer"></view>
+        <view class="text-3" bindtap="onCloseImport">关闭</view>
+      </view>
+
+      <scroll-view scroll-y class="sheet-body">
+        <view class="import-warn">
+          ⚠ 任一行校验失败，整批不入库（all-or-nothing）；编码已存在的行按「更新」处理。
+        </view>
+        <view class="import-tpl">
+          <view class="h2">模板列（首行表头，顺序不限）</view>
+          <view class="text-2 tpl-line">编码（必填，同公司唯一）</view>
+          <view class="text-2 tpl-line">品名（必填）</view>
+          <view class="text-2 tpl-line">分类：面料 / 里料 / 辅料 / 包装</view>
+          <view class="text-2 tpl-line">主单位（必填，如 公斤 / 米）</view>
+          <view class="text-2 tpl-line">副单位（选填；填后克重与幅宽必填）</view>
+          <view class="text-2 tpl-line">克重 g/m² / 幅宽 cm（数字）</view>
+          <view class="text-2 tpl-line">缩率 %（数字，按批次实测）</view>
+          <view class="text-2 tpl-line">旧编码（选填，兼容检索）</view>
+        </view>
+
+        <button class="btn btn-info import-btn" loading="{{importing}}" bindtap="onPickImportFile">
+          选择 .xlsx 文件（微信聊天记录）
+        </button>
+
+        <block wx:if="{{importResult}}">
+          <view class="row import-stat">
+            <view class="import-ok">新建 {{importResult.created}}</view>
+            <view class="import-ok">更新 {{importResult.updated}}</view>
+            <view class="spacer"></view>
+            <view class="import-bad" wx:if="{{importResult.errors.length}}">错误 {{importResult.errors.length}} 行</view>
+          </view>
+          <view class="import-batch-fail" wx:if="{{importResult.errors.length}}">
+            存在错误行，本批全部未入库。请修正后重新导入。
+          </view>
+          <view wx:if="{{importErrorLines.length}}" class="error-list">
+            <view class="error-line" wx:for="{{importErrorLines}}" wx:key="*this">{{item}}</view>
+            <view class="error-copy" bindtap="onCopyErrors">复制错误行</view>
+          </view>
+        </block>
+      </scroll-view>
+    </view>
+  </view>
+</view>

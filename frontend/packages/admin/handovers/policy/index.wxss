@@ -1,0 +1,13 @@
+.policy-page { padding-bottom: 60rpx; }
+.notice { background: var(--color-primary-light); color: var(--color-text-2); border-radius: var(--radius); padding: 20rpx 24rpx; margin-bottom: 24rpx; font-size: 24rpx; line-height: 1.7; }
+.field { margin-bottom: 24rpx; }
+.label { color: var(--color-text-2); margin-bottom: 10rpx; font-size: 26rpx; }
+.input, .readonly { box-sizing: border-box; width: 100%; min-height: 82rpx; border-radius: var(--radius); background: var(--color-bg); padding: 20rpx; }
+.picker { display: flex; align-items: center; }
+.readonly { color: var(--color-text-3); }
+.updated { text-align: right; }
+.new-rule { margin-bottom: 16rpx; font-size: 26rpx; }
+.rule-tip { margin-bottom: 24rpx; line-height: 1.6; }
+.save-btn { margin-top: 32rpx; }
+.state { text-align: center; padding: 100rpx 0; }
+.retry { width: 220rpx; margin-top: 24rpx; font-size: 26rpx; }

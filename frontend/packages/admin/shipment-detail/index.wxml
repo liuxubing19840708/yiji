@@ -1,0 +1,185 @@
+<view class="page">
+  <!-- 无权限防御态（shipment.view；后端 403 兜底） -->
+  <view wx:if="{{denied}}" class="state">
+    <view class="text-3">暂无「出货查看」权限，请联系管理员开通</view>
+  </view>
+
+  <view wx:elif="{{loading}}" class="state text-3">加载中…</view>
+  <view wx:elif="{{error}}" class="state">
+    <view class="text-3">加载失败，请重试</view>
+    <button class="btn btn-ghost state-btn" bindtap="onRetry">重新加载</button>
+  </view>
+
+  <!-- ============ create / 草稿编辑态 ============ -->
+  <block wx:elif="{{mode === 'create' || mode === 'edit'}}">
+    <view class="card">
+      <view class="h2">{{mode === 'create' ? '新建出货单' : '编辑出货单（草稿）'}}</view>
+      <view class="text-3">单号由系统自动生成（SH+日期+3 位）；客户必传，审核后自动生成应收。</view>
+      <picker mode="selector" range="{{orderLabels}}" value="{{orderIndex}}" bindchange="onOrderChange">
+        <view class="picker-box">订单：{{orderLabels[orderIndex]}} ▾</view>
+      </picker>
+      <view class="text-3 pick-note">选订单后明细行从订单色码行带出，可增删改数量。</view>
+      <picker mode="selector" range="{{customerNames}}" value="{{customerIndex}}" bindchange="onCustomerChange">
+        <view class="picker-box">客户：{{customerNames[customerIndex]}} ▾</view>
+      </picker>
+      <view class="row row-2col">
+        <picker class="col-input" mode="date" value="{{deliveryDate}}" bindchange="onDeliveryDate">
+          <view class="picker-box">交货日期：{{deliveryDate || '选填'}} ▾</view>
+        </picker>
+        <picker class="col-input" mode="date" value="{{shipDate}}" bindchange="onShipDate">
+          <view class="picker-box">发货日期：{{shipDate || '选填'}} ▾</view>
+        </picker>
+      </view>
+      <input class="input" placeholder="物流单号" value="{{logisticsNo}}" bindinput="onLogisticsNo" />
+      <input class="input" placeholder="备注" value="{{remark}}" bindinput="onFormRemark" />
+    </view>
+
+    <!-- 明细行编辑（色码行；带出量参考） -->
+    <view class="card item-card" wx:for="{{rows}}" wx:key="index">
+      <view class="row">
+        <view class="h3-line">第 {{index + 1}} 行</view>
+        <view class="spacer"></view>
+        <view class="op-btn op-danger" data-index="{{index}}" catchtap="onRemoveRow">删除行</view>
+      </view>
+      <view class="row row-2col">
+        <input class="input col-input" placeholder="颜色（必填）" value="{{item.color}}"
+          data-index="{{index}}" data-field="color" bindinput="onRowField" />
+        <input class="input col-input" placeholder="尺码（必填）" value="{{item.size}}"
+          data-index="{{index}}" data-field="size" bindinput="onRowField" />
+      </view>
+      <input class="input" type="number" placeholder="数量（整数 >0）" value="{{item.qty}}"
+        data-index="{{index}}" data-field="qty" bindinput="onRowField" />
+      <view class="text-3 ref-line" wx:if="{{item.refUndelivered !== null}}">
+        未交量参考：{{item.refUndelivered}} 件（同单同色码不可重复）</view>
+    </view>
+    <view class="link-btn add-link" bindtap="onAddRow">＋ 添加明细行</view>
+
+    <view class="btn-bar">
+      <button class="btn btn-primary" loading="{{saving}}" bindtap="onSave">{{mode === 'create' ? '建立出货单' : '保存修改'}}</button>
+      <button wx:if="{{mode === 'edit'}}" class="btn btn-ghost" bindtap="onCancelEdit">取消</button>
+    </view>
+  </block>
+
+  <!-- ============ 详情（view） ============ -->
+  <block wx:elif="{{shp}}">
+    <view class="card">
+      <view class="row">
+        <view class="h2">{{shp.shipment_no}}</view>
+        <view class="spacer"></view>
+        <view class="badge {{shp.status === 'confirmed' ? 'badge-green' : (shp.status === 'partial' ? 'badge-blue' : 'badge-gray')}}">{{shp.status_display || shp.status}}</view>
+      </view>
+      <view class="text-3 info-line">客户：{{shp.customer_name || '—'}}　订单：{{shp.order_no || '—'}}</view>
+      <view class="text-3 info-line">合计：{{shp.total_qty}} 件 · {{shp.boxes}} 箱</view>
+      <view class="text-3 info-line" wx:if="{{shp.delivery_date}}">交货日期：{{shp.delivery_date}}</view>
+      <view class="text-3 info-line" wx:if="{{shp.audited_at}}">
+        审核：{{shp.audited_by_name || '—'}} · {{shp.audited_at}}</view>
+      <view class="text-3 info-line" wx:if="{{shp.remark}}">备注：{{shp.remark}}</view>
+    </view>
+
+    <!-- 已审核单三字段编辑（物流单号/发货日期/备注） -->
+    <view wx:if="{{mode === 'view' && shp.status !== 'draft' && canManage}}" class="card">
+      <view class="h2">补录物流（已审核仅这三项可改）</view>
+      <input class="input" placeholder="物流单号" value="{{logisticsNo}}" bindinput="onLogisticsNo" />
+      <picker mode="date" value="{{shipDate}}" bindchange="onShipDate">
+        <view class="picker-box">发货日期：{{shipDate || '选填'}} ▾</view>
+      </picker>
+      <input class="input" placeholder="备注" value="{{remark}}" bindinput="onFormRemark" />
+      <button class="btn btn-primary save-sm" loading="{{saving}}" bindtap="onSaveAudited">保存</button>
+    </view>
+
+    <!-- 明细行（view） -->
+    <view class="card">
+      <view class="h2">出货明细（{{rows.length}} 行）</view>
+      <view class="row cols th-row">
+        <view class="col th-col"><view class="text-3">颜色</view></view>
+        <view class="col th-col"><view class="text-3">尺码</view></view>
+        <view class="col th-col"><view class="text-3">数量</view></view>
+      </view>
+      <view class="row cols tr-row" wx:for="{{rows}}" wx:key="index">
+        <view class="col th-col num">{{item.color}}</view>
+        <view class="col th-col num">{{item.size}}</view>
+        <view class="col th-col num">{{item.qty}}</view>
+      </view>
+    </view>
+
+    <!-- 未交矩阵（色码×尺码 qty/已出/未交三列） -->
+    <view class="card" wx:if="{{undelivered}}">
+      <view class="row" bindtap="onToggleMatrix">
+        <view class="h2">未交矩阵（{{undelivered.order_no}}）</view>
+        <view class="spacer"></view>
+        <view class="text-3">{{showMatrix ? '收起 ▴' : '展开 ▾'}}</view>
+      </view>
+      <view class="text-3 info-line">合计 订单 {{undelivered.total_qty}} · 已出 {{undelivered.total_shipped}} ·
+        未交 <text class="text-danger">{{undelivered.total_undelivered}}</text></view>
+      <block wx:if="{{showMatrix}}">
+        <view class="row cols th-row">
+          <view class="col th-col"><view class="text-3">颜色/尺码</view></view>
+          <view class="col th-col"><view class="text-3">订单量</view></view>
+          <view class="col th-col"><view class="text-3">已出</view></view>
+          <view class="col th-col"><view class="text-3">未交</view></view>
+        </view>
+        <view class="row cols tr-row" wx:for="{{undeliveredRows}}" wx:key="index">
+          <view class="col th-col num">{{item.color}}/{{item.size}}</view>
+          <view class="col th-col num">{{item.qty}}</view>
+          <view class="col th-col num">{{item.shippedQty}}</view>
+          <view class="col th-col num {{item.undelivered > 0 ? 'text-danger' : 'text-3'}}">{{item.undelivered}}</view>
+        </view>
+        <view class="text-3 info-line">{{undelivered.note}}</view>
+      </block>
+    </view>
+
+    <!-- 装箱行（boxes 自动汇总） -->
+    <view class="card">
+      <view class="row">
+        <view class="h2">装箱行（{{boxes.length}}）</view>
+        <view class="spacer"></view>
+        <view class="op-btn" wx:if="{{canManage}}" bindtap="onOpenBox">＋ 加装箱</view>
+      </view>
+      <view wx:if="{{!boxes.length}}" class="text-3 info-line">暂无装箱行（毛净重/箱规录入后箱数自动汇总）。</view>
+      <view class="box-card" wx:for="{{boxes}}" wx:key="id">
+        <view class="row">
+          <view class="item-title">{{item.box_no}}</view>
+          <view class="spacer"></view>
+          <view class="op-btn op-danger" wx:if="{{canManage}}" data-id="{{item.id}}" catchtap="onDeleteBox">删除</view>
+        </view>
+        <view class="text-3 info-line">{{item.color || '—'}}/{{item.size || '—'}} · {{item.qty}} 件</view>
+        <view class="text-3 info-line">毛重 {{item.gross_wt || '—'}} · 净重 {{item.net_wt || '—'}}
+          <text wx:if="{{item.box_spec}}"> · 箱规 {{item.box_spec}}</text></view>
+      </view>
+    </view>
+
+    <!-- 打印（两模板；print_key 幂等） -->
+    <view class="card" wx:if="{{canPrint}}">
+      <view class="h2">打印</view>
+      <view class="text-3 info-line">先下载并打开真实 PDF，打开成功后才记录打印；同一请求重试按幂等跳过，再次打印记为补打。</view>
+      <view class="row print-row">
+        <button class="btn btn-info print-btn" loading="{{printing}}" data-tpl="shipment" bindtap="onPrint">打印出货单</button>
+        <button class="btn btn-info print-btn" loading="{{printing}}" data-tpl="packing" bindtap="onPrint">打印装箱单</button>
+      </view>
+    </view>
+
+    <!-- 打印历史 -->
+    <view class="card" wx:if="{{printLogs.length}}">
+      <view class="h2">打印历史</view>
+      <view class="row log-row" wx:for="{{printLogs}}" wx:key="id">
+        <view class="item-main">
+          <view class="text-2">{{item.template_display}}
+            <text wx:if="{{item.is_reprint}}" class="badge badge-red reprint-badge">补打</text></view>
+          <view class="text-3">{{item.created_at}} {{item.operator_name ? '· ' + item.operator_name : ''}}</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 动作区（shipment.manage） -->
+    <view class="btn-bar" wx:if="{{canManage}}">
+      <block wx:if="{{shp.status === 'draft'}}">
+        <button class="btn btn-primary" bindtap="onEnterEdit">编辑</button>
+        <button class="btn btn-primary audit-btn" bindtap="onAudit">审核</button>
+        <button class="btn btn-ghost" bindtap="onDelete">删除草稿</button>
+      </block>
+      <block wx:else>
+        <button class="btn btn-ghost void-btn" bindtap="onVoid">作废</button>
+      </block>
+    </view>
+  </block>
+</view>

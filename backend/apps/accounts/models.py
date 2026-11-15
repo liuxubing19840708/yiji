@@ -17,7 +17,9 @@ class User(AbstractUser):
     avatar = models.ImageField('头像', upload_to='avatars/', blank=True, null=True)
     gender = models.SmallIntegerField('性别', choices=GENDERS, default=0)
     birthday = models.DateField('生日', null=True, blank=True)
-    openid = models.CharField('微信openid', max_length=64, unique=True, null=True, blank=True)
+    openid = models.CharField('微信小程序openid', max_length=64, unique=True, null=True, blank=True)
+    web_openid = models.CharField('微信网页openid', max_length=64, unique=True, null=True, blank=True)
+    unionid = models.CharField('微信unionid', max_length=64, unique=True, null=True, blank=True)
 
     USERNAME_FIELD = 'phone'
     REQUIRED_FIELDS = ['username']

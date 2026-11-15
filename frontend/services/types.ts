@@ -135,6 +135,10 @@ export interface Process {
   /** 兼容别名，勿用于新代码 */
   price_default?: string;
   is_fixed: boolean;
+  /** 关键工序（看板工序维度「关键」聚焦，竞品对齐 GAP-8，2026-11-04） */
+  is_key?: boolean;
+  /** 对工人隐藏工价（扫菲页不下发单价，竞品对齐 GAP-6，2026-11-04） */
+  hide_price?: boolean;
   sort: number;
 }
 

@@ -1,0 +1,123 @@
+<view class="page">
+  <!-- 无权限防御态（tech.bom legacy=False；后端 403 兜底） -->
+  <view wx:if="{{denied}}" class="state">
+    <view class="text-3">暂无「版式BOM」权限，请联系管理员开通</view>
+  </view>
+
+  <block wx:else>
+    <view class="toolbar">
+      <picker mode="selector" range="{{styleNames}}" value="{{styleIndex}}" bindchange="onStyleChange">
+        <view class="style-picker">{{styleNames[styleIndex]}} ▾</view>
+      </picker>
+      <view class="add-btn" bindtap="onCreateBom">＋ 新建BOM</view>
+    </view>
+
+    <view class="note card">
+      定额 = 净用量 × (1 + 缩率) × (1 + 损耗)。缩率在「物料管理」物料档维护，按物料批次实测；
+      BOM 行只录净用量与损耗率。
+    </view>
+
+    <view wx:if="{{loading && !boms.length}}" class="state text-3">加载中…</view>
+    <view wx:elif="{{error && !boms.length}}" class="state">
+      <view class="text-3">加载失败，请重试</view>
+      <button class="btn btn-ghost state-btn" bindtap="loadBoms">重新加载</button>
+    </view>
+    <empty-state wx:elif="{{!styleId}}" text="请先选择款式" sub="BOM 按款式管理版本" />
+    <empty-state wx:elif="{{!boms.length}}" text="该款式暂无 BOM" sub="点击「＋ 新建BOM」创建第一个版本" />
+    <view wx:else>
+      <view class="card bom-card" wx:for="{{boms}}" wx:key="id">
+        <view class="row">
+          <view class="item-title">v{{item.version}}</view>
+          <view class="badge {{item.statusClass}}">{{item.statusText}}</view>
+          <view class="spacer"></view>
+          <view class="text-3">{{item.itemCount}} 项明细</view>
+        </view>
+        <view class="text-3 bom-remark" wx:if="{{item.remark}}">{{item.remark}}</view>
+        <view class="row bom-actions">
+          <view class="act act-main" wx:if="{{item.draft}}" data-index="{{index}}" bindtap="onEditDetail">编辑明细</view>
+          <view class="act act-main" wx:else data-index="{{index}}" bindtap="onEditDetail">查看明细</view>
+          <view class="act" wx:if="{{item.draft}}" data-index="{{index}}" bindtap="onActivate">激活生效</view>
+          <view class="act" data-index="{{index}}" bindtap="onFork">改版</view>
+          <view class="act act-danger" wx:if="{{item.draft}}" data-index="{{index}}" bindtap="onDeleteBom">删除</view>
+          <!-- 引用反查：P1 恒 {count:0}，P2 采购/领料接入后开放（置灰） -->
+          <view class="act act-disabled" bindtap="onReferences">引用反查</view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- ============ 明细编辑/查看弹层 ============ -->
+  <view class="mask" wx:if="{{editorVisible}}" bindtap="onCloseEditor">
+    <view class="sheet" catchtap="noop">
+      <view class="row sheet-head">
+        <view class="h2">{{readOnly ? '查看明细' : '编辑明细'}}（v{{editorVersion}}）</view>
+        <view class="spacer"></view>
+        <view class="text-3" bindtap="onCloseEditor">关闭</view>
+      </view>
+      <view class="text-3 editor-sub">{{editorTitle}}<text wx:if="{{readOnly}}">　生效/停用版本只读，修改请走「改版」</text></view>
+
+      <scroll-view scroll-y class="sheet-body">
+        <view wx:if="{{!items.length && !readOnly}}" class="editor-empty text-3">
+          还没有明细，点下方「＋ 添加物料」开始
+        </view>
+        <view wx:if="{{!items.length && readOnly}}" class="editor-empty text-3">暂无明细</view>
+
+        <view class="item-row" wx:for="{{items}}" wx:key="index">
+          <view class="row" data-index="{{index}}" bindtap="{{readOnly ? 'noop' : 'onRowPickMaterial'}}">
+            <view class="item-main">
+              <view class="item-code">{{item.material_code || '未选物料'}}</view>
+              <view class="text-3">{{item.material_name || '点击选择物料'}}</view>
+            </view>
+            <view class="tag" wx:if="{{item.unit}}">{{item.unit}}</view>
+            <view class="item-del" wx:if="{{!readOnly}}" data-index="{{index}}" catchtap="onRemoveItem">×</view>
+          </view>
+          <view class="row item-fields">
+            <picker mode="selector" range="{{['面料', '里料', '辅料']}}" value="{{item.kindIndex}}" data-index="{{index}}" bindchange="onItemKind" disabled="{{readOnly}}">
+              <view class="mini-input">{{['面料', '里料', '辅料'][item.kindIndex]}} ▾</view>
+            </picker>
+            <input class="mini-input" placeholder="颜色" value="{{item.color}}" data-index="{{index}}" bindinput="onItemColor" disabled="{{readOnly}}" />
+            <input class="mini-input" placeholder="尺码（空=通码）" value="{{item.size}}" data-index="{{index}}" bindinput="onItemSize" disabled="{{readOnly}}" />
+            <input class="mini-input" placeholder="部位" value="{{item.position}}" data-index="{{index}}" bindinput="onItemPosition" disabled="{{readOnly}}" />
+          </view>
+          <view class="row item-fields">
+            <input class="mini-input" type="digit" placeholder="净用量" value="{{item.unit_usage}}" data-index="{{index}}" bindinput="onItemUsage" disabled="{{readOnly}}" />
+            <input class="mini-input" type="digit" placeholder="损耗率%" value="{{item.loss_rate}}" data-index="{{index}}" bindinput="onItemLoss" disabled="{{readOnly}}" />
+            <view class="mini-input mini-gross num">定额 {{item.gross}}</view>
+          </view>
+        </view>
+
+        <view class="add-item" wx:if="{{!readOnly}}" bindtap="onAddItem">＋ 添加物料</view>
+        <view class="text-3 editor-tip">
+          损耗率留空时按物料品类默认值（梭织6 / 针织8 / 辅料0.4）；
+          定额 = 净用量 × (1 + 损耗率)，缩率另按物料档批次实测计入。
+        </view>
+      </scroll-view>
+
+      <button wx:if="{{!readOnly}}" class="btn btn-info sheet-save" loading="{{saving}}" bindtap="onSaveEditor">保存明细</button>
+    </view>
+  </view>
+
+  <!-- ============ 物料选择器（子弹层） ============ -->
+  <view class="mask mask-top" wx:if="{{pickerVisible}}" bindtap="onClosePicker">
+    <view class="sheet" catchtap="noop">
+      <view class="row sheet-head">
+        <view class="h2">选择物料</view>
+        <view class="spacer"></view>
+        <view class="text-3" bindtap="onClosePicker">关闭</view>
+      </view>
+      <input class="search mat-search" placeholder="编码/品名/旧编码搜索" value="{{matKeyword}}" bindinput="onMatKeyword" bindconfirm="onMatSearch" confirm-type="search" />
+      <scroll-view scroll-y class="mat-list">
+        <view wx:if="{{matLoading && !matOptions.length}}" class="text-3 mat-state">加载中…</view>
+        <view wx:elif="{{!matOptions.length}}" class="text-3 mat-state">未找到物料（可先到「物料管理」建档）</view>
+        <view class="mat-opt" wx:for="{{matOptions}}" wx:key="id" data-index="{{index}}" bindtap="onSelectMaterial">
+          <view class="item-code">{{item.code}}</view>
+          <view class="row mat-opt-line">
+            <view class="text-2 mat-opt-name">{{item.name}}</view>
+            <view class="spacer"></view>
+            <view class="text-3">{{item.unit}}</view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+</view>

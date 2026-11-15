@@ -141,6 +141,10 @@ UserCompany.all_objects.filter(
     company=company, user__phone__in=[INV_A, INV_B, INV_C, INV_E]).delete()
 UserCompany.all_objects.filter(
     company=company, user__phone__startswith='139889409').delete()
+# 历史轮注销（匿名化 del_*）成员关系硬删——残留 ACTIVE 行会累计吃满
+# capacity=50，压爆 AC-018 邀请第三人（INT 2026-10-24 修，跨轮自愈）
+UserCompany.all_objects.filter(
+    company=company, user__phone__startswith='del_').delete()
 
 post_shop = PostM.objects.filter(company=company, name='BF登记岗',
                                  is_deleted=False).first() \

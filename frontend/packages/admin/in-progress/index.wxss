@@ -1,4 +1,4 @@
-/* 工作中页样式 */
+/* 我的登记页样式 */
 .state-tip {
   text-align: center;
   color: var(--color-text-3);
@@ -8,8 +8,6 @@
   width: 40%;
   margin: 24rpx auto 0;
 }
-
-/* 床次卡片样式已收敛进共用组件 components/bed-progress（P3B beds 合并，P3B 前样式见组件 wxss） */
 
 /* 登记记录 */
 .rec-item {

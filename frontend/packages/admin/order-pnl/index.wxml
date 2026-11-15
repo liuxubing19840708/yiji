@@ -1,0 +1,91 @@
+<view class="page">
+  <view wx:if="{{denied}}" class="state text-3">无查看权限（cost.view）</view>
+
+  <block wx:else>
+    <hint-toggle text="两个口径：理论毛利=报价收入−全部成本；实收毛利=已收款−全部成本（负值=还在垫资）。数字发黄说明单据有变动待重算，去成本页点重算后为准。" />
+
+    <!-- 汇总条（已加载行合计） -->
+    <view class="card summary">
+      <view class="stat">
+        <view class="stat-num num">{{sumRevenue}}</view>
+        <view class="text-3">理论收入</view>
+      </view>
+      <view class="stat">
+        <view class="stat-num num {{sumRealProfit[0] === '-' ? 'neg' : ''}}">{{sumRealProfit}}</view>
+        <view class="text-3">实收毛利</view>
+      </view>
+      <view class="stat">
+        <view class="stat-num num">{{sumGap}}</view>
+        <view class="text-3">未回款</view>
+      </view>
+    </view>
+
+    <!-- 过滤：状态 chip + 关键词 + 排序 -->
+    <view class="filter-bar">
+      <view class="chips">
+        <view wx:for="{{statusChips}}" wx:key="key"
+          class="chip {{statusIndex === index ? 'chip-on' : ''}}"
+          data-index="{{index}}" bindtap="onStatusChip">{{item.label}}</view>
+      </view>
+      <view class="search-row">
+        <input class="search-input" placeholder="订单号/客户/款号/款名"
+          value="{{keyword}}" bindinput="onKeyword" bindconfirm="onSearch" confirm-type="search" />
+        <view class="btn btn-ghost btn-sm" bindtap="onSearch">搜索</view>
+        <view class="btn btn-ghost btn-sm" bindtap="onToggleSort">{{sortLabels[sortMode]}}</view>
+      </view>
+    </view>
+
+    <view wx:if="{{loading && !loaded}}" class="state text-3">加载中…</view>
+    <view wx:elif="{{error}}" class="state">
+      <view class="text-3">加载失败，请重试</view>
+      <button class="btn btn-ghost state-btn" bindtap="reload">重新加载</button>
+    </view>
+    <empty-state wx:elif="{{!rows.length}}" text="暂无损益数据"
+      sub="订单在「成本管理」重算后即出现在这里" />
+
+    <block wx:else>
+      <view class="pnl-row" wx:for="{{rows}}" wx:key="id"
+        data-order="{{item.orderId}}" bindtap="onOpenOrder">
+        <view class="row head">
+          <view class="item-title">{{item.orderNo}}</view>
+          <view wx:if="{{item.isStale}}" class="badge badge-yellow">待重算</view>
+        </view>
+        <view class="text-3 sub-line">{{item.customerName || '—'}}{{item.styleNo ? ' · ' + item.styleNo : ''}}</view>
+        <view class="grid">
+          <view class="g-cell">
+            <view class="num g-num">{{item.revenue}}</view>
+            <view class="text-3 g-label">理论收入</view>
+          </view>
+          <view class="g-cell">
+            <view class="num g-num">{{item.totalCost}}</view>
+            <view class="text-3 g-label">总成本</view>
+          </view>
+          <view class="g-cell">
+            <view class="num g-num {{item.grossProfit[0] === '-' ? 'neg' : 'pos'}}">{{item.grossProfit}}</view>
+            <view class="text-3 g-label">理论毛利{{item.grossMargin !== null ? ' ' + item.grossMargin + '%' : ''}}</view>
+          </view>
+        </view>
+        <view class="grid">
+          <view class="g-cell">
+            <view class="num g-num-sm">{{item.arReceived}}</view>
+            <view class="text-3 g-label">已收</view>
+          </view>
+          <view class="g-cell">
+            <view class="num g-num-sm">{{item.arAmount}}</view>
+            <view class="text-3 g-label">应收</view>
+          </view>
+          <view class="g-cell">
+            <view class="num g-num-sm">{{item.arGap}}</view>
+            <view class="text-3 g-label">未回</view>
+          </view>
+          <view class="g-cell">
+            <view class="num g-num-sm {{item.realNeg ? 'neg' : 'pos'}}">{{item.realProfit}}</view>
+            <view class="text-3 g-label">实收毛利</view>
+          </view>
+        </view>
+      </view>
+      <view wx:if="{{loading}}" class="state text-3">加载更多…</view>
+      <view wx:elif="{{!hasMore}}" class="state text-3">到底了</view>
+    </block>
+  </block>
+</view>

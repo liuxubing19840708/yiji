@@ -4,140 +4,161 @@
   <block wx:elif="{{!error}}">
     <date-range-bar start="{{start}}" end="{{end}}" quick="{{quick}}" bind:change="onRangeChange" />
 
-    <!-- 汇总卡（§10.1，2026-10-22 参考竞品改版） -->
-    <view class="card sum-card">
-      <view class="sum-duo">
-        <view class="sum-duo-item"><text class="sum-duo-label">已结：</text><text class="sum-duo-num settled num">¥{{settledText}}</text></view>
-        <view class="sum-duo-divider"></view>
-        <view class="sum-duo-item"><text class="sum-duo-label">未结：</text><text class="sum-duo-num unset num">¥{{unsettledText}}</text></view>
+    <!-- 首页：只看期间结果和员工工资 -->
+    <block wx:if="{{!centerVisible}}">
+      <view class="card overview-card">
+        <view class="overview-item">
+          <view class="overview-label">未结工资</view>
+          <view class="overview-num unset num">¥{{unsettledText}}</view>
+        </view>
+        <view class="overview-item">
+          <view class="overview-label">本期总工资</view>
+          <view class="overview-num num">¥{{totalText}}</view>
+        </view>
       </view>
-      <view class="sum-trio">
-        <view class="sum-trio-item"><view class="sum-trio-label">计件工资</view><view class="sum-trio-num num">¥{{pieceText}}</view></view>
-        <view class="sum-trio-item"><view class="sum-trio-label">固定工资</view><view class="sum-trio-num num">¥{{fixedText}}</view></view>
-        <view class="sum-trio-item"><view class="sum-trio-label">总工资</view><view class="sum-trio-num num">¥{{totalText}}</view></view>
-      </view>
-      <view class="sum-links">
-        <view class="sum-link" bindtap="onGoCompletion">完成工序数: {{processCount}} ›</view>
-        <view class="sum-link-divider"></view>
-        <view class="sum-link dim">无单价工序数: {{noPriceCount}} ›</view>
-      </view>
-      <view class="sum-acts">
-        <view class="sum-act" wx:if="{{canSettle}}" bindtap="onGoSettle">◎ 工资结算</view>
-        <view class="sum-act-divider" wx:if="{{canSettle}}"></view>
-        <view class="sum-act" bindtap="onGoSettlements">▦ 结算记录</view>
-        <view class="sum-act-divider"></view>
-        <view class="sum-act" bindtap="onGoApplies">◔ 申请记录</view>
-      </view>
-    </view>
 
-    <!-- 工资结算确认（§10.3） -->
-    <view wx:if="{{section === 'settle'}}" class="card">
-      <view class="h2">工资结算确认</view>
-      <view class="text-3">{{start || '本月'}} 至 {{end || '本月底'}}</view>
-      <view class="row settle-total">
-        <view class="text-2">金额汇总</view>
+      <button class="btn btn-primary center-entry" bindtap="onGoCenter">结算与发放</button>
+
+      <view class="row emp-head">
+        <view class="h2">员工工资</view>
         <view class="spacer" />
-        <view class="num h2 text-primary">¥{{unsettledText}}</view>
+        <view class="text-3">{{employees.length}} 人</view>
       </view>
-      <empty-state wx:if="{{!settleRows.length}}" text="该期间没有可结算的登记记录" />
-      <view wx:else class="settle-grid">
-        <view class="row settle-grid-item" wx:for="{{settleRows}}" wx:key="user_id">
-          <view class="text-2">{{item.real_name}}</view>
+      <empty-state wx:if="{{empLoaded && !employees.length}}" text="暂无在职员工" />
+      <view class="card emp-card" wx:for="{{employees}}" wx:key="user_id" data-uid="{{item.user_id}}" bindtap="onEmployeeDetail">
+        <view class="row">
+          <view class="emp-title">{{item.real_name}}</view>
+          <view class="badge badge-gray" wx:if="{{item.status === 2}}">{{item.status_display}}</view>
           <view class="spacer" />
-          <view class="num">¥{{item.amountText}}</view>
+          <view class="arrow text-3">›</view>
+        </view>
+        <view class="row emp-wage">
+          <view class="text-2">总工资 <text class="num">¥{{item.total_amount}}</text></view>
+          <view class="spacer" />
+          <view wx:if="{{item.unsettled > 0}}" class="unset num">未结 ¥{{item.unsettled}}</view>
+          <view wx:else class="settled">已结清</view>
         </view>
       </view>
-      <view class="row settle-actions">
-        <button class="btn btn-plain settle-btn" bindtap="onCancelSettle">取消</button>
-        <button class="btn btn-primary settle-btn {{settling || !settleRows.length ? 'disabled' : ''}}" bindtap="onConfirmSettle">确认结算</button>
-      </view>
-    </view>
+    </block>
 
-    <!-- 结算记录（§10.4） -->
-    <view wx:if="{{section === 'settlements'}}" class="card-list">
-      <empty-state wx:if="{{!settlements.length && !settleLoading}}" text="暂无结算记录" />
-      <view class="card st-card" wx:for="{{settlements}}" wx:key="id">
-        <view class="row" data-index="{{index}}" bindtap="onExpandSettlement">
-          <view class="h2 num">¥{{item.amountText}}</view>
+    <!-- 结算与发放：集中承载全部结算操作，不再插入员工列表 -->
+    <block wx:else>
+      <view class="row center-head">
+        <view class="center-back" bindtap="onBackCenter">‹ 薪酬管理</view>
+        <view class="spacer" />
+        <view class="h2">结算与发放</view>
+        <view class="spacer" />
+        <view class="center-head-space"></view>
+      </view>
+
+      <view class="card center-actions" wx:if="{{!section}}">
+        <button wx:if="{{canSettle}}" class="btn btn-primary center-action" bindtap="onGoSettle">工资结算</button>
+        <button wx:if="{{canSettle}}" class="btn btn-plain center-action" bindtap="onGoAdjust">工资调整</button>
+        <button class="btn btn-plain center-action" bindtap="onGoApplies">申请审核与发放</button>
+        <button class="btn btn-plain center-action" bindtap="onGoSettlements">结算记录</button>
+        <button class="btn btn-plain center-action" bindtap="onGoPayments">工资实付与结算分摊</button>
+      </view>
+
+      <!-- 工资结算确认 -->
+      <view wx:if="{{section === 'settle'}}" class="card">
+        <view class="h2">工资结算确认</view>
+        <view class="text-3">{{start}} 至 {{end}}</view>
+        <picker mode="selector" range="{{settleNames}}" value="{{settleIndex}}" bindchange="onSettleEmployeeChange">
+          <view class="picker-box">结算范围：{{settleNames[settleIndex]}} ▾</view>
+        </picker>
+        <view class="row settle-total">
+          <view class="text-2">金额汇总</view>
           <view class="spacer" />
-          <view class="badge {{item.revoked ? 'badge-gray' : 'badge-green'}}">{{item.statusDisplay}}</view>
-          <view class="caret text-3">{{expandIdx === index ? '∧' : '∨'}}</view>
+          <view class="num h2 text-primary">¥{{unsettledText}}</view>
         </view>
-        <view class="text-3">时间：{{item.createdAt}} 结算 · {{item.title}}</view>
-        <block wx:if="{{expandIdx === index}}">
-          <view class="detail-box">
-            <view class="row d-row"><view class="text-3">期间</view><view class="spacer" /><view class="text-2">{{item.periodText}}</view></view>
-            <view class="row d-row"><view class="text-3">员工数</view><view class="spacer" /><view class="text-2 num">{{item.employeeCount}}</view></view>
-            <view class="row d-row"><view class="text-3">操作人</view><view class="spacer" /><view class="text-2">{{item.createdByName || '—'}}</view></view>
-            <button wx:if="{{item.canRevoke}}" class="btn btn-plain revoke-btn" data-id="{{item.id}}" catchtap="onRevokeSettlement">撤销</button>
+        <empty-state wx:if="{{!settleRows.length}}" text="该期间没有可结算的登记记录" />
+        <view wx:else class="settle-grid">
+          <view class="row settle-grid-item" wx:for="{{visibleSettleRows}}" wx:key="user_id">
+            <view class="text-2">{{item.real_name}}</view>
+            <view class="spacer" />
+            <view class="num">¥{{item.amountText}}</view>
           </view>
-        </block>
+        </view>
+        <view class="row settle-actions">
+          <button class="btn btn-plain settle-btn" bindtap="onCancelSettle">返回</button>
+          <button class="btn btn-primary settle-btn {{settling || !settleRows.length ? 'disabled' : ''}}" bindtap="onConfirmSettle">确认结算</button>
+        </view>
       </view>
-      <view wx:if="{{settleHasMore}}" class="load-more text-3" bindtap="onSettleMore">{{settleLoading ? '加载中…' : '上拉加载更多'}}</view>
-    </view>
 
-    <!-- 申请记录（§10.5 双 Tab） -->
-    <view wx:if="{{section === 'applies'}}" class="card-list">
-      <view class="row seg">
-        <view class="seg-item {{applyTab === 0 ? 'on' : ''}}" data-tab="0" bindtap="onApplyTab">审核记录</view>
-        <view class="seg-item {{applyTab === 1 ? 'on' : ''}}" data-tab="1" bindtap="onApplyTab">发放记录</view>
-      </view>
-      <empty-state wx:if="{{!applies.length && !applyLoading}}" text="暂无申请记录" />
-      <view class="card ap-card" wx:for="{{applies}}" wx:key="id">
-        <view class="row">
-          <view class="h2">申请结算</view>
-          <view class="spacer" />
-          <view class="badge {{item.statusClass}}">{{item.statusDisplay}}</view>
-        </view>
-        <view class="text-3">申请时间：{{item.createdAt}} · 姓名：{{item.userName}}</view>
-        <view class="row">
-          <view class="text-3">金额</view>
-          <view class="spacer" />
-          <view class="num text-primary">¥{{item.amountText}}</view>
-        </view>
-        <view class="text-3">期间：{{item.periodText}}</view>
-        <view wx:if="{{item.note}}" class="text-3">说明：{{item.note}}</view>
-        <view wx:if="{{item.canReview || item.canPay || item.canVoid}}" class="row ap-actions">
-          <button wx:if="{{item.canReview}}" class="btn btn-primary ap-btn" data-id="{{item.id}}" bindtap="onApproveApply">通过</button>
-          <button wx:if="{{item.canReview}}" class="btn btn-plain ap-btn" data-id="{{item.id}}" bindtap="onRejectApply">拒绝</button>
-          <button wx:if="{{item.canPay}}" class="btn btn-info ap-btn" data-id="{{item.id}}" bindtap="onPayApply">发放</button>
-          <button wx:if="{{item.canVoid}}" class="btn btn-plain ap-btn" data-id="{{item.id}}" bindtap="onVoidApply">作废</button>
+      <!-- 工资调整 -->
+      <view wx:if="{{section === 'adjust'}}" class="card">
+        <view class="section-back" bindtap="onCancelSettle">‹ 返回结算与发放</view>
+        <view class="h2">工资调整</view>
+        <picker mode="selector" range="{{adjustNames}}" value="{{adjustIndex}}" bindchange="onAdjustEmployeeChange">
+          <view class="picker-box">{{adjustNames[adjustIndex]}} ▾</view>
+        </picker>
+        <input class="input" type="digit" placeholder="调整金额（正数增加，负数扣减，不能为0）" value="{{adjustAmount}}" bindinput="onAdjustAmount" />
+        <input class="input" placeholder="调整事由（必填）" value="{{adjustReason}}" bindinput="onAdjustReason" />
+        <view class="row settle-actions">
+          <button class="btn btn-plain settle-btn" bindtap="onCancelSettle">取消</button>
+          <button class="btn btn-primary settle-btn {{adjusting ? 'disabled' : ''}}" bindtap="onConfirmAdjust">保存调整</button>
         </view>
       </view>
-      <view wx:if="{{applyHasMore}}" class="load-more text-3" bindtap="onApplyMore">{{applyLoading ? '加载中…' : '上拉加载更多'}}</view>
-    </view>
 
-    <!-- 选择员工（§10.1 员工卡列表，2026-10-22 参考竞品改版） -->
-    <view class="row emp-head">
-      <view class="h2">选择员工</view>
-      <view class="spacer" />
-      <view class="text-3">{{employees.length}} 人</view>
-    </view>
-    <empty-state wx:if="{{empLoaded && !employees.length}}" text="暂无在职员工" />
-    <view class="card emp-card" wx:for="{{employees}}" wx:key="user_id">
-      <view class="row" data-uid="{{item.user_id}}" bindtap="onEmployeeDetail">
-        <view class="spacer" />
-        <view class="emp-title">{{item.real_name}}</view>
-        <view class="badge badge-gray" wx:if="{{item.status === 2}}">{{item.status_display}}</view>
-        <view class="spacer" />
-        <view class="gear text-3" data-uid="{{item.user_id}}" catchtap="onEmployeeDetail">⚙</view>
+      <!-- 结算记录 -->
+      <view wx:if="{{section === 'settlements'}}" class="card-list">
+        <view class="section-back" bindtap="onCancelSettle">‹ 返回结算与发放</view>
+        <empty-state wx:if="{{!settlements.length && !settleLoading}}" text="暂无结算记录" />
+        <view class="card st-card" wx:for="{{settlements}}" wx:key="id">
+          <view class="row" data-index="{{index}}" bindtap="onExpandSettlement">
+            <view class="h2 num">¥{{item.amountText}}</view>
+            <view class="spacer" />
+            <view class="badge {{item.revoked ? 'badge-gray' : 'badge-green'}}">{{item.statusDisplay}}</view>
+            <view class="caret text-3">{{expandIdx === index ? '∧' : '∨'}}</view>
+          </view>
+          <view class="text-3">时间：{{item.createdAt}} 结算 · {{item.title}}</view>
+          <block wx:if="{{expandIdx === index}}">
+            <view class="detail-box">
+              <view class="row d-row"><view class="text-3">期间</view><view class="spacer" /><view class="text-2">{{item.periodText}}</view></view>
+              <view class="row d-row"><view class="text-3">员工数</view><view class="spacer" /><view class="text-2 num">{{item.employeeCount}}</view></view>
+              <view class="row d-row"><view class="text-3">操作人</view><view class="spacer" /><view class="text-2">{{item.createdByName || '—'}}</view></view>
+              <view class="st-actions">
+                <button class="btn btn-plain revoke-btn" data-id="{{item.id}}" catchtap="onOpenPayslip">薪资条</button>
+                <button wx:if="{{item.canRevoke}}" class="btn btn-plain revoke-btn" data-id="{{item.id}}" catchtap="onRevokeSettlement">撤销</button>
+              </view>
+            </view>
+          </block>
+        </view>
+        <view wx:if="{{settleHasMore}}" class="load-more text-3" bindtap="onSettleMore">{{settleLoading ? '加载中…' : '上拉加载更多'}}</view>
       </view>
-      <view class="sum-duo">
-        <view class="sum-duo-item"><text class="sum-duo-label">已结：</text><text class="sum-duo-num settled num">¥{{item.settled}}</text></view>
-        <view class="sum-duo-divider"></view>
-        <view class="sum-duo-item"><text class="sum-duo-label">未结：</text><text class="sum-duo-num unset num">¥{{item.unsettled}}</text></view>
+
+      <!-- 申请审核与发放记录 -->
+      <view wx:if="{{section === 'applies'}}" class="card-list">
+        <view class="section-back" bindtap="onCancelSettle">‹ 返回结算与发放</view>
+        <view class="row seg">
+          <view class="seg-item {{applyTab === 0 ? 'on' : ''}}" data-tab="0" bindtap="onApplyTab">审核记录</view>
+          <view class="seg-item {{applyTab === 1 ? 'on' : ''}}" data-tab="1" bindtap="onApplyTab">发放记录</view>
+        </view>
+        <empty-state wx:if="{{!applies.length && !applyLoading}}" text="暂无申请记录" />
+        <view class="card ap-card" wx:for="{{applies}}" wx:key="id">
+          <view class="row">
+            <view class="h2">申请结算</view>
+            <view class="spacer" />
+            <view class="badge {{item.statusClass}}">{{item.statusDisplay}}</view>
+          </view>
+          <view class="text-3">申请时间：{{item.createdAt}} · 姓名：{{item.userName}}</view>
+          <view class="row">
+            <view class="text-3">金额</view>
+            <view class="spacer" />
+            <view class="num text-primary">¥{{item.amountText}}</view>
+          </view>
+          <view class="text-3">期间：{{item.periodText}}</view>
+          <view wx:if="{{item.note}}" class="text-3">说明：{{item.note}}</view>
+          <view wx:if="{{item.canReview || item.canPay || item.canVoid}}" class="row ap-actions">
+            <button wx:if="{{item.canReview}}" class="btn btn-primary ap-btn" data-id="{{item.id}}" bindtap="onApproveApply">通过</button>
+            <button wx:if="{{item.canReview}}" class="btn btn-plain ap-btn" data-id="{{item.id}}" bindtap="onRejectApply">拒绝</button>
+            <button wx:if="{{item.canPay}}" class="btn btn-info ap-btn" data-id="{{item.id}}" bindtap="onPayApply">发放</button>
+            <button wx:if="{{item.canVoid}}" class="btn btn-plain ap-btn" data-id="{{item.id}}" bindtap="onVoidApply">作废</button>
+          </view>
+        </view>
+        <view wx:if="{{applyHasMore}}" class="load-more text-3" bindtap="onApplyMore">{{applyLoading ? '加载中…' : '上拉加载更多'}}</view>
       </view>
-      <view class="sum-trio">
-        <view class="sum-trio-item"><view class="sum-trio-label">计件工资</view><view class="sum-trio-num num">¥{{item.piece_amount}}</view></view>
-        <view class="sum-trio-item"><view class="sum-trio-label">固定工资</view><view class="sum-trio-num num">¥{{item.fixed_amount}}</view></view>
-        <view class="sum-trio-item"><view class="sum-trio-label">总工资</view><view class="sum-trio-num num">¥{{item.total_amount}}</view></view>
-      </view>
-      <view class="emp-stats">
-        <view class="text-3 num">完成工序数: {{item.process_count}}</view>
-        <view class="spacer" />
-        <view class="text-3 num">无单价工序数: {{item.no_price_count}}</view>
-      </view>
-    </view>
+    </block>
   </block>
 
   <block wx:else>

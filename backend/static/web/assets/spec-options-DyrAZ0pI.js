@@ -1,0 +1,1 @@
+const c=["黑色","白色","灰色","红色","蓝色","绿色","黄色","橙色","紫色","粉色","棕色","咖啡","军绿","卡其","米色","花色"],r=["S","M","L","XL","XXL","3XL","4XL","F","均码","80","90","95","100","110","120","130","140","150","160"];function a(...s){const o=new Set,t=[];for(const e of s)for(const u of e||[]){const n=String(u??"").trim();!n||o.has(n)||(o.add(n),t.push(n))}return t}export{c as C,r as a,a as u};

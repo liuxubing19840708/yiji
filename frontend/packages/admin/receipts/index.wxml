@@ -1,0 +1,58 @@
+<view class="page">
+  <!-- 无权限防御态（warehouse.manage；后端 403 兜底） -->
+  <view wx:if="{{denied}}" class="state">
+    <view class="text-3">暂无「仓库管理」权限，请联系管理员开通</view>
+  </view>
+
+  <block wx:else>
+    <view class="toolbar">
+      <view class="link-btn" bindtap="onGoDemandSummary">采购需求汇总 ›</view>
+      <view class="spacer"></view>
+      <view class="batch-btn" wx:if="{{canManage}}" bindtap="onOpenCreate">＋ 新建暂收</view>
+    </view>
+
+    <!-- 状态 chip -->
+    <view class="chip-bar">
+      <view wx:for="{{statusChips}}" wx:key="key"
+        class="chip {{statusIndex === index ? 'chip-on' : ''}}"
+        data-index="{{index}}" bindtap="onStatusChip">{{item.label}}</view>
+    </view>
+
+    <view class="card filter-card">
+      <view class="row">
+        <input class="search grow" placeholder="单号/供应商/面料"
+          value="{{keyword}}" bindinput="onKeyword" bindconfirm="onSearch"
+          confirm-type="search" />
+        <view class="search-btn" bindtap="onSearch">查询</view>
+      </view>
+    </view>
+
+    <view wx:if="{{loading && !rows.length}}" class="state text-3">加载中…</view>
+    <view wx:elif="{{error && !rows.length}}" class="state">
+      <view class="text-3">加载失败，请重试</view>
+      <button class="btn btn-ghost state-btn" bindtap="reload">重新加载</button>
+    </view>
+    <empty-state wx:elif="{{loaded && !rows.length}}" text="暂无暂收单"
+      sub="到料后点「新建暂收」登记，确认自动采购入库" />
+
+    <view class="card rec-card" wx:for="{{rows}}" wx:key="id"
+      data-id="{{item.id}}" bindtap="onOpenDetail">
+      <view class="row">
+        <view class="item-main">
+          <view class="item-title">{{item.receiptNo}}</view>
+          <view class="text-3">{{item.supplier}}{{item.purchaseNo ? ' · ' + item.purchaseNo : ''}}</view>
+        </view>
+        <view class="badge {{item.statusClass}}">{{item.statusText}}</view>
+      </view>
+      <view class="row rec-meta">
+        <view class="text-3">{{item.itemCount}} 行</view>
+        <view class="spacer"></view>
+        <view class="text-3">{{item.createdAt}}</view>
+      </view>
+      <view class="text-3 sub-line" wx:if="{{item.remark}}">备注：{{item.remark}}</view>
+    </view>
+
+    <view wx:if="{{loading && rows.length}}" class="text-3 loading-more">加载中…</view>
+    <view wx:elif="{{loaded && !hasMore && rows.length}}" class="text-3 loading-more">没有更多了</view>
+  </block>
+</view>

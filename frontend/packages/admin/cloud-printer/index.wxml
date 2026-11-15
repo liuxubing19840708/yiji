@@ -18,6 +18,18 @@
         <button class="btn btn-ghost btn-flex" bindtap="onCalibrate">对位诊断</button>
         <button class="btn btn-ghost btn-flex" bindtap="onDisconnect">断开</button>
       </view>
+      <!-- 历史绑定档案：裁床/后道多台机器快速切换 -->
+      <block wx:if="{{printers.length > 1}}">
+        <view class="text-3 saved-title">历史绑定（点击切换机器）</view>
+        <view class="device-row" wx:for="{{printers}}" wx:key="deviceId">
+          <view class="setting-main">
+            <view class="setting-label">{{item.name}}</view>
+          </view>
+          <view class="badge badge-green" wx:if="{{printer.deviceId === item.deviceId}}">当前</view>
+          <button class="btn btn-info btn-mini" wx:else data-index="{{index}}" bindtap="onPickSavedPrinter">切换</button>
+          <button class="btn btn-ghost btn-mini" data-index="{{index}}" bindtap="onRemoveSavedPrinter">删除</button>
+        </view>
+      </block>
     </block>
     <block wx:else>
       <hint-toggle text="通过蓝牙连接菲票标签机（佳博 / 汉印 / 快麦 / 芯烨等），扫描时请让打印机靠近手机" />
@@ -58,8 +70,33 @@
       <view class="setting-value">{{qrUnitLabel}} <text class="arrow">›</text></view>
     </view>
     <view class="tpl-row sub-row">
+      <view class="setting-main">
+        <view class="setting-label">字号</view>
+        <view class="text-3">蓝牙位图打印的字高，3~7.5mm 可调；太大装不下时自动回默认</view>
+      </view>
+      <view class="stepper">
+        <view class="step-btn" data-delta="-0.25" bindtap="onFontStep">−</view>
+        <view class="step-val num">{{fontMm}}mm</view>
+        <view class="step-btn" data-delta="0.25" bindtap="onFontStep">＋</view>
+      </view>
+    </view>
+    <view class="tpl-row sub-row" bindtap="onPickQrPos">
+      <view class="setting-main">
+        <view class="setting-label">二维码位置</view>
+        <view class="text-3">孔先出纸（孔区在纸头）选「码在下」；仅竖版纸张生效</view>
+      </view>
+      <view class="setting-value">{{qrPosLabel}} <text class="arrow">›</text></view>
+    </view>
+    <view class="tpl-row sub-row">
       <view class="setting-main"><view class="setting-label">数量放大显示</view></view>
       <switch checked="{{style.bigQty}}" color="#FF7A00" bindchange="onToggleBigQty" />
+    </view>
+    <view class="tpl-row sub-row">
+      <view class="setting-main">
+        <view class="setting-label">打印前预览确认</view>
+        <view class="text-3">关：批量打印直接发送（预览勾过「不再预览」时可在此恢复）</view>
+      </view>
+      <switch checked="{{previewConfirm}}" color="#FF7A00" bindchange="onTogglePreviewConfirm" />
     </view>
     <view class="field-title text-3">打印内容（点选要打印的字段）</view>
     <view class="field-chips">
@@ -139,3 +176,6 @@
 
 <!-- 试打预览：按当前模板渲染标签，确认后发送 -->
 <label-preview show="{{previewShow}}" tickets="{{previewTickets}}" company="{{previewCompany}}" bind:confirm="onPreviewConfirm" bind:cancel="onPreviewCancel" />
+
+<!-- 一键补打进度（可取消，utils/print-flow 驱动） -->
+<print-progress show="{{printFlow.show}}" done="{{printFlow.done}}" total="{{printFlow.total}}" bind:cancel="onFlowCancel" />

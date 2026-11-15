@@ -4,6 +4,7 @@
   "usingComponents": {
     "empty-state": "/components/empty-state/index",
     "hint-toggle": "/components/hint-toggle/index",
-    "label-preview": "/components/label-preview/index"
+    "label-preview": "/components/label-preview/index",
+    "print-progress": "/components/print-progress/index"
   }
 }

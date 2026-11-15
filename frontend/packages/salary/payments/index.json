@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "工资实付",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "date-range-bar": "/components/date-range-bar/index",
+    "empty-state": "/components/empty-state/index"
+  }
+}

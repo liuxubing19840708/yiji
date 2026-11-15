@@ -1,0 +1,113 @@
+<view class="page master-page">
+  <scroll-view scroll-x class="tab-scroll" enhanced show-scrollbar="{{false}}">
+    <view class="master-tabs">
+      <view wx:for="{{tabs}}" wx:key="key" class="master-tab {{active === item.key ? 'on' : ''}}" data-tab="{{item.key}}" bindtap="onTab">{{item.label}}</view>
+    </view>
+  </scroll-view>
+
+  <view class="master-tools">
+    <input wx:if="{{active !== 'groups'}}" class="master-search" placeholder="搜索{{active === 'styles' ? '款号或名称' : '名称'}}" value="{{keyword}}" bindinput="onKeyword" bindconfirm="onSearch" confirm-type="search" />
+    <button wx:if="{{canManage}}" class="btn btn-primary create-btn" bindtap="onCreate">＋ 新建{{active === 'styles' ? '款式' : active === 'processes' ? '工序' : active === 'templates' ? '模板' : active === 'customers' ? '客户' : '分组'}}</button>
+  </view>
+  <picker wx:if="{{active === 'styles'}}" mode="selector" range="{{customerNames}}" value="{{customerFilterIndex}}" bindchange="onCustomerFilter"><view class="filter-select">客户：{{customerNames[customerFilterIndex]}} ▾</view></picker>
+  <picker wx:if="{{active === 'customers'}}" mode="selector" range="{{groupNames}}" value="{{groupFilterIndex}}" bindchange="onGroupFilter"><view class="filter-select">分组：{{groupNames[groupFilterIndex]}} ▾</view></picker>
+  <picker wx:if="{{canManage && active === 'processes'}}" mode="selector" range="{{fixedNames}}" value="{{fixedFilterIndex}}" bindchange="onFixedFilter"><view class="filter-select">{{fixedNames[fixedFilterIndex]}} ▾</view></picker>
+
+  <view wx:if="{{loading && active !== 'styles' && active !== 'customers'}}" class="state-tip">加载中…</view>
+  <view wx:elif="{{error}}" class="card state-tip text-danger">{{error}}<button class="btn btn-ghost retry" bindtap="reload">重试</button></view>
+
+  <block wx:elif="{{active === 'styles'}}">
+    <empty-state wx:if="{{!styles.length && !loading}}" text="暂无款式" sub="点击新建维护款式与工序" />
+    <view wx:for="{{styles}}" wx:key="id" class="card master-card">
+      <view class="card-head"><view><view class="item-title">{{item.style_no}}</view><view class="text-2">{{item.name}}</view></view><text class="price">¥{{item.price || '0.000'}}</text></view>
+      <view class="meta">客户 {{item.customer_name || '未关联'}} · 工序 {{item.process_count || 0}} 道 · 菲票 {{item.ticket_count || 0}} 张</view>
+      <view wx:if="{{canManage}}" class="row-actions"><text data-index="{{index}}" bindtap="onEdit">编辑 / 工序</text><text data-index="{{index}}" bindtap="onSync">同步工序</text><text data-index="{{index}}" bindtap="onCopy">复制</text><text class="danger" data-index="{{index}}" bindtap="onDelete">删除</text></view>
+    </view>
+  </block>
+
+  <block wx:elif="{{active === 'processes'}}">
+    <empty-state wx:if="{{!processes.length && !loading}}" text="暂无可登记工序" sub="{{canManage ? '点击新建维护工序档案' : '仅显示固定工序和指定给本人的工序'}}" />
+    <view wx:for="{{processes}}" wx:key="id" class="card master-card">
+      <view class="card-head"><text class="item-title">{{item.name}}</text><text wx:if="{{canManage || !item.hide_price}}" class="price">¥{{item.default_price || '0.000'}}</text></view>
+      <view wx:if="{{canManage}}" class="meta">排序 {{item.sort || 0}} · {{item.is_fixed ? '固定工序' : '非固定工序'}} · {{item.is_key ? '关键工序' : '普通工序'}} · {{item.hide_price ? '隐藏单价' : '显示单价'}}</view>
+      <view wx:else class="meta">{{item.is_fixed ? '固定工序' : '指定给本人的工序'}}</view>
+      <view wx:if="{{canManage}}" class="row-actions"><text data-index="{{index}}" bindtap="onEdit">编辑</text><text class="danger" data-index="{{index}}" bindtap="onDelete">删除</text></view>
+    </view>
+  </block>
+
+  <block wx:elif="{{active === 'templates'}}">
+    <empty-state wx:if="{{!templates.length}}" text="暂无工序模板" sub="常用工序组合可保存复用" />
+    <view wx:for="{{templates}}" wx:key="id" class="card master-card">
+      <view class="card-head"><text class="item-title">{{item.name}}</text><text class="badge">{{item.items.length || 0}} 道</text></view>
+      <view class="meta" wx:for="{{item.items}}" wx:for-item="line" wx:key="process_id">{{line.process_name || '工序'}} ¥{{line.price}}</view>
+      <view wx:if="{{canManage}}" class="row-actions"><text data-index="{{index}}" bindtap="onEdit">编辑</text><text class="danger" data-index="{{index}}" bindtap="onDelete">删除</text></view>
+    </view>
+  </block>
+
+  <block wx:elif="{{active === 'customers'}}">
+    <empty-state wx:if="{{!customers.length && !loading}}" text="暂无客户" sub="点击新建维护客户档案" />
+    <view wx:for="{{customers}}" wx:key="id" class="card master-card">
+      <view class="card-head"><view><view class="item-title">{{item.name}}</view><view class="text-3">{{item.customer_no}}</view></view><text class="badge">{{item.group_name || '未分组'}}</text></view>
+      <view class="meta">电话 {{item.phone || '—'}}</view><view class="meta" wx:if="{{item.remark}}">备注 {{item.remark}}</view>
+      <view wx:if="{{canManage}}" class="row-actions"><text data-index="{{index}}" bindtap="onEdit">编辑</text><text class="danger" data-index="{{index}}" bindtap="onDelete">删除</text></view>
+    </view>
+  </block>
+
+  <block wx:else>
+    <empty-state wx:if="{{!groups.length}}" text="暂无客户分组" sub="点击新建维护客户分组" />
+    <view wx:for="{{groups}}" wx:key="id" class="card master-card">
+      <view class="card-head"><text class="item-title">{{item.name}}</text><text class="badge">{{item.customer_count || 0}} 位客户</text></view>
+      <view wx:if="{{canManage}}" class="row-actions"><text data-index="{{index}}" bindtap="onEdit">重命名</text><text class="danger" data-index="{{index}}" bindtap="onDelete">删除</text></view>
+    </view>
+  </block>
+  <view wx:if="{{hasMore}}" class="load-more" bindtap="loadMore">{{loading ? '加载中…' : '上拉加载更多'}}</view>
+
+  <view wx:if="{{formVisible}}" class="mask" bindtap="closeForm">
+    <view class="sheet" catchtap="noop">
+      <view class="sheet-head"><text class="sheet-title">{{form.id ? '编辑' : '新建'}}{{formType === 'styles' ? '款式' : formType === 'processes' ? '工序' : formType === 'templates' ? '工序模板' : formType === 'customers' ? '客户' : '客户分组'}}</text><view><text class="head-action" bindtap="closeForm">取消</text><text class="head-action primary" bindtap="save">{{saving ? '保存中…' : '保存'}}</text></view></view>
+      <scroll-view scroll-y class="sheet-body">
+        <block wx:if="{{formType === 'styles'}}">
+          <view class="form-row"><text>款号 *</text><input data-field="style_no" value="{{form.style_no}}" bindinput="onInput" /></view>
+          <view class="form-row"><text>款式名称 *</text><input data-field="name" value="{{form.name}}" bindinput="onInput" /></view>
+          <picker mode="selector" range="{{customerNames}}" value="{{formCustomerIndex}}" bindchange="onFormCustomer"><view class="form-row"><text>客户</text><view>{{formCustomerIndex > 0 ? customerNames[formCustomerIndex] : '不关联客户'}} ▾</view></view></picker>
+          <view class="form-row"><text>面料</text><input data-field="fabric" value="{{form.fabric}}" bindinput="onInput" /></view>
+          <view class="form-row top"><text>备注</text><textarea data-field="remark" value="{{form.remark}}" bindinput="onInput" /></view>
+          <view class="form-row top"><text>工艺说明</text><textarea data-field="craft_note" value="{{form.craft_note}}" bindinput="onInput" /></view>
+          <view class="section-title">款式图片</view><view class="media-grid"><view wx:for="{{form.imageUrls}}" wx:key="*this" class="media-cell"><image src="{{item}}" mode="aspectFill" /><text data-field="images" data-index="{{index}}" bindtap="removeImage">×</text></view><view wx:if="{{form.images.length < 9}}" class="media-add" data-field="images" bindtap="chooseImages">＋</view></view>
+          <view class="section-title">工艺图片</view><view class="media-grid"><view wx:for="{{form.craftImageUrls}}" wx:key="*this" class="media-cell"><image src="{{item}}" mode="aspectFill" /><text data-field="craft_images" data-index="{{index}}" bindtap="removeImage">×</text></view><view wx:if="{{form.craft_images.length < 9}}" class="media-add" data-field="craft_images" bindtap="chooseImages">＋</view></view>
+          <view class="section-title">工艺视频</view><video wx:if="{{form.videoUrl}}" class="craft-video" src="{{form.videoUrl}}" controls /><button wx:if="{{form.video}}" class="btn btn-plain" bindtap="removeVideo">移除视频</button><button wx:else class="btn btn-plain" bindtap="chooseCraftVideo">＋ 选择视频</button>
+        </block>
+
+        <block wx:elif="{{formType === 'processes'}}">
+          <view class="form-row"><text>工序名称 *</text><input data-field="name" value="{{form.name}}" bindinput="onInput" /></view>
+          <view class="form-row"><text>默认工价 *</text><input type="digit" data-field="default_price" value="{{form.default_price}}" bindinput="onInput" /></view>
+          <view class="form-row"><text>排序</text><input type="number" data-field="sort" value="{{form.sort}}" bindinput="onInput" /></view>
+          <view class="form-row"><text>固定工序</text><switch checked="{{form.is_fixed}}" data-field="is_fixed" bindchange="onSwitch" color="#FF7A00" /></view>
+          <view class="form-row"><text>关键工序</text><switch checked="{{form.is_key}}" data-field="is_key" bindchange="onSwitch" color="#FF7A00" /></view>
+          <view class="form-row"><text>隐藏单价</text><switch checked="{{form.hide_price}}" data-field="hide_price" bindchange="onSwitch" color="#FF7A00" /></view>
+        </block>
+
+        <block wx:elif="{{formType === 'templates'}}"><view class="form-row"><text>模板名称 *</text><input data-field="name" value="{{form.name}}" bindinput="onInput" /></view></block>
+        <block wx:elif="{{formType === 'customers'}}">
+          <view class="form-row"><text>客户编号</text><input placeholder="留空自动取号" data-field="customer_no" value="{{form.customer_no}}" bindinput="onInput" /></view>
+          <view class="form-row"><text>客户名称 *</text><input data-field="name" value="{{form.name}}" bindinput="onInput" /></view>
+          <picker mode="selector" range="{{groupNames}}" value="{{formGroupIndex}}" bindchange="onFormGroup"><view class="form-row"><text>客户分组</text><view>{{formGroupIndex > 0 ? groupNames[formGroupIndex] : '未分组'}} ▾</view></view></picker>
+          <view class="form-row"><text>联系电话</text><input data-field="phone" value="{{form.phone}}" bindinput="onInput" /></view>
+          <view class="form-row top"><text>备注</text><textarea data-field="remark" value="{{form.remark}}" bindinput="onInput" /></view>
+        </block>
+        <block wx:else><view class="form-row"><text>分组名称 *</text><input data-field="name" value="{{form.name}}" bindinput="onInput" /></view></block>
+
+        <block wx:if="{{formType === 'styles' || formType === 'templates'}}">
+          <view class="section-head"><text class="section-title">工序配置</text><text class="primary" bindtap="addProcessLine">＋ 添加工序</text></view>
+          <view wx:for="{{formType === 'styles' ? form.process_items : form.editItems}}" wx:key="index" class="line-editor">
+            <picker mode="selector" range="{{processNames}}" value="{{item.processIndex}}" data-index="{{index}}" bindchange="onLineProcess"><view class="form-row"><text>工序 {{index + 1}}</text><view>{{item.name || '请选择工序'}} ▾</view></view></picker>
+            <view class="form-row"><text>工价</text><input type="digit" data-index="{{index}}" data-field="price" value="{{item.price}}" bindinput="onLineInput" /></view>
+            <view wx:if="{{formType === 'styles'}}" class="form-row"><text>排序</text><input type="number" data-index="{{index}}" data-field="sort" value="{{item.sort}}" bindinput="onLineInput" /></view>
+            <view wx:if="{{formType === 'styles'}}" class="form-row"><text>允许跳序</text><switch checked="{{item.allow_skip}}" data-index="{{index}}" bindchange="onLineSwitch" color="#FF7A00" /></view>
+            <text class="danger remove-line" data-index="{{index}}" bindtap="removeLine">移除工序</text>
+          </view>
+        </block>
+      </scroll-view>
+    </view>
+  </view>
+</view>

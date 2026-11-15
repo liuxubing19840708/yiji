@@ -27,6 +27,8 @@ MAX_SIZE = 5 * 1024 * 1024
 # webm/mkv/avi/flv 组件解不了，放行只会「传得上、放不出」，故不收
 VIDEO_ALLOWED_EXT = {'mp4', 'm4v', 'mov', '3gp'}
 VIDEO_MAX_SIZE = 100 * 1024 * 1024
+DOCUMENT_ALLOWED_EXT = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'gif', 'webp'}
+DOCUMENT_MAX_SIZE = 20 * 1024 * 1024
 
 
 class UploadView(APIView):
@@ -46,6 +48,33 @@ class UploadView(APIView):
         # 存相对路径（前端 mediaUrl 补域名）：绝对 URL 把请求时的域名焊死在库里，
         # 换 IP/从开发者工具传（127.0.0.1）后其它端全部裂图
         return Response({'url': f'{settings.MEDIA_URL}{name}'})
+
+
+class DocumentUploadView(APIView):
+    """产前纸样、工艺单和样衣附件；只允许常见文档和图片，不接收可执行文件。"""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        f = request.FILES.get('file')
+        if f is None:
+            raise ValidationError({'file': '缺少文件字段 file'})
+        ext = f.name.rsplit('.', 1)[-1].lower() if '.' in f.name else ''
+        if ext not in DOCUMENT_ALLOWED_EXT:
+            raise ValidationError({'file': '仅支持 pdf/doc/docx/xls/xlsx 或图片附件'})
+        if f.size > DOCUMENT_MAX_SIZE:
+            raise ValidationError({'file': '附件不能超过 20MB'})
+        head = f.read(8)
+        f.seek(0)
+        if ext == 'pdf' and not head.startswith(b'%PDF-'):
+            raise ValidationError({'file': 'PDF 文件格式不正确'})
+        if ext in {'docx', 'xlsx'} and not head.startswith(b'PK'):
+            raise ValidationError({'file': 'Office 文件格式不正确'})
+        if ext in {'doc', 'xls'} and head != bytes.fromhex('D0CF11E0A1B11AE1'):
+            raise ValidationError({'file': '旧版 Office 文件格式不正确'})
+        name = f'uploads/{uuid.uuid4().hex}.{ext}'
+        default_storage.save(name, f)
+        return Response({'url': f'{settings.MEDIA_URL}{name}', 'name': f.name})
 
 
 class VideoUploadView(APIView):

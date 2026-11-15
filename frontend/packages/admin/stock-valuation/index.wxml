@@ -1,0 +1,102 @@
+<view class="page">
+  <!-- 无权限防御态（finance.manage；后端 403 兜底——报表挂 manage 不挂 view） -->
+  <view wx:if="{{denied}}" class="state">
+    <view class="text-3">暂无「应收管理」权限（库存估值报表挂管理点），请联系管理员开通</view>
+  </view>
+
+  <block wx:else>
+    <!-- 双口径说明卡 -->
+    <view class="card note-card">
+      <view class="h2">双口径（D4）</view>
+      <view class="text-3 note-line">车间用批次价（Lot.unit_cost，与缸号绑定）；财务对账用移动加权（本表：Σ入库额/Σ入库量逐笔递推，退料按当前加权价回冲，量归零清残差）。</view>
+    </view>
+
+    <!-- 过滤：物料 + 截止日 -->
+    <view class="card filter-card">
+      <view class="row filter-row">
+        <picker mode="selector" range="{{materialNames}}" value="{{materialIndex}}" bindchange="onMaterialChange">
+          <view class="filter-chip wide">{{materialNames[materialIndex]}} ▾</view>
+        </picker>
+        <picker mode="date" value="{{dateTo}}" bindchange="onDateChange">
+          <view class="filter-chip">{{dateTo || '截止日(至今)'}} ▾</view>
+        </picker>
+        <view class="search-btn" bindtap="onSearch">查询</view>
+      </view>
+    </view>
+
+    <view wx:if="{{loading}}" class="state text-3">加载中…</view>
+    <view wx:elif="{{error}}" class="state">
+      <view class="text-3">加载失败，请重试</view>
+      <button class="btn btn-ghost state-btn" bindtap="onSearch">重新加载</button>
+    </view>
+
+    <block wx:elif="{{searched}}">
+      <view class="text-3 note-line" wx:if="{{note}}">{{note}}</view>
+
+      <!-- 物料组卡片 -->
+      <empty-state wx:if="{{!rows.length}}" text="无有效流水批次"
+        sub="已确认入库（done）+ 已确认领料才进估值；缺价行不进额不进量" />
+      <view class="card val-card" wx:for="{{rows}}" wx:key="index"
+        data-index="{{index}}" bindtap="onToggleRow">
+        <view class="row">
+          <view class="item-main">
+            <view class="item-title">{{item.title}}</view>
+            <view class="text-3">{{item.unit ? '单位 ' + item.unit : '混合单位（以批次明细为准）'}}</view>
+          </view>
+          <view class="badge badge-gray" wx:if="{{item.missingCnt}}">缺价{{item.missingCnt}}行</view>
+        </view>
+        <view class="row cols">
+          <view class="col">
+            <view class="col-num num">{{item.wavg_price}}</view>
+            <view class="text-3">加权均价</view>
+          </view>
+          <view class="col">
+            <view class="col-num num">{{item.balance_qty}}</view>
+            <view class="text-3">结存量</view>
+          </view>
+          <view class="col">
+            <view class="col-num num">{{item.balance_amt}}</view>
+            <view class="text-3">结存额</view>
+          </view>
+        </view>
+        <view class="row cols">
+          <view class="col">
+            <view class="col-num num">{{item.in_qty}}</view>
+            <view class="text-3">累计入库量</view>
+          </view>
+          <view class="col">
+            <view class="col-num num">{{item.in_amt}}</view>
+            <view class="text-3">累计入库额</view>
+          </view>
+          <view class="col">
+            <view class="col-num num">{{item.issued_qty}}</view>
+            <view class="text-3">净领用</view>
+          </view>
+        </view>
+
+        <!-- 批次明细 -->
+        <block wx:if="{{item.expanded && item.lots.length}}">
+          <view class="lot-head row">
+            <view class="lot-cell text-3">批次</view>
+            <view class="lot-cell text-3">色/面料</view>
+            <view class="lot-cell text-3">结存</view>
+            <view class="lot-cell text-3">加权价</view>
+            <view class="lot-cell text-3">结存额</view>
+          </view>
+          <view class="lot-row row" wx:for="{{item.lots}}" wx:for-item="lt" wx:key="lot_id">
+            <view class="lot-cell">{{lt.lot_no}}</view>
+            <view class="lot-cell text-3">{{lt.color || lt.fabric_name || '—'}}</view>
+            <view class="lot-cell num">{{lt.balance_qty}}{{lt.unit}}</view>
+            <view class="lot-cell num">{{lt.wavg_price}}</view>
+            <view class="lot-cell num">{{lt.balance_amt}}</view>
+          </view>
+        </block>
+        <view wx:elif="{{item.expanded}}" class="text-3 lot-empty">无批次明细</view>
+        <view wx:elif="{{item.lots.length}}" class="text-3 detail-hint">点开看 {{item.lots.length}} 个批次明细</view>
+      </view>
+    </block>
+
+    <empty-state wx:else text="选好物料与截止日后点「查询」"
+      sub="移动加权口径基于批次流水逐笔递推" />
+  </block>
+</view>

@@ -52,6 +52,12 @@
         data-key="{{item.key}}"
         bindtap="onDimTap"
       >{{item.label}}</view>
+      <!-- 关键工序聚焦（GAP-8，2026-11-04）：仅工序维度显示 -->
+      <view
+        wx:if="{{dim === 'process'}}"
+        class="dim-tab {{dimKeyOnly ? 'on' : ''}}"
+        bindtap="onDimKeyToggle"
+      >关键</view>
     </view>
 
     <view wx:if="{{loading && !summary}}" class="board-state">加载中…</view>

@@ -1,0 +1,84 @@
+<!-- 批量代登（GAP-2，2026-11-04）：选员工 → 选床次 → 选工序 → 逐扎填件数 → 一次提交 -->
+<view class="page">
+
+  <!-- 步骤1：员工（不选=本人） -->
+  <view class="card">
+    <view class="step-title">1 · 登记给谁</view>
+    <picker range="{{employeeNames}}" value="{{employeeIndex}}" bindchange="onEmployeeChange">
+      <view class="picker-field">
+        <text>{{employeeNames[employeeIndex]}}</text>
+        <text class="caret">▾</text>
+      </view>
+    </picker>
+  </view>
+
+  <!-- 步骤2：床次 + 工序 -->
+  <view class="card">
+    <view class="step-title">2 · 床次与工序</view>
+    <picker range="{{bedLabels}}" value="{{bedIndex}}" bindchange="onBedChange">
+      <view class="picker-field {{bedIndex > 0 ? '' : 'placeholder'}}">
+        <text>{{bedLabels[bedIndex]}}</text>
+        <text class="caret">▾</text>
+      </view>
+    </picker>
+    <picker range="{{processNames}}" value="{{processIndex}}" bindchange="onProcessChange">
+      <view class="picker-field {{processIndex > 0 ? '' : 'placeholder'}}">
+        <text>{{processNames[processIndex]}}</text>
+        <text class="caret">▾</text>
+      </view>
+    </picker>
+  </view>
+
+  <!-- 步骤3：逐扎填件数 -->
+  <view class="card" wx:if="{{bedIndex > 0}}">
+    <view class="row">
+      <view class="step-title">3 · 逐扎填件数</view>
+      <view class="spacer"></view>
+      <view class="mini-btn" bindtap="onFillRemaining">一键填剩余</view>
+      <view class="mini-btn plain" bindtap="onClearInput">清空</view>
+    </view>
+
+    <view wx:if="{{ticketsLoading}}" class="state-tip">加载菲票中…</view>
+    <empty-state wx:elif="{{!tickets.length}}" text="该床次暂无菲票" sub="请先在开床向导编菲" />
+
+    <block wx:else>
+      <view class="tk-head row">
+        <text class="tk-col tk-bundle">扎号</text>
+        <text class="tk-col tk-cs">色/码</text>
+        <text class="tk-col tk-qty">扎数</text>
+        <text class="tk-col tk-input">本次件数</text>
+      </view>
+      <view wx:for="{{tickets}}" wx:key="ticketId" class="tk-row row">
+        <text class="tk-col tk-bundle num">{{item.bundleNo}}</text>
+        <text class="tk-col tk-cs">{{item.color}}/{{item.size}}</text>
+        <text class="tk-col tk-qty num">{{item.registeredQty}}/{{item.qty}}</text>
+        <view class="tk-col tk-input">
+          <input class="tk-input-field {{item.result === 'fail' ? 'err' : ''}} {{item.result === 'ok' ? 'done' : ''}}"
+                 type="number" value="{{item.input}}" data-index="{{index}}"
+                 bindinput="onQtyInput" placeholder="0" />
+        </view>
+        <text wx:if="{{item.result === 'fail'}}" class="tk-result err-text" bindtap="onSubmit">{{item.resultText}}</text>
+        <text wx:elif="{{item.result === 'ok'}}" class="tk-result ok-text">✓</text>
+      </view>
+      <view class="text-3 tk-tip">留空行不提交；单扎失败（超限/工序不在配置）不影响其余扎</view>
+    </block>
+  </view>
+
+  <!-- 提交 -->
+  <view class="card" wx:if="{{bedIndex > 0 && tickets.length}}">
+    <button class="submit-btn {{submitting ? 'disabled' : ''}}" bindtap="onSubmit">
+      {{submitting ? '提交中…' : '提交批量登记'}}
+    </button>
+  </view>
+
+  <!-- 结果（GAP-2 部分成功语义，逐行展示） -->
+  <view class="card" wx:if="{{resultShow}}">
+    <view class="step-title">登记结果：成功 {{resultOk}} 扎 · 失败 {{resultFail}} 扎</view>
+    <view wx:for="{{resultRows}}" wx:key="index" class="row res-row">
+      <text class="res-bundle num">{{item.bundleNo}}</text>
+      <text class="spacer"></text>
+      <text class="{{item.ok ? 'ok-text' : 'err-text'}}">{{item.text}}</text>
+    </view>
+  </view>
+
+</view>

@@ -1,0 +1,235 @@
+/* 按床领料页样式（颜色/圆角/阴影一律取自 app.wxss 变量） */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+
+.mode-tabs {
+  display: flex;
+  background: var(--color-card);
+  border-radius: 999rpx;
+  box-shadow: var(--shadow);
+  padding: 6rpx;
+}
+
+.mode-tab {
+  padding: 10rpx 36rpx;
+  border-radius: 999rpx;
+  font-size: 26rpx;
+  color: var(--color-text-2);
+}
+
+.mode-tab.active {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.link-btn {
+  color: var(--color-info);
+  font-size: 26rpx;
+  padding: 8rpx 0 8rpx 16rpx;
+}
+
+.ctx-card {
+  margin-bottom: 24rpx;
+}
+
+.ctx-picker {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.ctx-sub {
+  margin-top: 10rpx;
+  line-height: 1.6;
+}
+
+.ctx-sub.warn {
+  color: var(--color-warning, #FF8800);
+}
+
+.row-card {
+  margin-bottom: 16rpx;
+}
+
+.row-card.row-over {
+  border: 2rpx solid var(--color-warning, #FF8800);
+}
+
+.item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-title {
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+/* 超领橙徽标（C2 零拦截：只警示不拦） */
+.badge-over {
+  color: var(--color-warning, #FF8800);
+  background: rgba(255, 136, 0, 0.12);
+  margin-left: 12rpx;
+  font-size: 20rpx;
+  padding: 2rpx 14rpx;
+  border-radius: 999rpx;
+  flex-shrink: 0;
+}
+
+.tag {
+  flex-shrink: 0;
+  font-size: 22rpx;
+  color: var(--color-info);
+  background: rgba(22, 119, 255, 0.08);
+  padding: 2rpx 14rpx;
+  border-radius: 999rpx;
+  margin-left: 12rpx;
+}
+
+.row-del {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  background: var(--color-bg);
+  color: var(--color-text-3);
+  font-size: 32rpx;
+  text-align: center;
+  line-height: 44rpx;
+}
+
+.row-fields {
+  margin-top: 14rpx;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.mini-input {
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  padding: 10rpx 16rpx;
+  font-size: 24rpx;
+  box-sizing: border-box;
+}
+
+.row-fields .mini-input {
+  width: 200rpx;
+}
+
+.mini-input.reason {
+  width: 230rpx;
+}
+
+.mini-input.reason.ph {
+  color: var(--color-text-3);
+}
+
+.lot-pick {
+  margin-top: 12rpx;
+  display: block;
+  color: var(--color-text-2);
+}
+
+.actions-card {
+  margin-bottom: 24rpx;
+}
+
+.add-item {
+  border: 2rpx dashed var(--color-border);
+  border-radius: var(--radius);
+  color: var(--color-text-3);
+  text-align: center;
+  padding: 20rpx 0;
+  margin-bottom: 8rpx;
+}
+
+.tip {
+  line-height: 1.6;
+}
+
+.submit {
+  margin-bottom: calc(32rpx + env(safe-area-inset-bottom));
+}
+
+.state {
+  text-align: center;
+  padding: 120rpx 0;
+}
+
+/* ---- 物料选择器子弹层 ---- */
+.mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+}
+
+.sheet {
+  width: 100%;
+  background: var(--color-card);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.sheet-head {
+  margin-bottom: 16rpx;
+}
+
+.search {
+  background: var(--color-bg);
+  border-radius: 999rpx;
+  padding: 14rpx 28rpx;
+  font-size: 26rpx;
+}
+
+.mat-search {
+  margin-bottom: 16rpx;
+}
+
+.mat-list {
+  max-height: 50vh;
+}
+
+.mat-state {
+  text-align: center;
+  padding: 48rpx 0;
+}
+
+.mat-opt {
+  border-bottom: 2rpx solid var(--color-border);
+  padding: 18rpx 4rpx;
+}
+
+.mat-opt-line {
+  margin-top: 4rpx;
+}
+
+.mat-opt-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 新缸号·缸差警示徽标（评审 Top10 #8，零拦截只警示） */
+.badge-lot-warn {
+  color: var(--color-warning, #FF8800);
+  background: rgba(255, 136, 0, 0.12);
+  margin-left: 12rpx;
+  font-size: 20rpx;
+  padding: 2rpx 14rpx;
+  border-radius: 999rpx;
+  flex-shrink: 0;
+}
+.lot-hint {
+  color: var(--color-primary, #1677ff);
+}

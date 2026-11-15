@@ -1,0 +1,12 @@
+<!-- 打印进度弹层：批量打印 done/total + 进度条 + 取消（替代 wx.showLoading 不可取消的黑盒） -->
+<view class="pp-mask" wx:if="{{show}}" catchtouchmove="noop">
+  <view class="pp-panel" catchtap="noop">
+    <view class="pp-title">打印中</view>
+    <view class="pp-num">{{done}} / {{total}} 张</view>
+    <view class="pp-bar">
+      <view class="pp-bar-inner" style="width: {{total ? (done * 100 / total) : 0}}%"></view>
+    </view>
+    <view class="pp-hint">请保持手机靠近打印机，不要离开本页或锁屏</view>
+    <button class="pp-cancel" catchtap="onCancel">取消打印</button>
+  </view>
+</view>

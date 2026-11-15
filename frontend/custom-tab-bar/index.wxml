@@ -1,4 +1,4 @@
-<!-- 自定义 tabBar：4 个常规项 + 中央凸起橙色扫码 FAB（规格 §21.2） -->
+<!-- 自定义 tabBar：4 个常规项 + 中央凸起橙色 AI问报 FAB（规格 §21.2 变体，2026-10-26） -->
 <view class="tabbar">
   <view
     wx:for="{{leftItems}}"
@@ -12,18 +12,12 @@
     <view class="tab-text">{{item.text}}</view>
   </view>
 
-  <!-- 中央扫码 FAB -->
+  <!-- 中央 AI问报 FAB -->
   <view class="fab-wrap">
-    <view class="fab" bindtap="onScan">
-      <view class="fab-frame">
-        <view class="fab-line"></view>
-        <view class="fab-corner tl"></view>
-        <view class="fab-corner tr"></view>
-        <view class="fab-corner bl"></view>
-        <view class="fab-corner br"></view>
-      </view>
+    <view class="fab" bindtap="onFab">
+      <view class="fab-ai">AI</view>
     </view>
-    <view class="fab-text">扫菲</view>
+    <view class="fab-text">AI问报</view>
   </view>
 
   <view

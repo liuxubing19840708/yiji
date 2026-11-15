@@ -1,0 +1,103 @@
+<view class="page">
+  <!-- 无权限防御态 -->
+  <view wx:if="{{denied}}" class="state">
+    <view class="text-3">暂无「仓库管理」权限，请联系管理员开通</view>
+  </view>
+
+  <block wx:else>
+    <view class="card filter-card">
+      <view class="row">
+        <picker mode="selector" range="{{styleNames}}" value="{{styleIndex}}" bindchange="onStyleChange">
+          <view class="filter-chip">{{styleNames[styleIndex]}} ▾</view>
+        </picker>
+        <picker mode="selector" range="{{customerNames}}" value="{{customerIndex}}" bindchange="onCustomerChange">
+          <view class="filter-chip">{{customerNames[customerIndex]}} ▾</view>
+        </picker>
+      </view>
+      <view class="text-3 filter-note">口径：建议采购量 = 需求（active BOM 用量 × 订单未投产件数）− 当前库存 − 在途{{withSafety ? ' + 安全库存' : ''}}。</view>
+      <!-- P2.5 补货点口径开关 + 一键生成采购单 -->
+      <view class="row act-row">
+        <view class="safety-toggle" bindtap="onToggleSafety">
+          <view class="toggle-dot {{withSafety ? 'on' : ''}}"></view>
+          <text class="text-3">含安全库存（补货点口径）</text>
+        </view>
+        <view class="spacer"></view>
+        <view class="gen-btn {{genBusy ? 'disabled' : ''}}" bindtap="onGeneratePo">
+          {{genBusy ? '生成中…' : '⚡ 一键生成采购单'}}
+        </view>
+      </view>
+    </view>
+
+    <!-- 待补参数黄条（缺克重/幅宽的行不入合计） -->
+    <view wx:if="{{summary && summary.conversion_pending_cnt > 0}}" class="pending-bar">
+      待补参数 {{summary.conversion_pending_cnt}} 行：缺克重/幅宽换算参数的库存/领料行未入合计，请先在物料管理补齐
+    </view>
+
+    <!-- summary 计数条 -->
+    <view class="card sum-card" wx:if="{{summary}}">
+      <view class="row cols">
+        <view class="col">
+          <view class="col-num num">{{summary.material_cnt}}</view>
+          <view class="text-3">物料数</view>
+        </view>
+        <view class="col">
+          <view class="col-num num {{(withSafety ? summary.reorder_cnt : summary.need_cnt) > 0 ? 'text-danger' : ''}}">{{withSafety ? summary.reorder_cnt : summary.need_cnt}}</view>
+          <view class="text-3">需采购</view>
+        </view>
+        <view class="col">
+          <view class="col-num num">{{summary.order_total}}</view>
+          <view class="text-3">订单</view>
+        </view>
+        <view class="col">
+          <view class="col-num num {{summary.safety_alert_cnt > 0 ? 'text-danger' : ''}}">{{summary.safety_alert_cnt}}</view>
+          <view class="text-3">低于水位</view>
+        </view>
+      </view>
+      <view class="text-3 sum-note">
+        已排满 {{summary.order_planned_full}} · 无款式 {{summary.order_no_style}} · 无生效BOM {{summary.order_no_bom}}（不计入需求）
+      </view>
+    </view>
+
+    <view wx:if="{{loading && !rows.length}}" class="state text-3">加载中…</view>
+    <view wx:elif="{{error && !rows.length}}" class="state">
+      <view class="text-3">加载失败，请重试</view>
+      <button class="btn btn-ghost state-btn" bindtap="reload">重新加载</button>
+    </view>
+    <empty-state wx:elif="{{loaded && !rows.length}}" text="暂无需求物料"
+      sub="无未投产订单或订单均无 active BOM" />
+
+    <!-- 物料聚合表：建议采购量列高亮 -->
+    <view class="card row-card" wx:for="{{rows}}" wx:key="material_id">
+      <view class="row">
+        <view class="item-main">
+          <view class="item-title">{{item.material_code}}</view>
+          <view class="text-3">{{item.material_name}}</view>
+        </view>
+        <view class="badge {{item.pickPositive ? 'badge-red' : 'badge-gray'}}">
+          {{item.pickPositive ? '需采购' : (withSafety ? '够用' : (item.suggestedNegative ? '富余' : '持平'))}}</view>
+      </view>
+      <view class="row cols">
+        <view class="col">
+          <view class="col-num num">{{item.qty_demand}}</view>
+          <view class="text-3">需求</view>
+        </view>
+        <view class="col">
+          <view class="col-num num">{{item.qty_stock}}</view>
+          <view class="text-3">库存</view>
+        </view>
+        <view class="col">
+          <view class="col-num num">{{item.qty_in_transit}}</view>
+          <view class="text-3">在途</view>
+        </view>
+        <view class="col">
+          <view class="col-num num {{item.pickPositive ? 'text-danger suggest-hl' : 'text-3'}}">
+            {{item.qtyPick}}</view>
+          <view class="text-3">{{withSafety ? '应补（含水位）' : '建议采购'}}</view>
+        </view>
+      </view>
+      <view class="text-3 unit-line">单位：{{item.unit}}{{withSafety && item.safety_stock !== '0.00' ? ' · 安全库存 ' + item.safety_stock : ''}}</view>
+    </view>
+
+    <view wx:if="{{loading && rows.length}}" class="text-3 loading-more">加载中…</view>
+  </block>
+</view>

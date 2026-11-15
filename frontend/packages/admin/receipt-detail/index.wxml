@@ -1,0 +1,121 @@
+<view class="page">
+  <!-- 无权限防御态 -->
+  <view wx:if="{{denied}}" class="state">
+    <view class="text-3">暂无「仓库管理」权限，请联系管理员开通</view>
+  </view>
+
+  <view wx:elif="{{loading}}" class="state text-3">加载中…</view>
+  <view wx:elif="{{error}}" class="state">
+    <view class="text-3">加载失败，请重试</view>
+    <button class="btn btn-ghost state-btn" bindtap="onRetry">重新加载</button>
+  </view>
+
+  <!-- ============ create / 草稿编辑态 ============ -->
+  <block wx:elif="{{isCreate || isDraft}}">
+    <view class="card">
+      <view class="h2 sheet-head">{{isCreate ? '新建暂收' : '编辑暂收单'}}</view>
+      <view class="text-3">单号由系统自动生成（ZS+日期+序号），无需填写。</view>
+      <picker mode="selector" range="{{supplierNames}}" value="{{supplierIndex}}" bindchange="onSupplierChange">
+        <view class="picker-box">供应商：{{supplierNames[supplierIndex]}} ▾</view>
+      </picker>
+      <input wx:if="{{supplierIndex === 0}}" class="input" placeholder="无单直收可手填供应商名称（选填）" value="{{supplierName}}" bindinput="onSupplierNameInput" />
+      <picker mode="selector" range="{{purchaseNames}}" value="{{purchaseIndex}}" bindchange="onPurchaseChange">
+        <view class="picker-box">采购单：{{purchaseNames[purchaseIndex]}} ▾</view>
+      </picker>
+      <picker wx:if="{{poItemLabels.length}}" mode="selector" range="{{poItemLabels}}" bindchange="onAddFromPo">
+        <view class="link-btn add-link">＋ 从采购行带入（物料/颜色/单位自动带出）</view>
+      </picker>
+      <view class="link-btn add-link" bindtap="onAddManual">＋ 手工添加行（无单直收）</view>
+      <input class="input" placeholder="备注" value="{{remark}}" bindinput="onRemark" />
+    </view>
+
+    <!-- IQC 行编辑：到料/合格/拒收拆量 -->
+    <view class="card item-card" wx:for="{{items}}" wx:key="index">
+      <view class="row">
+        <view class="h3-line">
+          第 {{index + 1}} 行<text wx:if="{{item.purchaseLabel}}" class="text-3">（{{item.purchaseLabel}}）</text>
+        </view>
+        <view class="spacer"></view>
+        <view class="op-btn op-danger" data-index="{{index}}" catchtap="onRemoveRow">删除行</view>
+      </view>
+      <picker mode="selector" range="{{materialNames}}" value="{{item.materialIndex}}" data-index="{{index}}" bindchange="onRowMaterialChange">
+        <view class="picker-box">物料主档：{{materialNames[item.materialIndex]}} ▾</view>
+      </picker>
+      <input class="input" placeholder="面料名称（必填）" value="{{item.fabric_name}}"
+        data-index="{{index}}" data-field="fabric_name" bindinput="onRowField" />
+      <view class="row row-2col">
+        <input class="input col-input" placeholder="颜色" value="{{item.color}}"
+          data-index="{{index}}" data-field="color" bindinput="onRowField" />
+        <input class="input col-input" placeholder="批次号（必填）" value="{{item.lot_no}}"
+          data-index="{{index}}" data-field="lot_no" bindinput="onRowField" />
+      </view>
+      <view class="row row-2col">
+        <input class="input col-input" type="digit" placeholder="单位（默认米）" value="{{item.unit}}"
+          data-index="{{index}}" data-field="unit" bindinput="onRowField" />
+        <input class="input col-input" type="digit" placeholder="到料量" value="{{item.arrived_qty}}"
+          data-index="{{index}}" data-field="arrived_qty" bindinput="onRowField" />
+      </view>
+      <view class="row iqc-row">
+        <view class="iqc-col">
+          <input class="input" type="digit" placeholder="合格量" value="{{item.qualified_qty}}"
+            data-index="{{index}}" data-field="qualified_qty" bindinput="onRowField" />
+          <view class="text-3 iqc-label">合格（入库）</view>
+        </view>
+        <view class="iqc-col">
+          <input class="input" type="digit" placeholder="拒收量" value="{{item.rejected_qty}}"
+            data-index="{{index}}" data-field="rejected_qty" bindinput="onRowField" />
+          <view class="text-3 iqc-label">拒收（留痕）</view>
+        </view>
+      </view>
+      <view class="text-3 iqc-hint">合格+拒收可超到料量（让步收货零拦截），但不能同时为 0。</view>
+      <input class="input" placeholder="行备注" value="{{item.remark}}"
+        data-index="{{index}}" data-field="remark" bindinput="onRowField" />
+    </view>
+
+    <view class="btn-bar">
+      <button class="btn btn-primary" loading="{{saving}}" bindtap="onSave">保存{{isCreate ? '暂收单' : '修改'}}</button>
+      <button wx:if="{{!isCreate}}" class="btn btn-primary confirm-btn" bindtap="onConfirm">确认入库</button>
+    </view>
+  </block>
+
+  <!-- ============ 只读详情（已确认） ============ -->
+  <block wx:elif="{{doc}}">
+    <view class="card">
+      <view class="row">
+        <view class="h2">{{doc.receipt_no}}</view>
+        <view class="spacer"></view>
+        <view class="badge {{doc.status === 'confirmed' ? 'badge-green' : 'badge-gray'}}">
+          {{doc.status === 'confirmed' ? '已确认' : '草稿'}}</view>
+      </view>
+      <view class="text-3 info-line">供应商：{{doc.supplier_name || doc.supplier_code || '—'}}</view>
+      <view class="text-3 info-line" wx:if="{{doc.purchase_no}}">采购单：{{doc.purchase_no}}</view>
+      <view class="text-3 info-line" wx:if="{{doc.confirmed_at}}">
+        确认：{{doc.confirmed_at}} {{doc.confirmed_by_name ? '· ' + doc.confirmed_by_name : ''}}</view>
+      <view class="text-3 info-line" wx:if="{{doc.remark}}">备注：{{doc.remark}}</view>
+      <view class="text-3 info-line">确认后合格量已自动生成采购入库单（价链带价），单据只读。</view>
+    </view>
+
+    <view class="card item-card" wx:for="{{doc.items}}" wx:key="id">
+      <view class="row">
+        <view class="item-title">{{item.fabric_name}}{{item.color ? ' / ' + item.color : ''}}</view>
+      </view>
+      <view class="text-3 info-line">批次：{{item.lot_no}} · 单位：{{item.unit}}
+        <text wx:if="{{item.material_name}}"> · 物料：{{item.material_name}}</text></view>
+      <view class="row cols">
+        <view class="col">
+          <view class="col-num num">{{item.arrived_qty}}</view>
+          <view class="text-3">到料</view>
+        </view>
+        <view class="col">
+          <view class="col-num num text-primary">{{item.qualified_qty}}</view>
+          <view class="text-3">合格</view>
+        </view>
+        <view class="col">
+          <view class="col-num num {{item.rejected_qty !== '0.00' && item.rejected_qty !== '0' ? 'text-danger' : ''}}">{{item.rejected_qty}}</view>
+          <view class="text-3">拒收</view>
+        </view>
+      </view>
+      <view class="text-3 info-line" wx:if="{{item.remark}}">备注：{{item.remark}}</view>
+    </view>
+  </block>
+</view>

@@ -94,3 +94,20 @@
   color: var(--color-text-3, #86909C);
   flex-shrink: 0;
 }
+
+/* 导出按钮（GAP-7，2026-11-04）+ list-count 行内布局 */
+.list-count {
+  display: flex;
+  align-items: center;
+}
+.export-btn {
+  flex-shrink: 0;
+  padding: 6rpx 20rpx;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  color: var(--color-primary, #2f6fed);
+  background: var(--color-primary-light, rgba(47, 111, 237, 0.1));
+}
+.export-btn.disabled {
+  opacity: 0.5;
+}

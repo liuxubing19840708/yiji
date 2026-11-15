@@ -16,12 +16,15 @@ import {
   PrintTicketData, PrintCompanyInfo, buildLabelCommand, encodeGbk,
   LabelStyle, DEFAULT_LABEL_STYLE
 } from '../utils/bluetooth/templates';
+import { buildLabelBitmapCommand } from '../utils/bluetooth/labelBitmap';
 
 const KEY_PRINTER = 'yisao_printer';
+const KEY_PRINTERS = 'yisao_printers';
 const KEY_QUEUE = 'yisao_print_queue';
 const KEY_STYLE = 'yisao_print_style';
 const KEY_OFFSETS = 'yisao_print_offsets';
 const KEY_REPORT_PENDING = 'yisao_print_report_pending';
+const KEY_SKIP_PREVIEW = 'yisao_print_skip_preview';
 
 /** 绑定的打印机 */
 export interface BoundPrinter {
@@ -40,6 +43,8 @@ export interface PrintResult {
   printed: number[];
   /** 失败入队的项 */
   failed: PrintQueueItem[];
+  /** 用户手动取消（剩余未打的不入失败队列，可重新发起打印） */
+  cancelled: boolean;
 }
 
 // ============ 绑定打印机 ============
@@ -64,6 +69,30 @@ export function clearPrinter(): void {
 export async function bindPrinter(printer: BoundPrinter): Promise<void> {
   await bt.connectPrinter(printer.deviceId);
   setPrinter(printer);
+  upsertPrinterList(printer);
+}
+
+// ============ 多打印机档案（裁床一台、后道一台的厂快速切换，2026-10-25） ============
+
+/** 已绑定过的打印机档案（最多 8 台，当前激活机 = getPrinter()） */
+export function getPrinters(): BoundPrinter[] {
+  try {
+    const list = wx.getStorageSync(KEY_PRINTERS) as BoundPrinter[] | '';
+    return Array.isArray(list) ? list : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function upsertPrinterList(p: BoundPrinter): void {
+  const list = getPrinters().filter((it) => it.deviceId !== p.deviceId);
+  list.unshift(p);
+  try { wx.setStorageSync(KEY_PRINTERS, list.slice(0, 8)); } catch (e) { /* 存储满忽略 */ }
+}
+
+/** 从档案删除某台机器（不影响其它机器的对位偏移记录） */
+export function removePrinterFromList(deviceId: string): void {
+  try { wx.setStorageSync(KEY_PRINTERS, getPrinters().filter((it) => it.deviceId !== deviceId)); } catch (e) { /* 忽略 */ }
 }
 
 /** 断开当前打印机并解除绑定 */
@@ -97,6 +126,20 @@ export function getLabelStyle(): LabelStyle {
 /** 写本地缓存（进入打印管理页会从公司设置同步覆盖） */
 export function setLabelStyle(style: LabelStyle): void {
   wx.setStorageSync(KEY_STYLE, JSON.stringify(style));
+}
+
+// ============ 批量打印跳过预览（P2：熟手省一步，打印管理可恢复） ============
+
+/** 批量打印是否跳过预览直接打（本机开关；单张补打不受影响） */
+export function getSkipPreview(): boolean {
+  try { return wx.getStorageSync(KEY_SKIP_PREVIEW) === '1'; } catch (e) { return false; }
+}
+
+export function setSkipPreview(skip: boolean): void {
+  try {
+    if (skip) wx.setStorageSync(KEY_SKIP_PREVIEW, '1');
+    else wx.removeStorageSync(KEY_SKIP_PREVIEW);
+  } catch (e) { /* 存储失败下次再问 */ }
 }
 
 // ============ 每台打印机的对位偏移（机器级参数，2026-10-17） ============
@@ -199,6 +242,13 @@ export function removeQueueItem(id: number): PrintQueueItem[] {
 export function clearQueue(): PrintQueueItem[] {
   saveQueue([]);
   return [];
+}
+
+/** 批量移除已补打成功的队列项（打印管理页补打成功后调用） */
+export function removeQueueItems(ids: number[]): void {
+  if (!ids.length) return;
+  const done = new Set(ids);
+  saveQueue(getQueue().filter((item) => !done.has(item.id)));
 }
 
 /** 队列数量（重进页面提示补打用） */
@@ -311,19 +361,23 @@ const REPORT_SEGMENT = 10;
  *  3. 单张失败不中断批次；失败项入 yisao_print_queue 供补打
  *  4. 成功项分段 markPrinted 上报（每 10 张一段，print_key 为本次任务幂等键）；
  *     上报失败进补报列表（不重打出票）
+ *  5. 打印期间保持屏幕常亮（熄屏会掐断 BLE，大批必失败）；逐张轻震动反馈
  *
  * opts.report = false 时不上报（测试打印）；opts.queue = false 时不入重试队列；
- * opts.onProgress(done, total) 每张出票后回调（批量打印进度展示用）。
+ * opts.onProgress(done, total) 每张出票后回调（批量打印进度展示用）；
+ * opts.isCancelled() 返回 true 时在下一张前停止：已出的留痕，剩余不入失败队列
+ * （取消是「停下来」，用户随后可重新发起打印选择范围）。
  */
 export async function printTickets(
   tickets: PrintTicketData[],
   opts?: {
     company?: PrintCompanyInfo; report?: boolean; queue?: boolean;
     onProgress?: (done: number, total: number) => void;
+    isCancelled?: () => boolean;
   }
 ): Promise<PrintResult> {
   if (!tickets.length) {
-    return { printed: [], failed: [] };
+    return { printed: [], failed: [], cancelled: false };
   }
   const doReport = opts?.report !== false;
   const doQueue = opts?.queue !== false;
@@ -333,10 +387,15 @@ export async function printTickets(
     if (doQueue) enqueueFailed(tickets, '未连接打印机');
     throw new Error('请先连接打印机');
   }
+  /** 用户手动取消：剩余菲票不入失败队列，直接停止 */
+  let cancelled = false;
+  /** 熄屏会掐断 BLE（尤其 iOS）：打印期间保持屏幕常亮，结束恢复 */
+  keepScreenOn(true);
 
   try {
     await bt.ensureConnected(printer.deviceId);
   } catch (err) {
+    keepScreenOn(false);
     // 连接失败（打印循环外抛错）：整批入失败队列后原样抛给页面
     if (doQueue) {
       enqueueFailed(tickets, err instanceof Error ? err.message : '连接打印机失败');
@@ -371,11 +430,26 @@ export async function printTickets(
   let failReason = '';
   let index = 0;
   for (; index < tickets.length; index++) {
+    // 取消：下一张开始前停（正在写的那张会完整出票，不会被截半）
+    if (opts?.isCancelled?.()) {
+      cancelled = true;
+      break;
+    }
     const ticket = tickets[index];
     try {
-      const command = buildLabelCommand(style, ticket, opts?.company);
-      await bt.writeInChunks(printer.deviceId, encodeGbk(command));
+      // 整签位图打印（2026-10-26）：字号任意（1.5x=4.5mm），预览=实打所见即所得；
+      // 离屏 canvas 不可用/渲染失败时回退 TSPL TEXT 指令路径（整数倍字号）
+      let payload: ArrayBuffer;
+      try {
+        await bt.ensureMtu(printer.deviceId);
+        payload = buildLabelBitmapCommand(style, ticket, opts?.company);
+      } catch (e) {
+        payload = encodeGbk(buildLabelCommand(style, ticket, opts?.company));
+      }
+      await bt.writeInChunks(printer.deviceId, payload);
       printed.push(ticket.id);
+      // 车间嘈杂，逐张轻震动反馈出票进度
+      try { wx.vibrateShort({ type: 'light' }); } catch (e) { /* 老机型不支持忽略 */ }
       if (opts?.onProgress) opts.onProgress(index + 1, tickets.length);
       // 分段上报（H2）：每累计 REPORT_SEGMENT 张成功即提交一段
       if (doReport && !reportBroken && printed.length - reportOffset >= REPORT_SEGMENT) {
@@ -396,7 +470,9 @@ export async function printTickets(
       }
     }
   }
-  const rest = tickets.slice(index);
+  keepScreenOn(false);
+  // 取消：剩余（含未尝试的）不入失败队列，用户重新发起时再选范围
+  const rest = cancelled ? [] : tickets.slice(index);
   const allFailed = failedRaw.concat(rest);
 
   if (doQueue && allFailed.length) {
@@ -413,7 +489,12 @@ export async function printTickets(
       saveReportPending(merged);
     }
   }
-  return { printed, failed: allFailed.map((t) => ({ ...t, failedAt: Date.now(), reason: failReason })) };
+  return { printed, failed: allFailed.map((t) => ({ ...t, failedAt: Date.now(), reason: failReason })), cancelled };
+}
+
+/** 屏幕常亮开关（老基础库失败静默） */
+function keepScreenOn(on: boolean): void {
+  try { wx.setKeepScreenOn({ keepScreenOn: on }); } catch (e) { /* 忽略 */ }
 }
 
 /**

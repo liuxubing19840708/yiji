@@ -7,6 +7,7 @@ __pycache__/
 db.sqlite3
 db.sqlite3.bak*
 media/
+private_ai_exports/
 
 # 覆盖率与日志产物
 .coverage
@@ -21,3 +22,4 @@ bing*.html
 baidu.html
 paper_test.html
 audit_chain.py.html
+.env

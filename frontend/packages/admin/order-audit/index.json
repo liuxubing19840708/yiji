@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "订单变更记录",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index"
+  }
+}

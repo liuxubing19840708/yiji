@@ -1,8 +1,14 @@
 """薪酬结算序列化器。"""
+from decimal import Decimal
+
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.accounts.models import UserCompany
-from apps.salary.models import SalaryAdjust, SettleApply, Settlement
+from apps.salary.models import (SalaryAdjust, SalaryPayment,
+                                SalaryPaymentAllocation, SettleApply, Settlement)
+from apps.salary.payments import (settlement_outstanding,
+                                  settlement_paid_amount)
 
 
 class SettlementSerializer(serializers.ModelSerializer):
@@ -88,3 +94,70 @@ class SettlementCreateSerializer(serializers.Serializer):
     period_start = serializers.DateField()
     period_end = serializers.DateField()
     user_id = serializers.IntegerField(required=False, allow_null=True)
+
+
+class SalaryPaymentAllocationSerializer(serializers.ModelSerializer):
+    settlement_amount = serializers.DecimalField(
+        source='settlement.amount', max_digits=12, decimal_places=2,
+        read_only=True)
+    paid_amount = serializers.SerializerMethodField()
+    outstanding = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SalaryPaymentAllocation
+        fields = ['id', 'settlement', 'amount', 'settlement_amount',
+                  'paid_amount', 'outstanding']
+
+    def get_paid_amount(self, obj):
+        return settlement_paid_amount(obj.settlement, obj.payment.employee_id)
+
+    def get_outstanding(self, obj):
+        return settlement_outstanding(obj.settlement, obj.payment.employee_id)
+
+
+class SalaryPaymentSerializer(serializers.ModelSerializer):
+    employee_name = serializers.CharField(
+        source='employee.real_name', default='')
+    operator_name = serializers.CharField(
+        source='operator.real_name', default='')
+    voided_by_name = serializers.CharField(
+        source='voided_by.real_name', default='')
+    status_display = serializers.CharField(
+        source='get_status_display', read_only=True)
+    allocations = SalaryPaymentAllocationSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = SalaryPayment
+        fields = ['id', 'company', 'employee', 'employee_name', 'paid_at',
+                  'method', 'transaction_ref', 'note', 'operator',
+                  'operator_name', 'amount', 'status', 'status_display',
+                  'void_reason', 'voided_by', 'voided_by_name', 'voided_at',
+                  'allocations', 'created_at']
+
+
+class SalaryPaymentAllocationInputSerializer(serializers.Serializer):
+    settlement_id = serializers.IntegerField(min_value=1)
+    amount = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=Decimal('0.01'))
+
+
+class SalaryPaymentCreateSerializer(serializers.Serializer):
+    employee_id = serializers.IntegerField()
+    paid_at = serializers.DateTimeField(default=timezone.now)
+    method = serializers.CharField(max_length=32, trim_whitespace=True)
+    transaction_ref = serializers.CharField(max_length=100, trim_whitespace=True)
+    note = serializers.CharField(
+        max_length=500, required=False, allow_blank=True, default='')
+    amount = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=Decimal('0.01'))
+    allocations = SalaryPaymentAllocationInputSerializer(
+        many=True, required=False, default=list)
+
+
+class SalaryPaymentVoidSerializer(serializers.Serializer):
+    reason = serializers.CharField(max_length=500, trim_whitespace=True)
+
+    def validate_reason(self, value):
+        if not value:
+            raise serializers.ValidationError('作废原因不能为空')
+        return value

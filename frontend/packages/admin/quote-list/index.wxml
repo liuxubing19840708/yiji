@@ -1,0 +1,69 @@
+<view class="page">
+  <!-- 无权限防御态（quotation.view；后端 403 兜底） -->
+  <view wx:if="{{denied}}" class="state">
+    <view class="text-3">暂无「报价查看」权限，请联系管理员开通</view>
+  </view>
+
+  <block wx:else>
+    <!-- 顶部：状态 chip + 搜索 + 新建 -->
+    <view class="chip-bar">
+      <view wx:for="{{statusChips}}" wx:key="key"
+        class="chip {{statusIndex === index ? 'chip-on' : ''}}"
+        data-index="{{index}}" bindtap="onStatusChip">{{item.label}}</view>
+    </view>
+    <view class="card filter-card">
+      <view class="row">
+        <input class="search grow" placeholder="报价单号/客户/款号/款名"
+          value="{{keyword}}" bindinput="onKeyword" bindconfirm="onSearch"
+          confirm-type="search" />
+        <view class="search-btn" bindtap="onSearch">查询</view>
+      </view>
+    </view>
+
+    <view class="toolbar" wx:if="{{canManage}}">
+      <view class="spacer"></view>
+      <view class="batch-btn" bindtap="onCreate">＋ 新建报价</view>
+    </view>
+
+    <view wx:if="{{loading && !rows.length}}" class="state text-3">加载中…</view>
+    <view wx:elif="{{error && !rows.length}}" class="state">
+      <view class="text-3">加载失败，请重试</view>
+      <button class="btn btn-ghost state-btn" bindtap="reload">重新加载</button>
+    </view>
+    <empty-state wx:elif="{{loaded && !rows.length}}" text="暂无报价单"
+      sub="点「新建报价」录入款式/数量后自动带出工价与倍率" />
+
+    <!-- 报价卡片：单号 Q+日期+3位 / 款式客户 / 总价+毛利率 / 状态徽标 -->
+    <view class="card q-card" wx:for="{{rows}}" wx:key="id"
+      data-id="{{item.id}}" bindtap="onOpenDetail">
+      <view class="row">
+        <view class="item-main">
+          <view class="item-title">{{item.quoteNo}}</view>
+          <view class="text-3">{{item.customerName || '—'}}{{item.styleText ? ' · ' + item.styleText : ''}} · ×{{item.qty}}</view>
+        </view>
+        <view class="badge {{item.statusClass}}">{{item.statusText}}</view>
+      </view>
+      <view class="row cols">
+        <view class="col">
+          <view class="col-num num">{{item.totalPrice}}</view>
+          <view class="text-3">报价总价</view>
+        </view>
+        <view class="col">
+          <view class="col-num num">{{item.profitRate}}</view>
+          <view class="text-3">毛利率</view>
+        </view>
+        <view class="col">
+          <view class="col-num num text-3">{{item.quoteDate}}</view>
+          <view class="text-3">报价日期</view>
+        </view>
+      </view>
+      <view class="row sub-row" wx:if="{{item.needLinkOrder || item.orderNo}}">
+        <view class="text-3" wx:if="{{item.orderNo}}">关联订单 {{item.orderNo}}</view>
+        <view class="text-3 warn-text" wx:if="{{item.needLinkOrder}}">已成单待关联订单（详情页可回填对比）</view>
+      </view>
+    </view>
+
+    <view wx:if="{{loading && rows.length}}" class="text-3 loading-more">加载中…</view>
+    <view wx:elif="{{loaded && !hasMore && rows.length}}" class="text-3 loading-more">没有更多了</view>
+  </block>
+</view>

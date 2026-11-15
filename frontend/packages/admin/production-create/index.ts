@@ -23,7 +23,8 @@ import {
 import { createTicketsBatch } from '../../../services/catalog';
 import { fetchStyles, fetchCustomers } from '../../../services/catalog';
 import { fetchOrder, fetchOrders, fetchOrderProgress } from '../../../services/orders';
-import { printTickets } from '../../../services/printer';
+import { startPrintFlow, cancelPrintFlow } from '../../../utils/print-flow';
+import { ApiError } from '../../../utils/request';
 import { PrintTicketData } from '../../../utils/bluetooth/templates';
 import { Style, Customer, Paginated, Production, Order } from '../../../services/types';
 
@@ -172,7 +173,9 @@ Page({
     previewTickets: [] as PrintTicketData[],
     /** 打印门槛（H4）：成功页「打印菲票」按钮按 print.manage ∪ production.manage 显隐 */
     canPrint: false,
-    previewCompany: { name: '' } as { name?: string }
+    previewCompany: { name: '' } as { name?: string },
+    /** 打印流程状态（print-progress 组件，utils/print-flow 驱动） */
+    printFlow: { show: false, done: 0, total: 0 }
   },
 
   /** 离开拦截是否已开启（enableAlertBeforeUnload 重复调用会反复弹，做开关缓存） */
@@ -1206,10 +1209,7 @@ Page({
     // _recalc_total 按菲票汇总重算），成功后立刻编菲，两步同批完成
     const ensureProduction: Promise<number> = prodId
       ? Promise.resolve(prodId)
-      : createProduction(this.buildProductionPayload()).then((created: Production) => {
-          this._prodCreated = created.id;
-          return created.id;
-        });
+      : this.createProductionWithBomBypass();
     ensureProduction
       .then((id) => {
         this.setData({ prodId: id });
@@ -1228,6 +1228,43 @@ Page({
         this.enterSuccess(tickets);
       })
       .catch(() => this.setData({ saving: false }));
+  },
+
+  /**
+   * 建床（D4 无生效BOM拦截）：后端 400「该款式无生效BOM…」→ 弹可输入确认框收
+   * 放行原因，带 bom_bypass=true + bypass_reason 重试一次（后端 ops audit 留痕）；
+   * 其余错误原样上抛走统一 catch。
+   */
+  createProductionWithBomBypass(extra?: { bom_bypass: boolean; bypass_reason: string }): Promise<number> {
+    const payload = { ...this.buildProductionPayload(), ...(extra || {}) };
+    return createProduction(payload).then((created: Production) => {
+      this._prodCreated = created.id;
+      return created.id;
+    }).catch((err: unknown) => {
+      const isBomBlock = err instanceof ApiError && err.status === 400
+        && (err.message || '').indexOf('BOM') >= 0;
+      if (!isBomBlock) throw err;
+      return new Promise<number>((resolve, reject) => {
+        wx.showModal({
+          title: '该款式无生效BOM',
+          content: '可填原因放行开裁（后台留痕），或取消后到 BOM 管理激活',
+          editable: true,
+          placeholderText: '放行原因（必填）',
+          success: (res) => {
+            if (!res.confirm) { reject(err); return; }
+            const reason = (res.content || '').trim();
+            if (!reason) {
+              wx.showToast({ title: '请填写放行原因', icon: 'none' });
+              reject(err);
+              return;
+            }
+            this.createProductionWithBomBypass({ bom_bypass: true, bypass_reason: reason })
+              .then(resolve).catch(reject);
+          },
+          fail: () => reject(err)
+        });
+      });
+    });
   },
 
   /** 建床 payload（总量恒 0：编菲保存后端按菲票自动汇总实裁数） */
@@ -1295,34 +1332,15 @@ Page({
     const tickets = this.data.previewTickets;
     this.setData({ previewShow: false });
     if (!tickets.length) return;
-    wx.showLoading({ title: `打印中 0/${tickets.length}…`, mask: true });
-    printTickets(tickets, {
-      company: this.data.previewCompany,
-      onProgress: (done, total) => wx.showLoading({ title: `打印中 ${done}/${total}…`, mask: true })
-    })
-      .then((result) => {
-        wx.hideLoading();
-        const failed = result.failed.length;
-        if (!failed) {
-          wx.showToast({ title: `已打印 ${result.printed.length} 张`, icon: 'success' });
-        } else {
-          wx.showModal({
-            title: '部分未打印',
-            content: `成功 ${result.printed.length} 张，${failed} 张失败已入重试队列，可到「打印管理」补打`,
-            showCancel: false
-          });
-        }
-      })
-      .catch((err: Error) => {
-        wx.hideLoading();
-        wx.showModal({
-          title: '未能打印',
-          content: (err && err.message === '请先连接打印机')
-            ? '先到「打印管理」页扫描绑定蓝牙打印机，再回来打印；也可跳过稍后补打'
-            : (err && err.message) || '打印失败，可稍后到「打印管理」补打',
-          showCancel: false
-        });
-      });
+    // 统一打印流程：未连接时弹窗带「去连接」直达打印管理
+    startPrintFlow(this, tickets, {
+      company: this.data.previewCompany
+    });
+  },
+
+  /** 打印进度弹层「取消打印」回调（print-flow 统一转发） */
+  onFlowCancel() {
+    cancelPrintFlow();
   },
 
   /** 成功页：落床次详情 */

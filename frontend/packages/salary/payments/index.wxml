@@ -1,0 +1,159 @@
+<view class="page">
+  <date-range-bar start="{{start}}" end="{{end}}" quick="{{quick}}" bind:change="onRangeChange" />
+
+  <view class="card filter-card">
+    <view class="row">
+      <picker wx:if="{{canViewAll && employees.length}}" class="filter-picker" mode="selector" range="{{employeeOptions}}" value="{{employeeFilterIndex}}" bindchange="onEmployeeFilterChange">
+        <view class="filter-picker-text">{{employeeOptions[employeeFilterIndex] || '全部可见员工'}}</view>
+      </picker>
+      <view wx:else class="filter-picker-text self-label">{{canViewAll ? '全部可见员工' : '仅显示我的实付'}}</view>
+      <view class="spacer" />
+      <picker mode="selector" range="{{statusOptions}}" value="{{statusIndex}}" bindchange="onStatusFilterChange">
+        <view class="filter-picker-text">{{statusOptions[statusIndex]}}</view>
+      </picker>
+    </view>
+  </view>
+
+  <view wx:if="{{canManage && canViewAll}}" class="create-bar">
+    <button class="btn btn-primary" bindtap="onOpenCreate">登记实付</button>
+  </view>
+  <view wx:elif="{{canManage}}" class="immutable-tip text-3">当前岗位缺少全员薪酬查询权限，仅显示本人实付，不能选择员工登记。</view>
+  <view class="immutable-tip text-3">实付记录不可编辑或删除，错误记录只能填写作废原因后作废。</view>
+
+  <view wx:if="{{loading}}" class="state-tip text-3">加载中…</view>
+  <empty-state wx:elif="{{error}}" text="{{error}}" sub="下拉刷新重试" />
+  <empty-state wx:elif="{{!list.length}}" text="当前条件下暂无支付记录" />
+
+  <view wx:for="{{list}}" wx:key="id" class="card payment-card">
+    <view class="row payment-head" data-id="{{item.id}}" bindtap="onOpenDetail">
+      <view>
+        <view class="amount num">¥{{item.amountText}}</view>
+        <view class="text-3">{{item.employeeName}} · {{item.paidAt}}</view>
+      </view>
+      <view class="spacer" />
+      <view class="badge {{item.status === 'active' ? 'badge-green' : 'badge-gray'}}">{{item.statusDisplay}}</view>
+    </view>
+    <view class="row definition-row"><view class="text-3">支付方式</view><view class="spacer" /><view class="text-2">{{item.methodText}}</view></view>
+    <view class="row definition-row"><view class="text-3">外部流水号</view><view class="spacer" /><view class="text-2 ref">{{item.transactionRef}}</view></view>
+    <view class="row definition-row"><view class="text-3">结算归属</view><view class="spacer" /><view class="text-2">{{item.allocationSummary}}</view></view>
+    <view class="row payment-actions">
+      <button class="btn btn-plain action-btn" data-id="{{item.id}}" bindtap="onOpenDetail">查看详情</button>
+      <button wx:if="{{item.canVoid}}" class="btn btn-plain action-btn danger" data-id="{{item.id}}" bindtap="onOpenVoid">作废</button>
+    </view>
+  </view>
+  <view wx:if="{{loadingMore}}" class="state-tip text-3">加载更多…</view>
+  <view wx:elif="{{hasMore}}" class="state-tip text-3" bindtap="onReachBottom">上拉加载更多</view>
+
+  <view wx:if="{{panel}}" class="modal-mask" catchtouchmove="noop" bindtap="onClosePanel">
+    <view class="modal-sheet" catchtap="noop">
+      <view class="row modal-title">
+        <view class="h2">{{panel === 'create' ? '登记实付工资' : '支付详情'}}</view>
+        <view class="spacer" />
+        <view class="modal-close" bindtap="onClosePanel">×</view>
+      </view>
+
+      <scroll-view wx:if="{{panel === 'create'}}" scroll-y class="modal-scroll">
+        <view class="form-label required">员工</view>
+        <picker class="input picker-input" mode="selector" range="{{employees}}" range-key="real_name" value="{{employeeIndex}}" bindchange="onCreateEmployeeChange">
+          <view class="{{selectedEmployeeId ? '' : 'placeholder'}}">{{selectedEmployeeId ? employees[employeeIndex].real_name : '请选择员工'}}</view>
+        </picker>
+        <view class="form-label required">实付金额（元）</view>
+        <input class="input num" type="digit" placeholder="0.00" value="{{amount}}" bindinput="onAmountInput" />
+        <view class="form-label required">实付时间</view>
+        <picker class="input picker-input" mode="date" value="{{paidDate}}" bindchange="onPaidDateChange">
+          <view>{{paidDate || '请选择实付日期'}}</view>
+        </picker>
+        <view class="form-label required">具体时分</view>
+        <picker class="input picker-input" mode="time" value="{{paidTime}}" bindchange="onPaidTimeChange">
+          <view>{{paidTime || '请选择实付时分'}}</view>
+        </picker>
+        <view class="form-label required">支付方式</view>
+        <picker class="input picker-input" mode="selector" range="{{methodOptions}}" value="{{methodIndex}}" bindchange="onMethodChange">
+          <view>{{methodOptions[methodIndex]}}</view>
+        </picker>
+        <view class="form-label required">外部流水号</view>
+        <input class="input" maxlength="100" placeholder="填写银行或支付渠道的真实流水号" value="{{transactionRef}}" bindinput="onTransactionInput" />
+        <view class="form-label">备注</view>
+        <textarea class="input textarea" maxlength="500" placeholder="选填，最多 500 字" value="{{note}}" bindinput="onNoteInput" />
+
+        <view class="section-title">结算归属</view>
+        <radio-group bindchange="onAllocationModeChange">
+          <label class="choice"><radio value="settlement" checked="{{allocationMode === 'settlement'}}" color="#FF7A00" />分摊到已有结算单</label>
+          <label class="choice"><radio value="none" checked="{{allocationMode === 'none'}}" color="#FF7A00" />无结算支付（不抵扣任何结算单）</label>
+        </radio-group>
+        <view wx:if="{{allocationMode === 'settlement'}}" class="allocation-box">
+          <view wx:if="{{sourcesLoading}}" class="state-tip text-3">正在读取结算及有效支付记录…</view>
+          <view wx:elif="{{sourcesError}}" class="error-text">{{sourcesError}}</view>
+          <block wx:else>
+            <picker class="input picker-input" mode="selector" range="{{settlementOptions}}" value="{{settlementIndex}}" disabled="{{!selectedEmployeeId || !selectableSettlements.length}}" bindchange="onSettlementChange">
+              <view class="{{selectableSettlements.length ? '' : 'placeholder'}}">{{!selectedEmployeeId ? '请先选择员工' : (selectableSettlements.length ? settlementOptions[settlementIndex] : '该员工暂无可支付结算单')}}</view>
+            </picker>
+            <button class="btn btn-plain add-btn {{!selectableSettlements.length ? 'disabled' : ''}}" bindtap="onAddAllocation">添加分摊</button>
+            <view class="text-3 source-note">可付余额按该员工结算快照减有效实付计算；提交时以后端锁定后的余额为准。</view>
+            <view wx:for="{{allocations}}" wx:key="settlement_id" class="allocation-row">
+              <view class="row"><view class="text-2 strong">{{item.title}}</view><view class="spacer" /><view class="remove" data-id="{{item.settlement_id}}" bindtap="onRemoveAllocation">移除</view></view>
+              <view class="text-3">{{item.periodText}}</view>
+              <view class="text-3">快照 ¥{{item.snapshotText}} · 已付 ¥{{item.paidText}} · 可付 ¥{{item.outstandingText}}</view>
+              <input class="input num allocation-input" type="digit" value="{{item.amount}}" data-id="{{item.settlement_id}}" bindinput="onAllocationInput" />
+            </view>
+            <view wx:if="{{!allocations.length}}" class="empty-inline text-3">尚未添加结算分摊</view>
+            <view class="allocation-total {{allocationMatched ? '' : 'mismatch'}}">
+              <view>分摊合计 ¥{{allocationTotalText}} / 实付 ¥{{amount || '0.00'}}</view>
+              <view>{{allocationMatched ? '金额一致' : (allocationDifference > 0 ? '还差 ¥' + allocationDifferenceText : '超出 ¥' + allocationDifferenceText)}}</view>
+            </view>
+          </block>
+        </view>
+        <view wx:if="{{formError}}" class="error-text">{{formError}}</view>
+        <view class="row modal-actions">
+          <button class="btn btn-plain modal-btn" bindtap="onClosePanel">取消</button>
+          <button class="btn btn-primary modal-btn {{saving ? 'disabled' : ''}}" bindtap="onSubmitPayment">{{saving ? '正在提交…' : '确认登记实付'}}</button>
+        </view>
+      </scroll-view>
+
+      <scroll-view wx:else scroll-y class="modal-scroll">
+        <view wx:if="{{detailLoading}}" class="state-tip text-3">正在读取支付详情…</view>
+        <block wx:elif="{{detail}}">
+          <view class="row"><view class="h2">{{detail.employeeName}}</view><view class="spacer" /><view class="badge {{detail.status === 'active' ? 'badge-green' : 'badge-gray'}}">{{detail.statusDisplay}}</view></view>
+          <view class="detail-amount num">¥{{detail.amountText}}</view>
+          <view class="row definition-row"><view class="text-3">实付时间</view><view class="spacer" /><view class="text-2">{{detail.paidAt}}</view></view>
+          <view class="row definition-row"><view class="text-3">支付方式</view><view class="spacer" /><view class="text-2">{{detail.methodText}}</view></view>
+          <view class="row definition-row"><view class="text-3">外部流水号</view><view class="spacer" /><view class="text-2 ref">{{detail.transactionRef}}</view></view>
+          <view class="row definition-row"><view class="text-3">操作人</view><view class="spacer" /><view class="text-2">{{detail.operatorName}}</view></view>
+          <view class="row definition-row"><view class="text-3">创建时间</view><view class="spacer" /><view class="text-2">{{detail.createdAt}}</view></view>
+          <view class="detail-note text-2">备注：{{detail.note || '—'}}</view>
+          <view wx:if="{{detail.status === 'void'}}" class="void-info">
+            <view class="text-danger strong">作废原因</view>
+            <view class="void-reason">{{detail.voidReason}}</view>
+            <view class="text-3">{{detail.voidedByName}} · {{detail.voidedAt}}</view>
+          </view>
+          <view class="section-title">结算分摊</view>
+          <view wx:if="{{!detail.allocations.length}}" class="empty-inline text-3">无结算支付，不抵扣结算单</view>
+          <view wx:for="{{detail.allocations}}" wx:key="id" class="detail-allocation">
+            <view class="row"><view class="text-2">{{item.title}}</view><view class="spacer" /><view class="strong num">¥{{item.amountText}}</view></view>
+            <view class="text-3">结算总额 ¥{{item.settlementAmountText}}</view>
+            <view class="text-3">该员工有效累计实付 ¥{{item.paidAmountText}} · 当前未付 ¥{{item.outstandingText}}</view>
+          </view>
+          <view class="row modal-actions">
+            <button wx:if="{{detail.canVoid}}" class="btn btn-plain modal-btn danger" data-id="{{detail.id}}" bindtap="onOpenVoid">作废此支付</button>
+            <button class="btn btn-primary modal-btn" bindtap="onClosePanel">关闭</button>
+          </view>
+        </block>
+        <view wx:if="{{formError}}" class="error-text">{{formError}}</view>
+      </scroll-view>
+    </view>
+  </view>
+
+  <view wx:if="{{voidTargetId}}" class="modal-mask" catchtouchmove="noop">
+    <view class="void-dialog">
+      <view class="h2">作废支付</view>
+      <view class="text-2 void-warning">作废后该支付不再抵扣结算余额，但支付与分摊记录会保留，且不可恢复。</view>
+      <view class="form-label required">作废原因</view>
+      <textarea class="input textarea" maxlength="500" placeholder="请说明实际作废原因" value="{{voidReason}}" bindinput="onVoidReasonInput" />
+      <view wx:if="{{voidError}}" class="error-text">{{voidError}}</view>
+      <view class="row modal-actions">
+        <button class="btn btn-plain modal-btn" bindtap="onCloseVoid">取消</button>
+        <button class="btn btn-primary modal-btn {{voiding ? 'disabled' : ''}}" bindtap="onSubmitVoid">{{voiding ? '正在作废…' : '确认作废'}}</button>
+      </view>
+    </view>
+  </view>
+</view>

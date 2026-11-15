@@ -66,6 +66,15 @@ export function fetchOrderProgress(id: number): Promise<OrderProgress> {
   return http.get<OrderProgress>(`/orders/${id}/progress`);
 }
 
+/** 订单变更留痕时间线（GET /orders/{id}/audit-logs，差距 #3；倒序分页） */
+export function fetchOrderAuditLogs(
+  orderId: number,
+  params?: { page?: number; page_size?: number },
+): Promise<Paginated<import('./types').AuditLog>> {
+  return http.get<Paginated<import('./types').AuditLog>>(
+    `/orders/${orderId}/audit-logs`, (params || {}) as Record<string, unknown>);
+}
+
 /**
  * 订单关联床次列表（GET /productions?order_id=，契约 §四 POST/GET /productions 改造）。
  * 落在本文件以避免改动 services/production.ts（SF1 只动订单域文件）。

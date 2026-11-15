@@ -3,6 +3,9 @@
   <view class="lp-panel" catchtap="noop">
     <view class="lp-title">打印预览</view>
     <view class="lp-hint">{{styleLabel}} · 预览与实打同一排版坐标</view>
+    <view class="lp-conn {{connOk ? 'lp-conn-ok' : 'lp-conn-bad'}}">
+      {{connOk ? '已连接：' + connName : '未连接打印机（确认后将引导连接）'}}
+    </view>
 
     <view class="lp-stage">
       <view wx:if="{{canPrev}}" class="lp-nav lp-nav-l" catchtap="onPrev">‹</view>
@@ -11,6 +14,16 @@
     </view>
     <view class="lp-index" wx:if="{{count > 1}}">{{index + 1}} / {{count}}</view>
     <view class="lp-ticket">床次 {{curTicket.bed_no || '—'}} · 第 {{curTicket.bundle_no || '—'}} 扎 · {{curTicket.color || '—'}} {{curTicket.size || '—'}} · {{curTicket.qty}} 件</view>
+
+    <view class="lp-skip" wx:if="{{count > 1}}">
+      <checkbox-group bindchange="onSkipChange">
+        <label class="lp-skip-label">
+          <checkbox value="1" checked="{{skipNext}}" color="#FF7A00" class="lp-skip-box" />
+          <text>以后批量打印不再预览</text>
+        </label>
+      </checkbox-group>
+      <view class="lp-skip-hint">可在「打印管理」页恢复预览确认</view>
+    </view>
 
     <view class="lp-btns">
       <button class="lp-btn lp-cancel" catchtap="onCancel">取消</button>

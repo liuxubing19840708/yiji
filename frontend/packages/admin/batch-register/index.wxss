@@ -1,0 +1,120 @@
+/* 批量代登（GAP-2，2026-11-04） */
+.step-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  margin-bottom: 16rpx;
+}
+.picker-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18rpx 20rpx;
+  border: 1rpx solid var(--color-border, #e5e6eb);
+  border-radius: 12rpx;
+  margin-bottom: 16rpx;
+  font-size: 28rpx;
+}
+.picker-field.placeholder {
+  color: var(--color-text-3, #86909c);
+}
+.caret {
+  color: var(--color-text-3, #86909c);
+}
+.mini-btn {
+  flex-shrink: 0;
+  margin-left: 12rpx;
+  padding: 6rpx 18rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  color: var(--color-primary, #2f6fed);
+  background: var(--color-primary-light, rgba(47, 111, 237, 0.1));
+}
+.mini-btn.plain {
+  color: var(--color-text-3, #86909c);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* 菲票表 */
+.tk-head,
+.tk-row {
+  padding: 12rpx 0;
+  border-bottom: 1rpx solid var(--color-border, #f0f0f0);
+}
+.tk-head {
+  color: var(--color-text-3, #86909c);
+  font-size: 22rpx;
+}
+.tk-row:last-of-type {
+  border-bottom: none;
+}
+.tk-col {
+  flex-shrink: 0;
+  font-size: 26rpx;
+}
+.tk-bundle {
+  width: 90rpx;
+}
+.tk-cs {
+  width: 170rpx;
+}
+.tk-qty {
+  width: 110rpx;
+  color: var(--color-text-3, #86909c);
+}
+.tk-input {
+  width: 130rpx;
+}
+.tk-input-field {
+  box-sizing: border-box;
+  width: 120rpx;
+  height: 56rpx;
+  padding: 0 12rpx;
+  border: 1rpx solid var(--color-border, #e5e6eb);
+  border-radius: 8rpx;
+  text-align: center;
+  font-size: 26rpx;
+}
+.tk-input-field.err {
+  border-color: var(--color-danger, #f53f3f);
+}
+.tk-input-field.done {
+  border-color: var(--color-success, #00b42a);
+  background: rgba(0, 180, 42, 0.06);
+}
+.tk-result {
+  flex: 1;
+  min-width: 0;
+  margin-left: 12rpx;
+  font-size: 22rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.err-text {
+  color: var(--color-danger, #f53f3f);
+}
+.ok-text {
+  color: var(--color-success, #00b42a);
+}
+.tk-tip {
+  margin-top: 12rpx;
+}
+
+.submit-btn {
+  background: var(--color-primary, #2f6fed);
+  color: #fff;
+  border-radius: 12rpx;
+  font-size: 30rpx;
+}
+.submit-btn.disabled {
+  opacity: 0.6;
+}
+
+.res-row {
+  padding: 10rpx 0;
+  font-size: 24rpx;
+}
+.res-bundle {
+  flex-shrink: 0;
+  margin-right: 16rpx;
+}

@@ -5,6 +5,7 @@ from . import views
 
 urlpatterns = [
     path('uploads', views.UploadView.as_view()),
+    path('uploads/files', views.DocumentUploadView.as_view()),
     path('uploads/video', views.VideoUploadView.as_view()),
     path('permissions', views.PermissionDictView.as_view()),
     path('client-logs', views.ClientLogView.as_view()),

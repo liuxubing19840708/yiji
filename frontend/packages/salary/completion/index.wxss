@@ -40,3 +40,66 @@
 .e-row:last-child { border-bottom: none; }
 .e-col { width: 25%; }
 .e-right { text-align: right; }
+
+/* ============ 维度汇总视图（2026-10-29 合并看板「维度查看」，样式同 kanban） ============ */
+.dim-tabs {
+  display: flex;
+  gap: 12rpx;
+  margin-bottom: 24rpx;
+  overflow-x: auto;
+}
+.dim-tab {
+  flex-shrink: 0;
+  font-size: 24rpx;
+  color: var(--color-text-2);
+  padding: 10rpx 26rpx;
+  border-radius: 999rpx;
+  background: var(--color-card);
+  box-shadow: var(--shadow);
+}
+.dim-tab.on {
+  background: var(--color-primary);
+  color: #ffffff;
+  font-weight: 600;
+}
+/* 维度表内子 tab 收紧下边距（外层 card 自带 padding） */
+.dim-sub-tabs { margin-bottom: 16rpx; }
+/* 维度表可下钻行（订单/裁床）：按压反馈 */
+.dim-click:active { opacity: 0.6; }
+
+/* 扁平聚合表：列定宽、超宽横向滑（与 kanban plan-table 同款） */
+.plan-scroll { width: 100%; }
+.plan-table {
+  display: inline-block;
+  min-width: 100%;
+  border: 2rpx solid var(--color-border);
+  border-radius: 12rpx;
+  overflow: hidden;
+}
+.pt-row {
+  display: flex;
+  align-items: stretch;
+}
+.pt-cell {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  padding: 8rpx 14rpx;
+  font-size: 24rpx;
+  color: var(--color-text-2);
+  border-right: 2rpx solid var(--color-border);
+  border-bottom: 2rpx solid var(--color-border);
+  word-break: break-all;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+.pt-row:last-child .pt-cell { border-bottom: none; }
+.pt-cell:last-child { border-right: none; }
+/* 表头：浅底 + 加粗 */
+.pt-head .pt-cell {
+  background: var(--color-bg);
+  font-size: 22rpx;
+  font-weight: 600;
+  color: var(--color-text-2);
+  white-space: nowrap;
+}

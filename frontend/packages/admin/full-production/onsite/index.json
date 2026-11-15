@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "现场报工工作台",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index"
+  }
+}

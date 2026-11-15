@@ -42,3 +42,12 @@
   background: var(--color-border, #E5E6EB);
   flex-shrink: 0;
 }
+
+/* 分组宫格（衣协同骨架重划，2026-11-04） */
+.module-group { margin-bottom: 8rpx; }
+.group-title {
+  padding: 24rpx 8rpx 12rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--color-text-2, #4e5969);
+}

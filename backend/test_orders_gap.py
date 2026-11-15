@@ -93,7 +93,7 @@ code, d = api('POST', '/orders', AT, CID,
               {'order_no': 'GAP-S1', 'remark': 'v1', 'style': gap_style.id,
                'items': [{'color': '黑', 'size': 'M', 'qty': 10},
                          {'color': '黑', 'size': 'L', 'qty': 5}]})
-check('G-前置 建单 GAP-S1', code in (200, 201) and d.get('id'), f'{code} {d}')
+check('G-前置 建单 GAP-S1', code == 201 and d.get('id'), f'{code} {d}')
 OID = d['id']
 
 # G6 先行：同单号不改（走 exclude_pk 去重分支）
@@ -120,7 +120,7 @@ code, d = api('POST', '/orders', AT, CID,
               {'order_no': 'GAP-S3', 'style': gap_style.id,
                'delivery_date': str(timezone.localdate() + timedelta(days=30)),
                'items': [{'color': '白', 'size': 'M', 'qty': 8}]})
-check('G-前置 建单 GAP-S3', code in (200, 201), f'{code} {d}')
+check('G-前置 建单 GAP-S3', code == 201, f'{code} {d}')
 code, d = api('GET', '/orders?keyword=GAP-S3', AT, CID)
 row = next((r for r in d.get('results', d if isinstance(d, list) else [])), {})
 check('G8 交期充裕绿灯(>7天)', row.get('delivery_light') == 'green' and row.get('days_left') == 30,

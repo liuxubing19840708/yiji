@@ -1,0 +1,123 @@
+<view class="page">
+  <!-- 无权限防御态（cost.view；后端 403 兜底） -->
+  <view wx:if="{{denied}}" class="state">
+    <view class="text-3">暂无「成本查看」权限，请联系管理员开通</view>
+  </view>
+
+  <block wx:else>
+    <!-- 顶部：工资对账单/订单损益入口 + 批量重算（cost.manage） -->
+    <view class="toolbar">
+      <view class="link-btn" bindtap="onGoOrderPnl">订单损益 ›</view>
+      <view class="link-btn" bindtap="onGoWageReconciliation">工资对账单 ›</view>
+      <view class="spacer"></view>
+      <view class="batch-btn {{canManage ? '' : 'disabled'}}" wx:if="{{canManage}}" bindtap="onRecomputeBatch">
+        {{batchRunning ? '重算中…' : '⟳ 批量重算'}}
+      </view>
+    </view>
+
+    <!-- 过滤：日期范围（订单创建日期）+ 关键词 -->
+    <date-range-bar start="{{start}}" end="{{end}}" quick="{{quick}}" bind:change="onRangeChange" />
+    <view class="card filter-card">
+      <view class="row">
+        <input class="search grow" placeholder="订单号/客户/款号/款名" value="{{keyword}}" bindinput="onKeyword" bindconfirm="onSearch" confirm-type="search" />
+        <view class="search-btn" bindtap="onSearch">查询</view>
+      </view>
+      <!-- no_order_cnt 顶部汇总区 -->
+      <view class="text-3 no-order" wx:if="{{noOrderTotal > 0}}">
+        ⚠ 未归属成本床次 {{noOrderTotal}} 个（未挂单床次的材料/人工成本不计入任何订单，已单列）
+      </view>
+    </view>
+
+    <view wx:if="{{loading && !rows.length}}" class="state text-3">加载中…</view>
+    <view wx:elif="{{error && !rows.length}}" class="state">
+      <view class="text-3">加载失败，请重试</view>
+      <button class="btn btn-ghost state-btn" bindtap="reload">重新加载</button>
+    </view>
+    <empty-state wx:elif="{{!rows.length}}" text="该范围内暂无成本行" sub="有菲票登记/领料确认的订单重算后生成" />
+
+    <!-- 盈亏表卡片：每订单一张（D1） -->
+    <view class="card cost-card" wx:for="{{rows}}" wx:key="id">
+      <view class="row">
+        <view class="item-main">
+          <view class="item-title">{{item.orderNo}}</view>
+          <view class="text-3">{{item.customerName || '—'}}{{item.styleText ? ' · ' + item.styleText : ''}}</view>
+        </view>
+        <view class="badge badge-stale" wx:if="{{item.isStale}}">数据待更新</view>
+        <view class="badge badge-missing" wx:if="{{item.missingPriceCnt > 0}}" data-index="{{index}}" catchtap="onMissingPrice">缺价{{item.missingPriceCnt}}行</view>
+      </view>
+
+      <!-- 金额两行：收入/材料/人工/外发 + 制费/合计/单件/毛利 -->
+      <view class="row cols">
+        <view class="col">
+          <view class="col-num num">{{item.revenue}}</view>
+          <view class="text-3">收入(理论)</view>
+        </view>
+        <view class="col">
+          <view class="col-num num">{{item.materialCost}}</view>
+          <view class="text-3">材料</view>
+        </view>
+        <view class="col">
+          <view class="col-num num">{{item.laborCost}}</view>
+          <view class="text-3">人工</view>
+        </view>
+        <view class="col">
+          <view class="col-num num">{{item.outsourcingCost}}</view>
+          <view class="text-3">外发</view>
+        </view>
+      </view>
+      <view class="row cols">
+        <view class="col">
+          <view class="col-num num">{{item.overheadCost}}</view>
+          <view class="text-3">制费</view>
+        </view>
+        <view class="col">
+          <view class="col-num num">{{item.totalCost}}</view>
+          <view class="text-3">合计成本</view>
+        </view>
+        <view class="col">
+          <view class="col-num num">{{item.unitCost}}</view>
+          <view class="text-3">单件成本</view>
+        </view>
+        <view class="col">
+          <view class="col-num num {{item.grossProfit !== '—' && item.grossProfit[0] === '-' ? 'text-danger' : ''}}">
+            {{item.grossProfit}}
+            <text class="text-3" wx:if="{{item.grossMargin !== '—'}}">/ {{item.grossMargin}}</text>
+          </view>
+          <view class="text-3">毛利额/率</view>
+        </view>
+      </view>
+
+      <view class="text-3 meta-line" wx:if="{{item.computedAt}}">
+        {{item.computedAt}}{{item.computedByName ? ' · ' + item.computedByName : ''}} · 产出 {{item.outputQty}} 件
+      </view>
+
+      <!-- 行操作（cost.manage 显隐；overhead 走弹层） -->
+      <view class="row act-row" wx:if="{{canManage}}">
+        <view class="act" data-index="{{index}}" bindtap="onRecompute">重算</view>
+        <view class="act" data-index="{{index}}" bindtap="onOpenOverhead">录制费</view>
+      </view>
+    </view>
+
+    <view wx:if="{{loading && rows.length}}" class="text-3 loading-more">加载中…</view>
+    <view wx:elif="{{!hasMore && rows.length}}" class="text-3 loading-more">没有更多了</view>
+
+    <view class="text-3 rev-note">收入=Σ订单明细 数量×单价（理论口径），与实际收款（折扣/尾数/坏账）差异属预期，P2 应收核销后以收款实绩复核。</view>
+  </block>
+
+  <!-- ============ 制费录入弹层（cost.manage） ============ -->
+  <view class="mask" wx:if="{{overheadVisible}}" bindtap="onCloseOverhead">
+    <view class="sheet" catchtap="noop">
+      <view class="row sheet-head">
+        <view class="h2">录制裁费/管理费</view>
+        <view class="spacer"></view>
+        <view class="text-3" bindtap="onCloseOverhead">关闭</view>
+      </view>
+      <view class="text-3 sheet-sub">
+        {{overheadOrderIndex >= 0 ? rows[overheadOrderIndex].orderNo : ''}} · 保存后该单标记「数据待更新」，重算后进合计成本
+      </view>
+      <input class="input oh-input" type="digit" placeholder="制费/管理费金额（≥0）"
+        value="{{overheadValue}}" bindinput="onOverheadInput" />
+      <button class="btn btn-primary" loading="{{overheadSaving}}" bindtap="onSaveOverhead">保存</button>
+    </view>
+  </view>
+</view>

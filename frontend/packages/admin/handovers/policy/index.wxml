@@ -1,0 +1,22 @@
+<view class="page policy-page">
+  <view wx:if="{{denied}}" class="state text-3">暂无交接策略管理权限，请联系管理员</view>
+  <view wx:elif="{{loading}}" class="state text-3">加载中…</view>
+  <view wx:elif="{{error}}" class="state"><view class="text-3">策略加载失败</view><button class="btn btn-ghost retry" bindtap="onRetry">重新加载</button></view>
+  <block wx:else>
+    <view class="notice">off 不强制交接；warn 超时提醒但不阻断；strict 阻断绕过交接的普通裁片转出，实际交接接收仍可完成。超时通知由服务端计划任务生成，每位相关接收人每天最多一条。</view>
+    <view class="card">
+      <view class="field"><view class="label">当前规则</view><picker mode="selector" range="{{policyLabels}}" value="{{policyIndex}}" bindchange="onPolicyChange"><view class="input picker">{{policyLabels[policyIndex]}} ▾</view></picker></view>
+      <button class="btn btn-plain new-rule" bindtap="onNewOverride">新增节点覆盖规则</button>
+      <view class="text-3 rule-tip">节点越具体，规则优先级越高；公司默认只在没有匹配节点规则时生效。</view>
+      <view class="field"><view class="label">业务类型</view><view class="readonly">裁切（cutting）</view></view>
+      <view class="field"><view class="label">策略模式</view><picker mode="selector" range="{{modeNames}}" value="{{modeIndex}}" bindchange="onModeChange"><view class="input picker">{{modeNames[modeIndex]}} ▾</view></picker></view>
+      <view class="field"><view class="label">交出节点 ID（选填）</view><input class="input" type="number" value="{{sourceNode}}" data-field="sourceNode" placeholder="不限制则留空" bindinput="onFieldInput" /></view>
+      <view class="field"><view class="label">接收节点 ID（选填）</view><input class="input" type="number" value="{{targetNode}}" data-field="targetNode" placeholder="不限制则留空" bindinput="onFieldInput" /></view>
+      <view class="field"><view class="label">目标组编号（选填）</view><input class="input" type="number" value="{{targetGroupNo}}" data-field="targetGroupNo" placeholder="不指定则留空" bindinput="onFieldInput" /></view>
+      <view class="field"><view class="label">指定接收人用户 ID（选填）</view><input class="input" type="number" value="{{receiver}}" data-field="receiver" placeholder="不指定则留空" bindinput="onFieldInput" /></view>
+      <view class="field"><view class="label">超时时间（分钟）</view><input class="input" type="number" value="{{timeoutMinutes}}" data-field="timeoutMinutes" bindinput="onFieldInput" /></view>
+      <view wx:if="{{updatedByName}}" class="text-3 updated">最近保存：{{updatedByName}}</view>
+      <button class="btn btn-primary save-btn {{saving ? 'disabled' : ''}}" bindtap="onSave">{{saving ? '保存中…' : '保存策略'}}</button>
+    </view>
+  </block>
+</view>

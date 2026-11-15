@@ -1,0 +1,191 @@
+<!-- AI 问报：自然语言、动态报表、定时任务共用同一后端权限体系 -->
+<wxs module="util">
+  function has(list, key) { return list && list.indexOf(key) >= 0; }
+  module.exports = { has: has };
+</wxs>
+<view class="mode-tabs">
+  <view class="mode-tab {{activeTab === 'chat' ? 'active' : ''}}" data-tab="chat" bindtap="onTabTap">AI 问报</view>
+  <view class="mode-tab {{activeTab === 'designer' ? 'active' : ''}}" data-tab="designer" bindtap="onTabTap">动态报表</view>
+  <view class="mode-tab {{activeTab === 'schedules' ? 'active' : ''}}" data-tab="schedules" bindtap="onTabTap">定时任务</view>
+</view>
+
+<block wx:if="{{activeTab === 'chat'}}">
+  <scroll-view class="chat" scroll-y scroll-into-view="{{scrollInto}}" scroll-with-animation>
+    <view wx:for="{{messages}}" wx:key="id" id="msg-{{item.id}}" class="row {{item.role === 'user' ? 'row-user' : 'row-ai'}}">
+      <view wx:if="{{item.role === 'user'}}" class="bubble-user">{{item.text}}</view>
+      <block wx:else>
+        <view class="card">
+          <block wx:if="{{item.report}}">
+            <view class="card-title">{{item.report.title}}</view>
+            <view class="card-summary">{{item.report.summary}}</view>
+            <scroll-view scroll-x class="table-scroll">
+              <view class="card-table">
+                <view class="tr tr-head"><view wx:for="{{item.report.headers}}" wx:for-item="h" wx:key="*this" class="td">{{h}}</view></view>
+                <view wx:for="{{item.displayRows}}" wx:for-item="row" wx:key="index" class="tr">
+                  <view wx:for="{{row}}" wx:for-item="cell" wx:key="index" class="td">{{cell}}</view>
+                </view>
+              </view>
+            </scroll-view>
+            <view wx:if="{{item.report.note}}" class="card-note">{{item.report.note}}</view>
+          </block>
+          <block wx:elif="{{item.text}}"><view class="card-text">{{item.text}}</view></block>
+          <view wx:if="{{item.quickQuestions.length}}" class="chips">
+            <view wx:for="{{item.quickQuestions}}" wx:for-item="q" wx:key="*this" class="chip" data-q="{{q}}" bindtap="onQuickTap">{{q}}</view>
+          </view>
+        </view>
+        <view class="time">{{item.timeText}}</view>
+      </block>
+    </view>
+    <view class="chat-bottom-pad"></view>
+  </scroll-view>
+  <view class="input-bar">
+    <view wx:if="{{voiceEnabled}}" class="mic {{recording ? 'mic-on' : ''}}" bindtouchstart="onMicStart" bindtouchend="onMicEnd" bindtouchcancel="onMicEnd">语音</view>
+    <input class="input" value="{{input}}" placeholder="问点什么，如：今日产量多少" confirm-type="send" bindinput="onInput" bindconfirm="onSendTap" maxlength="200" disabled="{{sending}}" />
+    <button class="send {{sending || !input ? 'send-disabled' : ''}}" bindtap="onSendTap" disabled="{{sending || !input}}">发送</button>
+  </view>
+</block>
+
+<scroll-view wx:elif="{{activeTab === 'designer'}}" class="page-scroll" scroll-y>
+  <view class="section designer-head">
+    <view><view class="section-title">动态报表设计器</view><view class="muted">选择已授权的数据与口径，数字由系统计划计算。</view></view>
+    <button size="mini" class="plain-btn" bindtap="loadCatalog" disabled="{{catalogLoading}}">刷新目录</button>
+  </view>
+  <view wx:if="{{catalogLoading}}" class="section muted">正在加载数据目录…</view>
+  <view wx:if="{{catalogError}}" class="error">{{catalogError}} <text class="link" bindtap="loadCatalog">重试</text></view>
+
+  <block wx:if="{{dataset}}">
+    <view class="section">
+      <view class="field-label">数据集</view>
+      <picker range="{{catalog.datasets}}" range-key="label" value="{{datasetIndex}}" bindchange="onDatasetChange">
+        <view class="picker-value">{{dataset.label}}<text class="picker-arrow">⌄</text></view>
+      </picker>
+      <view class="field-help">{{dataset.description}}</view>
+    </view>
+
+    <view class="section">
+      <view class="section-subtitle">统计指标 <text class="muted">（图表模式只取首项）</text></view>
+      <view class="option-grid">
+        <view wx:for="{{dataset.metrics}}" wx:key="key" class="option {{util.has(metricKeys, item.key) ? 'selected' : ''}}" data-key="{{item.key}}" bindtap="onMetricTap">{{item.label}}</view>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-subtitle">分组维度</view>
+      <view class="field-help">不分组时返回一行汇总；数量指标须保留单位分组。</view>
+      <view class="option-grid">
+        <block wx:for="{{dataset.fields}}" wx:key="key">
+          <view wx:if="{{item.can_dimension}}" class="option {{util.has(dimensions, item.key) ? 'selected' : ''}}" data-key="{{item.key}}" bindtap="onDimensionTap">{{item.label}}</view>
+        </block>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-subtitle">日期与数据范围</view>
+      <view class="range-presets">
+        <button size="mini" class="plain-btn" data-kind="today" bindtap="setDateRange">今日</button>
+        <button size="mini" class="plain-btn" data-kind="week" bindtap="setDateRange">本周</button>
+        <button size="mini" class="plain-btn" data-kind="month" bindtap="setDateRange">本月</button>
+        <button size="mini" class="plain-btn" data-kind="lastMonth" bindtap="setDateRange">上月</button>
+        <button size="mini" class="plain-btn" data-kind="all" bindtap="setDateRange">全部时间</button>
+      </view>
+      <view class="form-row">
+        <view class="form-item"><view class="field-label">开始日期</view><picker mode="date" value="{{dateFrom}}" data-field="dateFrom" bindchange="onDateInput"><view class="picker-value">{{dateFrom || '请选择'}}</view></picker></view>
+        <view class="form-item"><view class="field-label">结束日期</view><picker mode="date" value="{{dateTo}}" data-field="dateTo" bindchange="onDateInput"><view class="picker-value">{{dateTo || '请选择'}}</view></picker></view>
+      </view>
+      <view wx:if="{{dataset.supports_as_of}}" class="form-item"><view class="field-label">库存截至日期（可选）</view><picker mode="date" value="{{asOf}}" data-field="asOf" bindchange="onDateInput"><view class="picker-value">{{asOf || '不指定'}}</view></picker><view class="field-help">按当前留存流水重算，不是历史审计快照。</view></view>
+      <view wx:if="{{catalog.capabilities.full_data && dataset.supports_include_deleted}}" class="switch-row">
+        <view><view>包含{{dataset.deleted_label}}</view><view class="field-help">默认排除，仅供历史核查。</view></view>
+        <switch checked="{{includeDeleted}}" color="#ff7a00" bindchange="onIncludeDeletedChange" />
+      </view>
+      <view wx:if="{{!dataset.supports_include_deleted}}" class="field-help safe-note">此数据集仅统计有效数据，不提供包含已删除数据选项。</view>
+    </view>
+
+    <view class="section">
+      <view class="form-row">
+        <view class="form-item"><view class="field-label">展示方式</view><picker range="{{presentations}}" range-key="label" value="{{presentationIndex}}" bindchange="onPresentationChange"><view class="picker-value">{{presentations[presentationIndex].label}}</view></picker></view>
+        <view class="form-item"><view class="field-label">返回行数（1–500）</view><input class="text-input" type="number" value="{{limit}}" bindinput="onLimitInput" /></view>
+      </view>
+      <view wx:if="{{presentation === 'line'}}" class="field-help">折线图首维度须为日、周或月，并按时间升序。</view>
+    </view>
+
+    <view class="section">
+      <view class="field-label">保存查询条件（可选）</view>
+      <view class="inline-form"><input class="text-input" maxlength="80" placeholder="输入报表名称" value="{{savedName}}" bindinput="onSavedNameInput" /><button size="mini" class="secondary-btn" disabled="{{savingReport || !savedName}}" bindtap="saveCurrentPlan">保存</button></view>
+      <view class="field-help">保存的是查询条件而非结果，每次执行仍重新校验权限。</view>
+    </view>
+
+    <view wx:if="{{designerError}}" class="error">{{designerError}}</view>
+    <view class="action-bar">
+      <button class="primary-btn" loading="{{executing}}" disabled="{{executing || !metricChoices.length}}" bindtap="executePlan">执行查询</button>
+      <button wx:if="{{catalog.capabilities.export}}" class="secondary-btn" loading="{{exportLoading}}" disabled="{{exportLoading || !result}}" bindtap="exportCurrentPlan">导出 Excel</button>
+    </view>
+    <view class="field-help export-help">预览最多 500 行；导出使用当前已执行的同一计划，最多 5000 行，下载时再次校验权限。</view>
+
+    <view wx:if="{{result}}" class="section result-section">
+      <view class="card-title">{{result.report.title}}</view>
+      <view class="card-summary">{{result.report.summary}}</view>
+      <view wx:for="{{result.report.scope}}" wx:key="*this" class="scope-item">{{item}}</view>
+
+      <view wx:if="{{result.plan.presentation === 'bar'}}" class="chart-box">
+        <view class="chart-title">{{chartMetricLabel}} <text>最多绘制前 30 行，完整数据见下表</text></view>
+        <view wx:for="{{chartBars}}" wx:key="index" class="bar-row" data-label="{{item.label}}" data-value="{{item.value}}" bindtap="onChartPointTap">
+          <view class="bar-label">{{item.label}}</view><view class="bar-track"><view class="bar-fill {{item.negative ? 'bar-negative' : ''}}" style="width: {{item.width}}%"></view></view><view class="bar-value">{{item.value}}</view>
+        </view>
+      </view>
+      <view wx:if="{{result.plan.presentation === 'line'}}" class="chart-box">
+        <view class="chart-title">{{chartMetricLabel}} <text>范围 {{chartMin}} 至 {{chartMax}}；点击点查看数值</text></view>
+        <scroll-view scroll-x><view class="line-chart">
+          <view class="line-grid grid-top"></view><view class="line-grid grid-mid"></view><view class="line-grid grid-bottom"></view>
+          <view wx:for="{{chartSegments}}" wx:key="index" class="line-segment" style="left: {{item.x}}rpx; top: {{item.y}}rpx; width: {{item.width}}rpx; transform: rotate({{item.angle}}deg)"></view>
+          <view wx:for="{{chartPoints}}" wx:key="index" class="line-point" style="left: {{item.x}}rpx; top: {{item.y}}rpx" data-label="{{item.label}}" data-value="{{item.value}}" bindtap="onChartPointTap"><view class="point-dot"></view></view>
+        </view></scroll-view>
+        <view class="line-labels"><text wx:for="{{chartPoints}}" wx:key="index" wx:if="{{index === 0 || index === chartPoints.length - 1}}">{{item.label}}</text></view>
+      </view>
+
+      <scroll-view scroll-x class="table-scroll"><view class="card-table result-table">
+        <view class="tr tr-head"><view wx:for="{{result.report.columns}}" wx:key="key" class="td">{{item.label}}</view></view>
+        <view wx:for="{{displayRows}}" wx:key="index" class="tr"><view wx:for="{{item.cells}}" wx:for-item="cell" wx:key="index" class="td">{{cell}}</view></view>
+      </view></scroll-view>
+      <view class="card-note">{{result.report.note}}</view>
+    </view>
+
+    <view wx:if="{{exportTasks.length}}" class="section">
+      <view class="section-heading"><view class="section-subtitle">最近导出任务</view><text class="link" bindtap="loadExportTasks">刷新</text></view>
+      <view wx:for="{{exportTasks}}" wx:key="id" class="task-row"><view><view>{{item.file_name || 'AI动态报表'}}</view><view class="field-help">{{item.statusText}} · {{item.total_count}} 行</view><view wx:if="{{item.error_message}}" class="error-text">{{item.error_message}}</view></view><button wx:if="{{item.status === 'success'}}" size="mini" class="secondary-btn" data-id="{{item.id}}" bindtap="onDownloadExport">下载</button></view>
+    </view>
+  </block>
+  <view class="bottom-space"></view>
+</scroll-view>
+
+<scroll-view wx:else class="page-scroll" scroll-y>
+  <view class="section designer-head"><view><view class="section-title">定时报表</view><view class="muted">按日、周或月执行，并通过通知提供查看入口。</view></view><button size="mini" class="plain-btn" disabled="{{schedulesLoading || runsLoading}}" bindtap="refreshSchedules">刷新全部</button></view>
+  <view class="section">
+    <view class="field-label">任务名称</view><input class="text-input" maxlength="80" placeholder="例如：每周一现金流汇总" value="{{scheduleForm.name}}" bindinput="onScheduleNameInput" />
+    <view class="field-label">计划来源</view><picker range="{{scheduleSourceOptions}}" value="{{scheduleForm.source === 'saved' ? 1 : 0}}" bindchange="onScheduleSourceChange"><view class="picker-value">{{scheduleForm.source === 'saved' ? '自己拥有的已保存报表' : '当前设计器条件'}}</view></picker>
+    <picker wx:if="{{scheduleForm.source === 'saved'}}" range="{{ownedReports}}" range-key="name" value="{{scheduleForm.savedIndex}}" bindchange="onScheduleSavedChange"><view class="picker-value">{{ownedReports[scheduleForm.savedIndex].name || '请选择自有报表'}}</view></picker>
+    <view class="field-label">执行频率</view><picker range="{{frequencies}}" range-key="label" value="{{scheduleForm.frequencyIndex}}" bindchange="onScheduleFrequencyChange"><view class="picker-value">{{frequencies[scheduleForm.frequencyIndex].label}}</view></picker>
+    <picker wx:if="{{scheduleForm.frequency === 'weekly'}}" range="{{weekdays}}" value="{{scheduleForm.weekdayIndex}}" bindchange="onScheduleWeekdayChange"><view class="picker-value">{{weekdays[scheduleForm.weekdayIndex]}}</view></picker>
+    <view wx:if="{{scheduleForm.frequency === 'monthly'}}"><view class="field-label">每月执行日（1–31）</view><input class="text-input" type="number" value="{{scheduleForm.dayOfMonth}}" data-field="dayOfMonth" bindinput="onScheduleTimeInput" /><view class="field-help">日期不存在的月份会跳过。</view></view>
+    <view class="form-row"><view class="form-item"><view class="field-label">小时（0–23）</view><input class="text-input" type="number" value="{{scheduleForm.hour}}" data-field="hour" bindinput="onScheduleTimeInput" /></view><view class="form-item"><view class="field-label">分钟（0–59）</view><input class="text-input" type="number" value="{{scheduleForm.minute}}" data-field="minute" bindinput="onScheduleTimeInput" /></view></view>
+    <view class="switch-row"><text>创建后立即启用</text><switch checked="{{scheduleForm.enabled}}" color="#ff7a00" bindchange="onScheduleEnabledChange" /></view>
+    <button class="primary-btn full-btn" loading="{{scheduleSubmitting}}" disabled="{{scheduleSubmitting}}" bindtap="createSchedule">创建定时报表</button>
+    <view class="field-help safe-note">只能引用自己拥有的报表；通知不包含业务结果、行数或筛选值。</view>
+  </view>
+  <view wx:if="{{scheduleError}}" class="error">{{scheduleError}}</view>
+  <view class="section">
+    <view class="section-subtitle">我的定时任务</view>
+    <view wx:if="{{schedulesLoading && !schedules.length}}" class="muted">正在加载…</view>
+    <view wx:for="{{schedules}}" wx:key="id" class="schedule-card"><view class="schedule-title">{{item.name}}</view><view class="field-help">{{item.scheduleText}} · {{item.sourceText}}</view><view class="field-help">{{item.nextRunText}} · 时区：{{item.timezone}}</view><view class="row-actions"><button size="mini" class="primary-btn" disabled="{{runActionKey}}" loading="{{runActionKey === 'run-' + item.id}}" data-id="{{item.id}}" bindtap="onScheduleRun">手动执行</button><button size="mini" class="secondary-btn" disabled="{{scheduleActionId}}" data-id="{{item.id}}" bindtap="onScheduleToggle">{{item.enabled ? '停用' : '启用'}}</button><button size="mini" class="plain-btn danger-btn" disabled="{{scheduleActionId}}" data-id="{{item.id}}" bindtap="onScheduleDelete">删除</button></view></view>
+    <view wx:if="{{!schedulesLoading && !schedules.length}}" class="muted">暂无定时任务</view>
+  </view>
+  <view class="section">
+    <view class="section-heading"><view><view class="section-subtitle">运行中心</view><view class="field-help">每次手动执行和失败重试均保留独立审计记录。</view></view><text class="link" bindtap="loadRuns">刷新记录</text></view>
+    <view class="field-help safe-note">通知仅提供报表入口，不包含业务数据；失败信息只显示安全摘要。</view>
+    <view wx:if="{{runsError}}" class="error">{{runsError}}</view>
+    <view wx:for="{{runs}}" wx:key="id" class="run-card"><view class="section-heading"><view class="schedule-title">{{item.schedule_name}}</view><text class="status status-{{item.outcome}}">{{item.statusText}}</text></view><view class="field-help">{{item.kindText}} · 计划：{{item.scheduledText}}</view><view class="field-help">开始：{{item.startedText}} · 完成：{{item.finishedText}}</view><view wx:if="{{item.retry_of_id}}" class="field-help">重试来源运行 ID：{{item.retry_of_id}}</view><view wx:if="{{item.error_summary}}" class="error-text">{{item.error_summary}}<text wx:if="{{item.error_code}}">（{{item.error_code}}）</text></view><button wx:if="{{item.canRetry}}" size="mini" class="secondary-btn retry-btn" disabled="{{runActionKey}}" loading="{{runActionKey === 'retry-' + item.id}}" data-id="{{item.id}}" bindtap="onRunRetry">失败重试</button></view>
+    <view wx:if="{{!runsLoading && !runs.length}}" class="muted">暂无运行记录，可手动执行一个任务</view>
+  </view>
+  <view class="bottom-space"></view>
+</scroll-view>
+
+<view wx:if="{{recording}}" class="voice-mask"><view class="voice-panel"><view class="voice-wave"><view class="wv wv1"></view><view class="wv wv2"></view><view class="wv wv3"></view><view class="wv wv4"></view><view class="wv wv5"></view></view><view class="voice-text">{{recognizeText || '请说话…'}}</view><view class="voice-tip">松开结束，文字填入输入框</view></view></view>

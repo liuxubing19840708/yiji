@@ -3,6 +3,7 @@
   "usingComponents": {
     "empty-state": "/components/empty-state/index",
     "label-preview": "/components/label-preview/index",
-    "hint-toggle": "/components/hint-toggle/index"
+    "hint-toggle": "/components/hint-toggle/index",
+    "print-progress": "/components/print-progress/index"
   }
 }

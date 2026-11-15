@@ -120,6 +120,8 @@ Record.all_objects.filter(company_id=CID, ticket__production__style__style_no=SN
 Ticket.all_objects.filter(company_id=CID, production__style__style_no=SNO).delete()
 Production.all_objects.filter(style__style_no=SNO).delete()
 StyleProcess.objects.filter(style__style_no=SNO).delete()
+from apps.tech.models import Bom as _BomPC  # noqa: E402
+_BomPC.all_objects.filter(style__style_no=SNO).delete()  # BOM.style PROTECT 挡 Style 删除
 Style.all_objects.filter(style_no=SNO).delete()
 Process.all_objects.filter(name__startswith='分支').delete()
 for p in BR_PHONES:
@@ -212,6 +214,11 @@ check('B3c 切换未加入公司被拒(404)', code == 404, f'{code} {str(d)[:60]
 code, st = api('POST', '/styles', AT, CID, {'style_no': SNO, 'name': '分支测试款'})
 check('B4-0a 建测试款式', code == 201, f'{code}')
 SID = st['id']
+# P4 开裁缺 BOM 拦截（2026-10-24）：建床需款式有 active BOM，测试款补齐
+from apps.tech.models import Bom  # noqa: E402
+if not Bom.all_objects.filter(style_id=SID).exists():
+    Bom.objects.create(company_id=CID, style_id=SID, version=1, status=Bom.Status.ACTIVE)
+
 code, p1 = api('POST', '/processes', AT, CID, {'name': '分支工序A', 'default_price': '0.5'})
 code, p2 = api('POST', '/processes', AT, CID, {'name': '分支工序B', 'default_price': '0.6'})
 code, p3 = api('POST', '/processes', AT, CID, {'name': '分支工序C', 'default_price': '0.7'})
@@ -419,6 +426,8 @@ Record.all_objects.filter(company_id=CID, ticket__production__style__style_no=SN
 Ticket.all_objects.filter(company_id=CID, production__style__style_no=SNO).delete()
 Production.all_objects.filter(style__style_no=SNO).delete()
 StyleProcess.objects.filter(style__style_no=SNO).delete()
+from apps.tech.models import Bom as _BomPC  # noqa: E402
+_BomPC.all_objects.filter(style__style_no=SNO).delete()  # BOM.style PROTECT 挡 Style 删除
 Style.all_objects.filter(style_no=SNO).delete()
 Process.all_objects.filter(name__startswith='分支').delete()
 UserCompany.all_objects.filter(company_id=CID_CAP).delete()

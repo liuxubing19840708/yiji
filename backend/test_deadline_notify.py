@@ -75,6 +75,8 @@ def preclean():
     Production.objects.filter(company=company, bed_no__startswith='TORD').delete()
     OrderItem.all_objects.filter(order__company=company).delete()
     Order.all_objects.filter(company=company).delete()
+    from apps.tech.models import Bom  # noqa: E402  # D4：订单域套件建了生效BOM，PROTECT 须先于款式删除
+    Bom.all_objects.filter(company=company).delete()
     Style.objects.filter(company=company, style_no__startswith='TORD').delete()
     Notification.all_objects.filter(
         company=company, code__in=[CODE_NEAR, CODE_OVERDUE]).delete()

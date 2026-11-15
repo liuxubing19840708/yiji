@@ -284,3 +284,46 @@
   background: rgba(245, 63, 63, 0.12);
   color: var(--color-danger);
 }
+
+/* ---- 大字号模式 / 语音报数（评审 Top10 #7，storage 持久化） ---- */
+.scan-utility-row {
+  display: flex;
+  gap: 16rpx;
+  justify-content: center;
+  margin-top: 16rpx;
+}
+.scan-utility {
+  padding: 8rpx 20rpx;
+  border-radius: 999rpx;
+  background: var(--color-bg-2, #f2f3f5);
+  color: var(--color-text-3);
+  font-size: 24rpx;
+}
+.scan-utility.on {
+  background: rgba(22, 119, 255, 0.1);
+  color: var(--color-primary, #1677ff);
+}
+/* 大字号模式：票面/件数/按钮整体放大（年长工人免眯眼） */
+.scan-page.xl .ticket-card .h2 {
+  font-size: 44rpx;
+}
+.scan-page.xl .ticket-card .text-2 {
+  font-size: 34rpx;
+}
+.scan-page.xl .ticket-item {
+  font-size: 34rpx;
+}
+.scan-page.xl .ticket-item .ticket-label {
+  font-size: 30rpx;
+}
+.scan-page.xl .qty-fixed .qty-big {
+  font-size: 112rpx;
+}
+.scan-page.xl .qty-fixed .text-3 {
+  font-size: 30rpx;
+}
+.scan-page.xl .submit-btn {
+  height: 104rpx;
+  line-height: 104rpx;
+  font-size: 40rpx;
+}

@@ -1,0 +1,57 @@
+<view class="page">
+  <!-- 无权限防御态（cost.view；后端 403 兜底） -->
+  <view wx:if="{{denied}}" class="state">
+    <view class="text-3">暂无「成本查看」权限，请联系管理员开通</view>
+  </view>
+
+  <block wx:else>
+    <!-- 口径说明置顶：差异属预期，非数据错误 -->
+    <view class="card note-card">{{headline}}</view>
+
+    <date-range-bar start="{{start}}" end="{{end}}" quick="{{quick}}" bind:change="onRangeChange" />
+
+    <view wx:if="{{loading && !data}}" class="state text-3">加载中…</view>
+    <view wx:elif="{{error}}" class="state">
+      <view class="text-3">加载失败，请重试</view>
+      <button class="btn btn-ghost state-btn" bindtap="load">重新加载</button>
+    </view>
+
+    <block wx:elif="{{data}}">
+      <!-- 两端总额 -->
+      <view class="card">
+        <view class="row">
+          <view class="total">
+            <view class="total-num num">{{data.paid_total}}</view>
+            <view class="text-3">期间已结算发放</view>
+          </view>
+          <view class="total">
+            <view class="total-num num">{{data.wage_total}}</view>
+            <view class="text-3">四类工资应发合计</view>
+          </view>
+        </view>
+        <view class="text-3 range-line">对账区间 {{data.date_from}} ~ {{data.date_to}}</view>
+      </view>
+
+      <!-- 逐项差异列表 -->
+      <view class="card wrow" wx:for="{{rows}}" wx:key="key">
+        <view class="row">
+          <view class="wrow-main">
+            <view class="wrow-title">{{item.label}}</view>
+            <view class="text-3 src">{{item.source}}</view>
+          </view>
+          <view class="wrow-nums">
+            <view class="num amt">{{item.amount}}</view>
+            <view class="num diff {{item.diff[0] === '-' ? 'text-primary' : (item.diff === '0.00' ? 'text-3' : 'text-danger')}}">
+              差 {{item.diff}}
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 后端口径注释逐条展示 -->
+      <view class="card notes-card">
+        <view class="text-3 note-line" wx:for="{{data.notes}}" wx:key="index">· {{item}}</view>
+      </view>
+    </block>
+  </block>
+</view>

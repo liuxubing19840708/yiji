@@ -1,6 +1,7 @@
 """薪酬结算视图：公司/员工工资汇总、结算与撤销、工资调整、结算申请流。
 
 工资口径：四类工资计算唯一入口在 apps/salary/wage.py（compute_wage），
+已结/未结口径（员工卡两栏/工资明细头部）同收编 wage.py（2026-10-29），
 本模块只负责结转（快照/圈占/通知），不重复实现口径。
 """
 from datetime import timedelta
@@ -17,6 +18,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import UserCompany
+from apps.core.export import xlsx_response
 from apps.core.mixins import CompanyContextMixin
 from apps.core.pagination import DefaultPagination
 from apps.core.permissions import has_perm
@@ -24,15 +26,25 @@ from apps.core.utils import q2
 from apps.ops.models import AuditLog
 from apps.ops.services import audit, notify
 from apps.records.models import Record
-from apps.salary.models import SalaryAdjust, SettleApply, Settlement
-from apps.salary.wage import (
+from apps.salary.models import (SalaryAdjust, SalaryPayment, SettleApply,
+                                Settlement)
+from apps.salary.payments import create_apply_payment, create_salary_payment
+from apps.salary.wage import (  # noqa: F401  _covered/_outstanding 供结算/申请复用
+    _covered_amount,
+    _outstanding_wage,
     compute_wage,
+    covered_amount_map,
+    employee_settled_unsettled,
     month_count as _month_count,
     month_end as _month_end,
+    process_settled_unsettled_map,
 )
 from apps.salary.serializers import (
     AdjustCreateSerializer,
     SalaryAdjustSerializer,
+    SalaryPaymentCreateSerializer,
+    SalaryPaymentSerializer,
+    SalaryPaymentVoidSerializer,
     SettleApplyCreateSerializer,
     SettleApplySerializer,
     SettlementCreateSerializer,
@@ -76,42 +88,6 @@ def _record_period_qs(company, date_from, date_to, **extra):
 
 def _is_admin(user_company):
     return bool(user_company and user_company.post and user_company.post.is_admin)
-
-
-def _covered_amount(company, uid, date_from, date_to):
-    """员工在期间内已被已结算单覆盖的金额（防重复计酬扣减用）。
-
-    只统计带 wage_detail 的结算单（四类工资制后创建的）：process 用户的记录
-    靠圈占防重复，不走本函数；非 process 用户（fixed/whole/commission）的工资
-    基数不随结算单圈占消失，靠扣减已覆盖金额避免同期间重复发薪。
-    """
-    total = Decimal('0')
-    sts = Settlement.objects.filter(
-        company=company, status=Settlement.Status.SETTLED)
-    if date_to:
-        sts = sts.filter(period_start__lte=date_to)
-    if date_from:
-        sts = sts.filter(period_end__gte=date_from)
-    for s in sts:
-        detail = s.wage_detail or {}
-        v = detail.get(str(uid), detail.get(uid))
-        if v is not None:
-            total += Decimal(str(v))
-    return q2(total)
-
-
-def _outstanding_wage(company, member, group_cache):
-    """非 process 成员（fixed/whole/commission）的未结工资。
-
-    口径：全历史工资 − 全历史已结快照（wage_detail），下限 0。这三类工资
-    基数不随结算单圈占消失（整件完成判定、组提成基数都依赖登记记录保持
-    未结算状态），只按"期间重叠扣减"无法防止跨期重复发薪，故统一按
-    全历史累计扣减；结算单的期间参数对非 process 用户只是快照时点。
-    返回 (compute_wage 结果, 未结金额)。
-    """
-    covered = _covered_amount(company, member.user_id, None, None)
-    w = compute_wage(company, member, None, timezone.localdate(), group_cache)
-    return w, max(w['amount'] - covered, Decimal('0'))
 
 
 class CompanySummaryView(CompanyContextMixin, APIView):
@@ -215,21 +191,10 @@ class EmployeeSalaryView(CompanyContextMixin, APIView):
             date_from, date_to = today.replace(day=1), _month_end(today)
 
         # 全历史已结/未结总额（与期间无关，供头部卡片）
+        # 口径收编 apps/salary/wage.py（2026-10-29）：process 走记录快照，
+        # 四类工资制走结算单快照累计 − 全历史扣减，两视图共用同一实现
         salary_type = target_uc.salary_type or UserCompany.SalaryType.PROCESS
-        if salary_type == UserCompany.SalaryType.PROCESS:
-            # 存量口径：登记记录快照（record.settlement 外键）——行为零变化
-            own = Record.objects.filter(company=self.company,
-                                        user_id=target_uc.user_id)
-            settled = q2(own.filter(settlement__isnull=False).aggregate(
-                total=Sum(F('qty') * F('price'), output_field=_DEC2))['total'])
-            unsettled = q2(own.filter(settlement__isnull=True).aggregate(
-                total=Sum(F('qty') * F('price'), output_field=_DEC2))['total'])
-        else:
-            # 四类工资制（fixed/whole/commission）：已结 = 结算单分员工快照
-            # 累计；未结 = 全历史工资 − 已结（下限 0），口径见 _outstanding_wage
-            settled = _covered_amount(self.company, target_uc.user_id,
-                                      None, None)
-            _, unsettled = _outstanding_wage(self.company, target_uc, {})
+        settled, unsettled = employee_settled_unsettled(self.company, target_uc)
         head = {'settled': str(settled), 'unsettled': str(unsettled),
                 'salary_type': salary_type,
                 'salary_type_display': target_uc.get_salary_type_display()}
@@ -375,17 +340,8 @@ class CompanyEmployeesView(CompanyContextMixin, APIView):
         if not date_from and not date_to:
             today = timezone.localdate()
             date_from, date_to = today.replace(day=1), _month_end(today)
-        # 全历史已结/未结（员工卡两栏，record.settlement 快照口径）
-        settled_map, unsettled_map = {}, {}
-        for flag in (False, True):
-            m = settled_map if flag else unsettled_map
-            for row in (Record.objects.filter(
-                    company=self.company,
-                    settlement__isnull=flag)
-                    .values('user')
-                    .annotate(amount=Sum(F('qty') * F('price'),
-                                         output_field=_DEC2))):
-                m[row['user']] = q2(row['amount'] or 0)
+        # 全历史已结/未结（员工卡两栏）：批量口径收编 wage.py（2026-10-29）
+        settled_map, unsettled_map = process_settled_unsettled_map(self.company)
         # 期间未结计件 + 完成工序数
         piece_map, process_map = {}, {}
         for row in (_record_period_qs(self.company, date_from, date_to,
@@ -422,30 +378,18 @@ class CompanyEmployeesView(CompanyContextMixin, APIView):
             company=self.company,
             status__in=[UserCompany.Status.ACTIVE, UserCompany.Status.RESIGNED],
             is_suspended=False).select_related('user', 'post'))
-        # 四类工资制（非 process 成员）：已结 = 结算单分员工快照累计；
-        # 全历史未结 = 全历史工资 − 已结（下限 0），口径见 _outstanding_wage
-        today = timezone.localdate()
-        settled_detail_map = {}
-        for s in Settlement.objects.filter(
-                company=self.company, status=Settlement.Status.SETTLED):
-            for k, v in (s.wage_detail or {}).items():
-                try:
-                    uid = int(k)
-                except (TypeError, ValueError):
-                    continue
-                settled_detail_map[uid] = (settled_detail_map.get(
-                    uid, Decimal('0')) + Decimal(str(v)))
         group_cache = {}
         for member in members:
             salary_type = member.salary_type or UserCompany.SalaryType.PROCESS
             if salary_type == UserCompany.SalaryType.PROCESS:
-                # 存量口径（行为零变化）：计件=期间未结登记额；已结/未结走记录快照
+                # 存量口径（行为零变化）：计件=期间未结登记额；已结/未结走批量快照 map
                 piece = compute_wage(self.company, member, date_from,
                                      date_to, group_cache)['amount']
                 fixed = whole = commission = Decimal('0')
                 unsettled = unsettled_map.get(member.user_id, Decimal('0'))
                 settled = settled_map.get(member.user_id, Decimal('0'))
             else:
+                # 四类工资制：已结/未结口径收编 wage.py（结算单快照累计 − 全历史扣减）
                 w = compute_wage(self.company, member, date_from, date_to,
                                  group_cache)
                 piece = Decimal('0')
@@ -456,11 +400,8 @@ class CompanyEmployeesView(CompanyContextMixin, APIView):
                 commission = (w['amount']
                               if salary_type == UserCompany.SalaryType.COMMISSION
                               else Decimal('0'))
-                settled = q2(settled_detail_map.get(member.user_id,
-                                                    Decimal('0')))
-                w_all = compute_wage(self.company, member, None, today,
-                                     group_cache)
-                unsettled = max(w_all['amount'] - settled, Decimal('0'))
+                settled, unsettled = employee_settled_unsettled(
+                    self.company, member, group_cache)
             rows.append({
                 'user_id': member.user_id,
                 'real_name': member.user.real_name,
@@ -622,6 +563,100 @@ class AdjustListCreateView(CompanyContextMixin, generics.ListCreateAPIView):
                        f'事由：{adjust.reason} 操作人：{self.request.user}'))
 
 
+class SalaryPaymentListCreateView(CompanyContextMixin, generics.ListCreateAPIView):
+    """实付工资：salary.view 看全公司，其余成员只看本人；POST 管理发放。"""
+    pagination_class = DefaultPagination
+    serializer_class = SalaryPaymentSerializer
+
+    def _check_manage(self):
+        if not (self.has_perm('salary.manage') or self.has_perm('salary.review')):
+            raise PermissionDenied('没有实付工资管理权限')
+
+    def get_queryset(self):
+        qs = SalaryPayment.objects.filter(company=self.company).select_related(
+            'employee', 'operator', 'voided_by').prefetch_related(
+            'allocations__settlement')
+        if self.has_perm('salary.view'):
+            uid = self.request.query_params.get('employee_id')
+            if uid:
+                qs = qs.filter(employee_id=uid)
+        else:
+            qs = qs.filter(employee=self.request.user)
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            if status_param not in SalaryPayment.Status.values:
+                raise ValidationError({'status': '支付状态不合法'})
+            qs = qs.filter(status=status_param)
+        date_from, date_to = _range(self.request)
+        if date_from:
+            qs = qs.filter(paid_at__date__gte=date_from)
+        if date_to:
+            qs = qs.filter(paid_at__date__lte=date_to)
+        return qs
+
+    def create(self, request, *args, **kwargs):
+        self._check_manage()
+        serializer = SalaryPaymentCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        employee = UserCompany.objects.select_related('user').filter(
+            company=self.company, user_id=data.pop('employee_id'),
+            status__in=[UserCompany.Status.ACTIVE, UserCompany.Status.RESIGNED]
+        ).first()
+        if employee is None:
+            raise ValidationError({'employee_id': '员工不属于当前公司'})
+        payment = create_salary_payment(
+            company=self.company, employee=employee.user,
+            operator=request.user, **data)
+        audit(self.company, AuditLog.Type.OTHER, operator=request.user,
+              target_user=payment.employee,
+              message=(f'实付工资：【员工：{payment.employee}】'
+                       f'【金额：{payment.amount}】【流水号：{payment.transaction_ref}】'
+                       f'操作人：{request.user}'))
+        return Response(SalaryPaymentSerializer(payment).data, status=201)
+
+
+class SalaryPaymentDetailView(CompanyContextMixin, APIView):
+    """实付详情只读，不提供 PATCH/DELETE；员工仅可看本人。"""
+    def get(self, request, pk):
+        payment = SalaryPayment.objects.filter(
+            company=self.company, pk=pk).select_related(
+            'employee', 'operator', 'voided_by').prefetch_related(
+            'allocations__settlement').first()
+        if payment is None:
+            raise Http404('支付记录不存在')
+        if payment.employee_id != request.user.id:
+            self.check_perm('salary.view')
+        return Response(SalaryPaymentSerializer(payment).data)
+
+
+class SalaryPaymentVoidView(CompanyContextMixin, APIView):
+    """POST 作废：保留事实与分摊，只让该支付不再抵扣结算余额。"""
+    def post(self, request, pk):
+        if not (self.has_perm('salary.manage') or self.has_perm('salary.review')):
+            raise PermissionDenied('没有实付工资管理权限')
+        serializer = SalaryPaymentVoidSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            payment = SalaryPayment.objects.select_for_update().filter(
+                company=self.company, pk=pk).first()
+            if payment is None:
+                raise Http404('支付记录不存在')
+            if payment.status == SalaryPayment.Status.VOID:
+                raise ValidationError('该支付已作废，不可重复作废')
+            payment.status = SalaryPayment.Status.VOID
+            payment.void_reason = serializer.validated_data['reason']
+            payment.voided_by = request.user
+            payment.voided_at = timezone.now()
+            payment.save(update_fields=['status', 'void_reason', 'voided_by',
+                                        'voided_at', 'updated_at'])
+        audit(self.company, AuditLog.Type.OTHER, operator=request.user,
+              target_user=payment.employee,
+              message=(f'作废实付工资#{payment.id}：【原因：{payment.void_reason}】'
+                       f'操作人：{request.user}'))
+        return Response(SalaryPaymentSerializer(payment).data)
+
+
 class SettlementListCreateView(CompanyContextMixin, generics.ListCreateAPIView):
     """结算单（salary/settlements）：GET 列表（管理员），POST 发起结算。"""
 
@@ -666,35 +701,39 @@ class SettlementListCreateView(CompanyContextMixin, generics.ListCreateAPIView):
         """
         if period_end < period_start:
             raise ValidationError({'period_end': '结束日期不能早于起始日期'})
-        members = UserCompany.objects.filter(
-            company=self.company, is_deleted=False,
-            status__in=[UserCompany.Status.ACTIVE, UserCompany.Status.RESIGNED],
-            is_suspended=False).select_related('user')
-        target = None
-        if user_id:
-            target = members.filter(
-                user_id=user_id, status=UserCompany.Status.ACTIVE).first()
-            if target is None:
-                raise ValidationError({'user_id': '员工不存在'})
-            members = [target]
-        group_cache = {}
-        wages = {}
-        for member in members:
-            if member.salary_type == UserCompany.SalaryType.PROCESS:
-                w = compute_wage(self.company, member, period_start,
-                                 period_end, group_cache)
-                amount = w['amount']
-            else:
-                w, amount = _outstanding_wage(self.company, member,
-                                              group_cache)
-            if amount > 0:
-                wages[member.user_id] = {**w, 'amount': amount}
-        if not wages:
-            raise ValidationError('该期间没有可结算的工资')
-        total = q2(sum(w['amount'] for w in wages.values()))
-        process_uids = [uid for uid, w in wages.items()
-                        if w['salary_type'] == UserCompany.SalaryType.PROCESS]
         with transaction.atomic():
+            # 工资读取、已结扣减和快照创建必须在同一成员锁内。固定/整件/提成
+            # 不靠 Record.settlement 圈占，没有此锁时两个请求会重复发同一笔工资。
+            members = (UserCompany.objects.select_for_update()
+                       .filter(company=self.company, is_deleted=False,
+                               status__in=[UserCompany.Status.ACTIVE,
+                                           UserCompany.Status.RESIGNED],
+                               is_suspended=False)
+                       .select_related('user').order_by('user_id'))
+            target = None
+            if user_id:
+                target = members.filter(
+                    user_id=user_id, status=UserCompany.Status.ACTIVE).first()
+                if target is None:
+                    raise ValidationError({'user_id': '员工不存在'})
+                members = [target]
+            group_cache = {}
+            wages = {}
+            for member in members:
+                if member.salary_type == UserCompany.SalaryType.PROCESS:
+                    w = compute_wage(self.company, member, period_start,
+                                     period_end, group_cache)
+                    amount = w['amount']
+                else:
+                    w, amount = _outstanding_wage(self.company, member,
+                                                  group_cache)
+                if amount > 0:
+                    wages[member.user_id] = {**w, 'amount': amount}
+            if not wages:
+                raise ValidationError('该期间没有可结算的工资')
+            total = q2(sum(w['amount'] for w in wages.values()))
+            process_uids = [uid for uid, w in wages.items()
+                            if w['salary_type'] == UserCompany.SalaryType.PROCESS]
             settlement = Settlement.objects.create(
                 company=self.company, user=target.user if target else None,
                 period_start=period_start, period_end=period_end,
@@ -702,8 +741,7 @@ class SettlementListCreateView(CompanyContextMixin, generics.ListCreateAPIView):
                 wage_detail={str(uid): str(w['amount'])
                              for uid, w in wages.items()},
                 created_by=self.request.user)
-            # process 员工登记条件圈占（settlement__isnull=True）：并发结算
-            # 同一期间只有一方抢到记录，另一方 claimed=0 → 抛错回滚刚建的结算单
+            # 条件圈占仍保留为数据库防线，防止登记与结算交错时重复归属。
             if process_uids:
                 lock_qs = _record_period_qs(
                     self.company, period_start, period_end,
@@ -744,6 +782,10 @@ class SettlementRevokeView(CompanyContextMixin, APIView):
             paid = paid.filter(user_id=settlement.user_id)
         if paid.exists():
             raise ValidationError('该期间工资已发放，不可撤销结算')
+        if settlement.payment_allocations.filter(
+                payment__status=SalaryPayment.Status.ACTIVE,
+                payment__is_deleted=False).exists():
+            raise ValidationError('该结算单已有有效实付，不可撤销；请先作废对应支付')
         records = Record.objects.filter(settlement=settlement)
         user_ids = list(records.values_list('user_id', flat=True).distinct())
         with transaction.atomic():
@@ -928,6 +970,10 @@ class SettleApplyPayView(SettleApplyActionView):
         if amount <= 0:
             raise ValidationError('该期间已无可结算的工资')
         with transaction.atomic():
+            apply = SettleApply.objects.select_for_update().select_related(
+                'applicant', 'user', 'company').get(pk=apply.pk)
+            if apply.status != SettleApply.Status.APPROVED:
+                raise ValidationError('仅待发放的申请可发放')
             settlement = Settlement.objects.create(
                 company=self.company, user=apply.user,
                 period_start=apply.period_start, period_end=apply.period_end,
@@ -950,6 +996,10 @@ class SettleApplyPayView(SettleApplyActionView):
             apply.payer = str(self.request.data.get('payer') or '')[:64]
             apply.save(update_fields=['status', 'paid_by', 'paid_at', 'payer',
                                       'updated_at'])
+            create_apply_payment(
+                apply, settlement, self.request.user,
+                method=str(self.request.data.get('method') or 'other')[:32],
+                note=str(self.request.data.get('note') or '')[:500])
         notify(self.company, [apply.user_id], 'settle_paid', '工资发放通知',
                f'您 {apply.period_start} ~ {apply.period_end} 期间的工资'
                f'已发放，金额：{amount} 元')
@@ -1104,3 +1154,97 @@ class SummaryCompletionView(CompanyContextMixin, APIView):
         response['employees'] = employee_rows
         response['tickets'] = tickets
         return Response(response)
+
+
+class SettlementPayslipView(CompanyContextMixin, APIView):
+    """薪资条（竞品对齐 GAP-4，2026-11-04）：GET salary/settlements/<pk>/payslip
+    逐员工薪资条数据（姓名/期间/金额/计件明细）；GET .../payslip/export 导出 xlsx
+    （每员工一区块：工序明细行 + 小计）。权限 salary.view。已撤销结算单可查（对账用）。
+    金额口径：员工金额以 wage_detail 快照为准（四类工资），无快照时回退登记明细合计；
+    明细仅含计件登记，与快照差额为计时/固定/调整等其他工资项。
+    """
+
+    EXPORT_HEADERS = ['员工', '工序', '数量', '金额', '备注']
+
+    def _get_settlement(self, pk):
+        s = Settlement.objects.filter(company=self.company, pk=pk).first()
+        if s is None:
+            raise Http404('结算单不存在')
+        return s
+
+    def _build(self, settlement):
+        """逐员工聚合：{user_id: {name, amount, items:[{process, qty, amount}]}}。"""
+        rows = (Record.objects.filter(company=self.company, settlement=settlement)
+                .values('user_id', 'process_id', 'process__name')
+                .annotate(total_qty=Sum('qty'),
+                          amount=Sum(F('qty') * F('price'),
+                                     output_field=DecimalField(max_digits=12, decimal_places=2))))
+        names = dict(UserCompany.objects.filter(
+            company=self.company, user_id__in={r['user_id'] for r in rows})
+            .values_list('user_id', 'user__real_name'))
+        employees = {}
+        for r in rows:
+            emp = employees.setdefault(r['user_id'], {
+                'user_id': r['user_id'], 'name': names.get(r['user_id'], ''),
+                'amount': Decimal('0'), 'items': []})
+            emp['items'].append({
+                'process': r['process__name'] or '',
+                'qty': r['total_qty'],
+                'amount': str(q2(r['amount'] or 0))})
+            emp['amount'] += (r['amount'] or 0)
+        # wage_detail 快照优先（四类工资口径）；纯计件无快照的单回退明细合计
+        snapshot = settlement.wage_detail or {}
+        for uid, emp in employees.items():
+            snap = snapshot.get(str(uid))
+            if snap is not None:
+                emp['snapshot_amount'] = str(q2(Decimal(str(snap))))
+                emp['amount'] = Decimal(str(snap))
+            else:
+                emp['snapshot_amount'] = None
+        for emp in employees.values():
+            emp['amount'] = str(q2(emp['amount']))
+            emp['items'].sort(key=lambda x: -float(x['amount']))
+        return sorted(employees.values(), key=lambda e: -float(e['amount']))
+
+    def get(self, request, pk):
+        self.check_perm('salary.view')
+        settlement = self._get_settlement(pk)
+        rows = self._build(settlement)
+        return Response({
+            'settlement': {
+                'id': settlement.pk,
+                'period_start': str(settlement.period_start),
+                'period_end': str(settlement.period_end),
+                'status': settlement.status,
+                'status_display': settlement.get_status_display(),
+                'employee_count': settlement.employee_count,
+                'amount': str(settlement.amount),
+                'created_at': timezone.localtime(settlement.created_at).strftime('%Y-%m-%d %H:%M'),
+            },
+            'rows': rows,
+            'total': str(q2(sum(Decimal(r['amount']) for r in rows))),
+        })
+
+    def _export_rows(self, rows):
+        out = []
+        for emp in rows:
+            for item in emp['items']:
+                out.append([emp['name'], item['process'], item['qty'], item['amount'],
+                            ''])
+            out.append([emp['name'], '小计', '',
+                        emp.get('snapshot_amount') or emp['amount'],
+                        '快照金额' if emp.get('snapshot_amount') else ''])
+        return out
+
+
+class SettlementPayslipExportView(SettlementPayslipView):
+    """GET salary/settlements/<pk>/payslip/export：xlsx 薪资条
+    （每员工工序明细 + 小计，20000 行上限）。"""
+
+    def get(self, request, pk):
+        self.check_perm('salary.view')
+        settlement = self._get_settlement(pk)
+        rows = self._build(settlement)
+        return xlsx_response(self.EXPORT_HEADERS,
+                             self._export_rows(rows)[:20000],
+                             filename=f'薪资条_{settlement.period_start}_{settlement.period_end}')

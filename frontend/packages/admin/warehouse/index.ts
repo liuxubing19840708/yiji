@@ -8,6 +8,7 @@
 import { requireLogin } from '../../../utils/auth';
 import { hasPerm } from '../../../utils/perm';
 import { fetchProductions } from '../../../services/production';
+import { fetchMaterials } from '../../../services/tech';
 import {
   fetchLots, fetchPurchaseOrders, createPurchaseOrder, confirmPurchaseOrder,
   fetchStockIns, createStockIn, confirmStockIn,
@@ -46,7 +47,15 @@ Page({
     productionIndex: -1,
     lots: [] as Array<{ id: number; label: string }>,
     lotIndex: -1,
-    qty: ''
+    qty: '',
+    // D19 单价单位：采购价/入库单价录入（物料缺省带出 price_unit，旁显换算后主单位价）
+    materials: [] as Array<{ id: number; label: string; unit: string;
+      price_unit: string; weight_gsm: string | null; width_cm: string | null }>,
+    materialIndex: -1,
+    price: '',
+    priceUnitLabels: ['按主单位', '元/公斤', '元/米'],
+    priceUnitIndex: 0,
+    priceHint: ''
   },
 
   onShow() {
@@ -86,6 +95,17 @@ Page({
   onToggleForm() {
     const opening = !this.data.showForm;
     this.setData({ showForm: opening });
+    if (opening && this.data.tab !== 'issue' && !this.data.materials.length) {
+      // D19：采购/入库表单需要物料选择器（单价单位缺省取 material.price_unit）
+      fetchMaterials({ page_size: 100 }).then((res) => {
+        this.setData({
+          materials: (res.results || []).map((m) => ({
+            id: m.id, label: `${m.code} ${m.name}`, unit: m.unit,
+            price_unit: m.price_unit || '', weight_gsm: m.weight_gsm, width_cm: m.width_cm
+          }))
+        });
+      }).catch(() => { /* toast 已由请求层弹出 */ });
+    }
     if (opening && this.data.tab === 'issue') {
       // 领料表单需要床次与批次选择器
       if (!this.data.productions.length) {
@@ -117,6 +137,49 @@ Page({
     this.setData({ orderedDate: String(e.detail.value) });
   },
 
+  onPickMaterial(e: WechatMiniprogram.PickerChange) {
+    const idx = Number(e.detail.value);
+    const m = this.data.materials[idx];
+    // 缺省单价单位取物料档案 price_unit（D19），换算提示随动
+    this.setData({
+      materialIndex: idx,
+      priceUnitIndex: m && m.price_unit === 'kg' ? 1 : m && m.price_unit === 'm' ? 2 : 0
+    }, () => this.computePriceHint());
+  },
+
+  onPrice(e: WechatMiniprogram.Input) {
+    this.setData({ price: e.detail.value }, () => this.computePriceHint());
+  },
+
+  onPickPriceUnit(e: WechatMiniprogram.PickerChange) {
+    this.setData({ priceUnitIndex: Number(e.detail.value) }, () => this.computePriceHint());
+  },
+
+  /** 换算后主单位价小字（kg↔m = 克重×幅宽折算，与后端 convert_price_to_main_unit 同式） */
+  computePriceHint() {
+    const m = this.data.materials[this.data.materialIndex];
+    const price = Number(this.data.price);
+    const pu = ['', 'kg', 'm'][this.data.priceUnitIndex];
+    if (!m || !this.data.price.trim() || !Number.isFinite(price)) {
+      this.setData({ priceHint: '' });
+      return;
+    }
+    const u = (m.unit || '').trim();
+    const isKg = (x: string) => ['kg', '公斤', '千克'].indexOf(x) >= 0;
+    const isM = (x: string) => ['m', '米'].indexOf(x) >= 0;
+    if ((pu === 'kg' && isM(u)) || (pu === 'm' && isKg(u))) {
+      const perM = (Number(m.weight_gsm) * Number(m.width_cm)) / 100000;
+      if (!perM) {
+        this.setData({ priceHint: '该物料缺克重/幅宽，无法换算单价' });
+        return;
+      }
+      const v = pu === 'kg' ? price * perM : price / perM;
+      this.setData({ priceHint: `折算主单位价 ≈ ${v.toFixed(3)} 元/${u}` });
+      return;
+    }
+    this.setData({ priceHint: `按主单位（元/${u || '-'}），无需换算` });
+  },
+
   onPickProduction(e: WechatMiniprogram.PickerChange) {
     this.setData({ productionIndex: Number(e.detail.value) });
   },
@@ -141,7 +204,8 @@ Page({
       wx.showToast({ title: msg, icon: 'success' });
       this.setData({
         saving: false, showForm: false, fabric: '', color: '', lotNo: '', qty: '',
-        supplier: '', productionIndex: -1, lotIndex: -1
+        supplier: '', productionIndex: -1, lotIndex: -1,
+        materialIndex: -1, price: '', priceUnitIndex: 0, priceHint: ''
       });
       this.reload();
     };
@@ -153,7 +217,13 @@ Page({
       createPurchaseOrder({
         supplier_name: this.data.supplier.trim(),
         ordered_at: orderedDate,
-        items: [{ fabric_name: fabric, color: this.data.color.trim(), qty: qty || '0' }]
+        items: [{
+          fabric_name: fabric, color: this.data.color.trim(), qty: qty || '0',
+          ...(this.data.materialIndex >= 0
+            ? { material_id: this.data.materials[this.data.materialIndex].id } : {}),
+          ...(this.data.price.trim()
+            ? { price: this.data.price, price_unit: ['', 'kg', 'm'][this.data.priceUnitIndex] } : {})
+        }]
       }).then(() => finish('采购单已保存')).catch(fail);
     } else if (tab === 'stockin') {
       const lotNo = this.data.lotNo.trim();
@@ -164,7 +234,13 @@ Page({
       }
       createStockIn({
         source_type: 'purchase',
-        items: [{ fabric_name: fabric, color: this.data.color.trim(), lot_no: lotNo, qty: qty || '0' }]
+        items: [{
+          fabric_name: fabric, color: this.data.color.trim(), lot_no: lotNo, qty: qty || '0',
+          ...(this.data.materialIndex >= 0
+            ? { material_id: this.data.materials[this.data.materialIndex].id } : {}),
+          ...(this.data.price.trim()
+            ? { unit_price: this.data.price, price_unit: ['', 'kg', 'm'][this.data.priceUnitIndex] } : {})
+        }]
       }).then(() => finish('入库成功，批次已生成')).catch(fail);
     } else {
       const p = this.data.productions[this.data.productionIndex];

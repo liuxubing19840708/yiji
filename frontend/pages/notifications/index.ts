@@ -1,6 +1,6 @@
 /**
  * 消息通知（规格 §16.1）：站内信列表，未读加粗+红点，点击标记已读，全部已读。
- * onShow 同步未读数到自定义 tabBar（setUnread）并 setSelected(3)。
+ * onShow 同步未读数到自定义 tabBar（setUnread）并 setSelected(2)。
  * 订阅消息（wx.requestSubscribeMessage）引导在「我的」页，模板 id 见 profile 页 TODO。
  */
 import { requireLogin } from '../../utils/auth';
@@ -17,6 +17,7 @@ interface NotificationView {
   is_read: boolean;
   created_at: string;
   timeText: string;
+  linkText: string;
 }
 
 const PAGE_SIZE = 20;
@@ -50,7 +51,7 @@ Page({
     if (!requireLogin()) return;
     const tab = (this.getTabBar() as unknown) as TabBarLike | undefined;
     if (tab && tab.setSelected) {
-      tab.setSelected(3);
+      tab.setSelected(2);
     }
     if (!this.data.items.length && !this.data.error) {
       this.reload();
@@ -72,7 +73,7 @@ Page({
 
   reload() {
     this.setData({ page: 1 });
-    this.fetchPage(true);
+    return Promise.all([this.fetchPage(true), this.syncUnread()]);
   },
 
   fetchPage(reset: boolean): Promise<unknown> {
@@ -83,7 +84,8 @@ Page({
         const rows: NotificationView[] = res.results.map((it) => ({
           ...it,
           is_read: !!it.is_read,
-          timeText: fmtDateTime(it.created_at)
+          timeText: fmtDateTime(it.created_at),
+          linkText: it.code === 'handover_timeout' ? '前往交接中心 ›' : ''
         }));
         this.setData({
           items: reset ? rows : items.concat(rows),
@@ -123,11 +125,15 @@ Page({
     this.reload();
   },
 
-  /** 点击通知：未读 → 标记已读 */
+  /** 点击通知：交接超时进入交接中心；未读同时标记已读。 */
   onItemTap(e: WechatMiniprogram.TouchEvent) {
     const index = e.currentTarget.dataset.index as number;
     const item = this.data.items[index];
-    if (!item || item.is_read) return;
+    if (!item) return;
+    if (item.code === 'handover_timeout') {
+      wx.navigateTo({ url: '/packages/admin/handovers/index/index' });
+    }
+    if (item.is_read) return;
     markNotificationRead(item.id)
       .then(() => {
         this.setData({

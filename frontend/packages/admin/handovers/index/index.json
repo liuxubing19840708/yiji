@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "交接管理",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index"
+  }
+}

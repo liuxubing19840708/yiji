@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "全流程生产",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index"
+  }
+}

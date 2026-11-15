@@ -1,0 +1,118 @@
+<view class="page">
+  <view wx:if="{{denied}}" class="state text-3">暂无财务查看权限，请联系管理员开通</view>
+  <block wx:else>
+    <scroll-view scroll-x class="tabs" enhanced show-scrollbar="{{false}}">
+      <view class="tab-row">
+        <view wx:for="{{visibleTabs}}" wx:key="key" class="tab {{tab === item.key ? 'tab-on' : ''}}"
+          data-key="{{item.key}}" bindtap="onTab">{{item.label}}</view>
+      </view>
+    </scroll-view>
+
+    <view wx:if="{{tab === 'cashflow'}}" class="card">
+      <view class="range-row">
+        <picker mode="date" value="{{dateFrom}}" data-field="dateFrom" bindchange="onDate"><view class="picker-box">{{dateFrom}}</view></picker>
+        <text>至</text>
+        <picker mode="date" value="{{dateTo}}" data-field="dateTo" bindchange="onDate"><view class="picker-box">{{dateTo}}</view></picker>
+        <view class="query-btn" bindtap="reload">查询</view>
+      </view>
+      <view class="chip-row">
+        <view class="chip {{groupBy === 'month' ? 'chip-on' : ''}}" data-key="month" bindtap="onGroup">按月</view>
+        <view class="chip {{groupBy === 'day' ? 'chip-on' : ''}}" data-key="day" bindtap="onGroup">按日</view>
+      </view>
+      <view wx:if="{{flowTotals}}" class="totals">
+        <view><text class="total-num income">¥{{flowTotals.income}}</text><text class="text-3">流入合计</text></view>
+        <view><text class="total-num">¥{{flowTotals.outflow}}</text><text class="text-3">流出（负数）</text></view>
+        <view><text class="total-num {{flowTotals.net < 0 ? 'danger' : ''}}">¥{{flowTotals.net}}</text><text class="text-3">净现金流</text></view>
+      </view>
+    </view>
+
+    <view wx:elif="{{canManage}}" class="toolbar">
+      <view class="primary-btn" data-kind="{{tab}}" bindtap="openForm">＋ {{tab === 'payables' ? '新建应付' : tab === 'payments' ? '登记付款' : '登记收支'}}</view>
+    </view>
+
+    <view wx:if="{{loading && !rows.length && !flowRows.length}}" class="state text-3">加载中…</view>
+    <view wx:elif="{{error}}" class="state"><view class="text-3">加载失败，请重试</view><button class="btn btn-ghost" bindtap="reload">重新加载</button></view>
+
+    <block wx:elif="{{tab === 'payables'}}">
+      <empty-state wx:if="{{loaded && !rows.length}}" text="暂无采购应付" />
+      <view wx:for="{{rows}}" wx:key="id" class="card record-card">
+        <view class="row"><view class="grow"><view class="title">{{item.payable_no}}</view><view class="text-3">{{item.supplier_name || '—'}} · {{item.payable_at}}</view></view><view class="badge">{{item.status_display}}</view></view>
+        <view class="money-row"><text>应付 ¥{{item.amount}}</text><text>已付 ¥{{item.paid_amount}}</text><text class="danger">未付 ¥{{item.outstanding}}</text></view>
+        <view class="text-3" wx:if="{{item.due_at}}">到期日：{{item.due_at}}</view>
+        <view class="text-3" wx:if="{{item.remark}}">备注：{{item.remark}}</view>
+        <view wx:if="{{canManage}}" class="action danger" data-id="{{item.id}}" bindtap="voidPayable">作废应付</view>
+      </view>
+    </block>
+
+    <block wx:elif="{{tab === 'payments'}}">
+      <empty-state wx:if="{{loaded && !rows.length}}" text="暂无供应商付款" />
+      <view wx:for="{{rows}}" wx:key="id" class="card record-card">
+        <view class="row"><view class="grow"><view class="title">¥{{item.amount}}</view><view class="text-3">{{item.supplier_name || '—'}}{{item.payable_no ? ' · ' + item.payable_no : ' · 独立付款'}}</view></view><view class="badge {{item.status !== 'active' ? 'badge-void' : ''}}">{{item.status_display}}</view></view>
+        <view class="text-3">{{item.paid_at}} · {{item.method}}{{item.transaction_ref ? ' · ' + item.transaction_ref : ''}}</view>
+        <view class="text-3" wx:if="{{item.remark}}">备注：{{item.remark}}</view>
+        <view class="text-3 danger" wx:if="{{item.void_reason}}">作废原因：{{item.void_reason}}</view>
+        <view wx:if="{{canManage && item.status === 'active'}}" class="action danger" data-id="{{item.id}}" data-kind="payment" bindtap="voidWithReason">作废付款</view>
+      </view>
+    </block>
+
+    <block wx:elif="{{tab === 'entries'}}">
+      <empty-state wx:if="{{loaded && !rows.length}}" text="暂无其他收支" />
+      <view wx:for="{{rows}}" wx:key="id" class="card record-card">
+        <view class="row"><view class="grow"><view class="title {{item.direction === 'income' ? 'income' : ''}}">{{item.direction === 'income' ? '+' : '-'}}¥{{item.amount}}</view><view class="text-3">{{item.entry_no}} · {{item.category}}</view></view><view class="badge {{item.status !== 'active' ? 'badge-void' : ''}}">{{item.status_display}}</view></view>
+        <view class="text-3">{{item.direction_display}} · {{item.occurred_at}}{{item.counterparty ? ' · ' + item.counterparty : ''}}</view>
+        <view class="text-3" wx:if="{{item.remark}}">备注：{{item.remark}}</view>
+        <view class="text-3 danger" wx:if="{{item.void_reason}}">作废原因：{{item.void_reason}}</view>
+        <view wx:if="{{canManage && item.status === 'active'}}" class="action danger" data-id="{{item.id}}" data-kind="entry" bindtap="voidWithReason">作废记录</view>
+      </view>
+    </block>
+
+    <block wx:else>
+      <empty-state wx:if="{{loaded && !flowRows.length}}" text="该期间暂无有效现金流" />
+      <view wx:for="{{flowRows}}" wx:key="period" class="card flow-card">
+        <view class="title">{{item.period}}</view>
+        <view class="money-row"><text>流入 ¥{{item.income}}</text><text>流出 ¥{{item.outflow}}</text><text>净额 ¥{{item.net}}</text></view>
+        <view class="flow-detail text-3">客户回款 {{item.customer_receipts}} · 其他收入 {{item.other_income}}</view>
+        <view class="flow-detail text-3">实付工资 {{item.salary_payments}} · 供应商付款 {{item.supplier_payments}} · 费用 {{item.expenses}}</view>
+      </view>
+      <view class="note text-3" wx:if="{{flowNote}}">{{flowNote}}</view>
+    </block>
+    <view wx:if="{{loading && rows.length}}" class="state-small text-3">加载中…</view>
+    <view wx:elif="{{hasMore}}" class="state-small text-3">上拉加载更多</view>
+  </block>
+
+  <view class="mask" wx:if="{{modal}}" bindtap="closeForm">
+    <view class="sheet" catchtap="noop">
+      <view class="row sheet-head"><view class="h2">{{modal === 'payables' ? '新建采购应付' : modal === 'payments' ? '登记供应商付款' : '登记其他收支'}}</view><view class="text-3" bindtap="closeForm">关闭</view></view>
+      <scroll-view scroll-y class="form-scroll">
+        <block wx:if="{{modal === 'payables'}}">
+          <picker mode="selector" range="{{supplierNames}}" value="{{supplierIndex}}" bindchange="onSupplier"><view class="picker-box">{{supplierNames[supplierIndex]}} ▾</view></picker>
+          <input wx:if="{{supplierIndex === 0}}" class="input" placeholder="或填写供应商名称" value="{{supplierName}}" data-field="supplierName" bindinput="onInput" />
+          <input class="input" type="digit" placeholder="应付金额（>0）" value="{{amount}}" data-field="amount" bindinput="onInput" />
+          <view class="form-label">应付日期</view><picker mode="date" value="{{payableAt}}" data-field="payableAt" bindchange="onDate"><view class="picker-box">{{payableAt}}</view></picker>
+          <view class="form-label">到期日期（选填）</view><picker mode="date" value="{{dueAt || payableAt}}" data-field="dueAt" bindchange="onDate"><view class="picker-box">{{dueAt || '选择到期日期'}}</view></picker>
+        </block>
+        <block wx:elif="{{modal === 'payments'}}">
+          <picker mode="selector" range="{{payableNames}}" value="{{payableIndex}}" bindchange="onPayable"><view class="picker-box">{{payableNames[payableIndex]}} ▾</view></picker>
+          <block wx:if="{{payableIndex === 0}}"><picker mode="selector" range="{{supplierNames}}" value="{{supplierIndex}}" bindchange="onSupplier"><view class="picker-box">{{supplierNames[supplierIndex]}} ▾</view></picker><input wx:if="{{supplierIndex === 0}}" class="input" placeholder="或填写供应商名称" value="{{supplierName}}" data-field="supplierName" bindinput="onInput" /></block>
+          <input class="input" type="digit" placeholder="付款金额（不得超过未付余额）" value="{{amount}}" data-field="amount" bindinput="onInput" />
+          <picker mode="selector" range="{{methodNames}}" value="{{methodIndex}}" bindchange="onMethod"><view class="picker-box">支付方式：{{methodNames[methodIndex]}} ▾</view></picker>
+          <view class="form-label">实际付款时间</view><view class="datetime-row"><picker mode="date" value="{{paidAt}}" data-field="paidAt" bindchange="onDate"><view class="picker-box">{{paidAt}}</view></picker><picker mode="time" value="{{paidTime}}" data-field="paidTime" bindchange="onTime"><view class="picker-box">{{paidTime || '00:00'}}</view></picker></view>
+          <input class="input" placeholder="外部流水号（选填）" value="{{transactionRef}}" data-field="transactionRef" bindinput="onInput" />
+        </block>
+        <block wx:else>
+          <view class="chip-row"><view class="chip {{direction === 'expense' ? 'chip-on' : ''}}" data-key="expense" bindtap="onDirection">费用支出</view><view class="chip {{direction === 'income' ? 'chip-on' : ''}}" data-key="income" bindtap="onDirection">其他收入</view></view>
+          <input class="input" placeholder="分类，如房租、水电、利息（必填）" value="{{category}}" data-field="category" bindinput="onInput" />
+          <input class="input" type="digit" placeholder="实际金额（>0）" value="{{amount}}" data-field="amount" bindinput="onInput" />
+          <view class="form-label">实际业务时间</view><view class="datetime-row"><picker mode="date" value="{{occurredAt}}" data-field="occurredAt" bindchange="onDate"><view class="picker-box">{{occurredAt}}</view></picker><picker mode="time" value="{{occurredTime}}" data-field="occurredTime" bindchange="onTime"><view class="picker-box">{{occurredTime || '00:00'}}</view></picker></view>
+          <picker mode="selector" range="{{methodNames}}" value="{{methodIndex}}" bindchange="onMethod"><view class="picker-box">收付方式：{{methodNames[methodIndex]}} ▾</view></picker>
+          <input class="input" placeholder="往来单位/个人（选填）" value="{{counterparty}}" data-field="counterparty" bindinput="onInput" />
+          <input class="input" placeholder="外部单号（选填）" value="{{referenceNo}}" data-field="referenceNo" bindinput="onInput" />
+        </block>
+        <textarea class="textarea" placeholder="备注（选填）" value="{{remark}}" data-field="remark" bindinput="onInput" />
+        <button wx:if="{{modal === 'payables'}}" class="btn btn-primary" loading="{{saving}}" bindtap="savePayable">保存应付</button>
+        <button wx:elif="{{modal === 'payments'}}" class="btn btn-primary" loading="{{saving}}" bindtap="savePayment">确认付款</button>
+        <button wx:else class="btn btn-primary" loading="{{saving}}" bindtap="saveEntry">保存收支</button>
+      </scroll-view>
+    </view>
+  </view>
+</view>

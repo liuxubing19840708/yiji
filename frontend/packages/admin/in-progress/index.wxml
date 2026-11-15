@@ -1,23 +1,11 @@
-<!-- 工作中：进行中床次 + 本人今日登记（规格 §9.3） -->
+<!-- 我的登记：本人今日登记与撤销 -->
 <view class="page">
 
-  <!-- 进行中床次 -->
-  <view class="card">
-    <view class="h2">进行中床次</view>
-
-    <view wx:if="{{loading}}" class="state-tip">加载中…</view>
-
-    <block wx:elif="{{loadError}}">
-      <view class="state-tip text-danger">加载失败</view>
-      <button class="btn btn-plain retry-btn" bindtap="onRetry">重试</button>
-    </block>
-
-    <empty-state wx:elif="{{!beds.length}}" text="暂无进行中的床次" sub="裁完或锁定的床次不在此列" />
-
-    <!-- P3B beds 合并：渲染收敛到共用组件 components/bed-progress（与看板大屏同形状；
-         保持原有全部字段：床次号/款号/款名/进度条/已登记件数/完工扎数；工作台卡片不可点） -->
-    <bed-progress wx:elif="{{beds.length}}" beds="{{beds}}" />
-  </view>
+  <!-- 加载错误提示 -->
+  <block wx:if="{{loadError}}">
+    <view class="state-tip text-danger">数据加载失败</view>
+    <button class="btn btn-plain retry-btn" bindtap="onRetry">重试</button>
+  </block>
 
   <!-- 本人今日登记 -->
   <view class="card">
@@ -25,7 +13,7 @@
 
     <view wx:if="{{loading}}" class="state-tip">加载中…</view>
 
-    <empty-state wx:elif="{{!records.length}}" text="今日暂无登记记录" sub="去首页扫菲开始今天的活儿" />
+    <empty-state wx:elif="{{!loadError && !records.length}}" text="今日暂无登记记录" sub="去底部「扫菲」开始今天的活儿" />
 
     <view wx:else class="rec-list">
       <view wx:for="{{records}}" wx:key="id" class="rec-item">

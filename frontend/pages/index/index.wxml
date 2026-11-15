@@ -21,7 +21,15 @@
     bind:change="onRangeChange"
   />
 
-  <module-grid modules="{{modules}}" />
+  <!-- 管理员：按衣协同骨架分组（订单生产→车间计件→薪资对账→供应链→经营报表→协同档案→系统） -->
+  <block wx:if="{{isAdmin}}">
+    <view wx:for="{{groups}}" wx:key="title" wx:for-item="g" class="module-group">
+      <view class="group-title">{{g.title}}</view>
+      <module-grid modules="{{g.modules}}" />
+    </view>
+  </block>
+  <!-- 员工：单组不落标题 -->
+  <module-grid wx:else modules="{{modules}}" />
 
   <view class="text-3 copyright">衣计 · 计件生产管理</view>
 </view>

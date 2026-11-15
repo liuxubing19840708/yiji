@@ -98,8 +98,9 @@ export function fetchDashboard(
 
 // ================= 维度查看（2026-10-23 用户需求：按订单/裁床/部门/组/人） =================
 
-/** 看板维度 key（style=按款式走模板渲染接口，其余走 /dashboard/dim） */
-export type DashboardDim = 'style' | 'order' | 'bed' | 'post' | 'group' | 'user';
+/** 看板维度 key（style=按款式走模板渲染接口，其余走 /dashboard/dim；
+ *  process=按工序聚合（竞品对齐 GAP-8，2026-11-04），key_only 只看关键工序） */
+export type DashboardDim = 'style' | 'order' | 'bed' | 'post' | 'group' | 'user' | 'process';
 
 /** 维度表列定义（width=rpx 建议列宽，前端横向滚动渲染） */
 export interface DashboardDimColumn {
@@ -123,16 +124,17 @@ export interface DashboardDimResp {
   rows: DashboardDimRow[];
 }
 
-/** 维度查看：range/自定义区间与 fetchDashboard 同口径 */
+/** 维度查看：range/自定义区间与 fetchDashboard 同口径；dim=process 支持 keyOnly（关键工序聚焦） */
 export function fetchDashboardDim(
   dim: Exclude<DashboardDim, 'style'>,
   range: DashboardRange,
-  opts?: { start?: string; end?: string }
+  opts?: { start?: string; end?: string; keyOnly?: boolean }
 ): Promise<DashboardDimResp> {
   const params: Record<string, string> = { dim, range };
   if (range === 'custom' && opts) {
     if (opts.start) params.start_date = opts.start;
     if (opts.end) params.end_date = opts.end;
   }
+  if (dim === 'process' && opts?.keyOnly) params.key_only = '1';
   return http.get<DashboardDimResp>('/dashboard/dim', params);
 }

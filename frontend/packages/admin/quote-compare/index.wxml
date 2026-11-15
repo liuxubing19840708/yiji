@@ -1,0 +1,78 @@
+<view class="page">
+  <view wx:if="{{denied}}" class="state">
+    <view class="text-3">暂无「报价查看」权限，请联系管理员开通</view>
+  </view>
+
+  <view wx:elif="{{loading}}" class="state text-3">加载中…</view>
+  <view wx:elif="{{error}}" class="state">
+    <view class="text-3">加载失败，请重试</view>
+    <button class="btn btn-ghost state-btn" bindtap="load">重新加载</button>
+  </view>
+
+  <block wx:elif="{{rep}}">
+    <!-- 软提醒横幅（D3：只提醒不拦截） -->
+    <view class="soft-banner" wx:if="{{rep.message}}">ℹ {{rep.message}}</view>
+
+    <!-- 报价头 -->
+    <view class="card">
+      <view class="item-title">{{rep.quotation.quote_no}}</view>
+      <view class="text-3 head-line">
+        {{rep.quotation.quote_date}} · 数量 {{rep.quotation.qty}} · 报价总价 {{rep.quotation.total_price}}
+        <text wx:if="{{rep.quotation.profit_rate !== null}}"> · 毛利率 {{rep.quotation.profit_rate}}%</text>
+      </view>
+      <view class="text-3 head-line" wx:if="{{rep.order}}">关联订单 {{rep.order.order_no}}（{{rep.order.status}}）</view>
+    </view>
+
+    <!-- 假设 vs 实际 并排 -->
+    <view class="card">
+      <view class="row"><view class="h2">报价假设 vs 实际</view><view class="spacer"></view>
+        <view class="text-3">金额单位：元</view></view>
+
+      <!-- 假设侧（恒有） -->
+      <view class="sec-title text-3">报价假设（cost_assumed 口径：工价人工=base 不加倍率，附加费按过手成本）</view>
+      <view class="row cols">
+        <view class="col"><view class="col-num num">{{rep.assumed.material}}</view><view class="text-3">材料</view></view>
+        <view class="col"><view class="col-num num">{{rep.assumed.labor_base}}</view><view class="text-3">人工(工价)</view></view>
+        <view class="col"><view class="col-num num">{{rep.assumed.addon_amount}}</view><view class="text-3">附加费</view></view>
+        <view class="col"><view class="col-num num">{{rep.assumed.cost_assumed}}</view><view class="text-3">假设成本</view></view>
+      </view>
+      <view class="text-3 head-line">人工行口径：倍率 {{rep.assumed.rate}} · 小单溢价 {{rep.assumed.small_lot_addon}}% → 报价人工 {{rep.assumed.labor_total}}（与假设成本差值属利润空间口径）</view>
+
+      <!-- 实际侧（有 OrderCost 才有） -->
+      <block wx:if="{{!actualMissing}}">
+        <view class="sec-title text-3">实际（OrderCost{{rep.actual.is_stale ? ' · 数据待更新' : ''}}）</view>
+        <view class="row cols">
+          <view class="col"><view class="col-num num">{{rep.actual.material_cost}}</view><view class="text-3">材料</view></view>
+          <view class="col"><view class="col-num num">{{rep.actual.labor_cost}}</view><view class="text-3">人工</view></view>
+          <view class="col"><view class="col-num num">{{rep.actual.outsourcing_cost}}</view><view class="text-3">外发</view></view>
+          <view class="col"><view class="col-num num">{{rep.actual.overhead_cost}}</view><view class="text-3">制费</view></view>
+        </view>
+        <view class="row cols">
+          <view class="col"><view class="col-num num">{{rep.actual.total_cost}}</view><view class="text-3">总成本</view></view>
+          <view class="col"><view class="col-num num">{{rep.actual.revenue}}</view><view class="text-3">理论收入</view></view>
+          <view class="col"><view class="col-num num text-3">{{rep.actual.computed_at || '—'}}</view><view class="text-3">计算时间</view></view>
+        </view>
+
+        <!-- 逐项 diff（实际−假设） -->
+        <view class="sec-title text-3">逐项差异（实际 − 假设）</view>
+        <view class="diff-head row">
+          <view class="diff-cell text-3">项目</view>
+          <view class="diff-cell text-3">假设</view>
+          <view class="diff-cell text-3">实际</view>
+          <view class="diff-cell text-3">差额</view>
+          <view class="diff-cell text-3">差异率</view>
+        </view>
+        <view class="diff-row row" wx:for="{{diffRows}}" wx:key="label">
+          <view class="diff-cell">{{item.label}}</view>
+          <view class="diff-cell num">{{item.assumed}}</view>
+          <view class="diff-cell num">{{item.actual}}</view>
+          <view class="diff-cell num {{item.dir === 'up' ? 'text-danger' : item.dir === 'down' ? 'text-primary' : ''}}">{{item.diff}}</view>
+          <view class="diff-cell num {{item.dir === 'up' ? 'text-danger' : item.dir === 'down' ? 'text-primary' : ''}}">{{item.diffRate}}</view>
+        </view>
+        <view class="text-3 head-line">正差额=实际高于假设（红），负=低于（蓝）；假设为 0 的项差异率显「—」。</view>
+      </block>
+      <empty-state wx:else text="暂无实际成本"
+        sub="订单重算成本后（成本管理页「重算」）回来看对比" />
+    </view>
+  </block>
+</view>

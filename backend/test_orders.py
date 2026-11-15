@@ -105,6 +105,8 @@ def preclean(company):
     Record.objects.filter(company=company).delete()
     Ticket.objects.filter(company=company, bed_no__startswith='TORD').delete()
     Production.objects.filter(company=company, bed_no__startswith='TORD').delete()
+    from apps.tech.models import Bom  # noqa: E402  # D4 套件建了生效BOM，PROTECT 须先于款式删除
+    Bom.all_objects.filter(company=company).delete()
     Style.objects.filter(company=company, style_no__startswith='TORD').delete()
     Customer.objects.filter(company=company, customer_no__startswith='TORD').delete()
     AuditLog.objects.filter(company=company).delete()
@@ -145,6 +147,12 @@ T_LEGACY = login(H_LEGACY)
 # 最小业务档案：款式 / 固定工序 / 客户
 style = Style.objects.create(company=company, style_no='TORD-S1', name='订单测试款')
 style_b = Style.objects.create(company=company_b, style_no='TORD-S1B', name='B厂测试款')
+# D4 开裁缺 BOM 拦截（2026-10-24）：建床需款式有 active BOM，测试款补齐
+from apps.tech.models import Bom  # noqa: E402
+if not Bom.all_objects.filter(company=company, style=style).exists():
+    Bom.objects.create(company=company, style=style, version=1, status=Bom.Status.ACTIVE)
+if not Bom.all_objects.filter(company=company_b, style=style_b).exists():
+    Bom.objects.create(company=company_b, style=style_b, version=1, status=Bom.Status.ACTIVE)
 proc = Process.objects.filter(company=company, is_fixed=True).first() \
     or Process.objects.create(company=company, name='整件', is_fixed=True)
 cust = Customer.objects.create(company=company, customer_no='TORD-C1', name='订单测试客户')

@@ -10,7 +10,20 @@ import {
   CompletionEmployeeRow, SalaryEmployeeCard
 } from '../../../services/salary';
 import { fetchCustomers } from '../../../services/catalog';
+import {
+  fetchDashboardDim, DashboardDim, DashboardDimColumn, DashboardDimRow
+} from '../../../services/dashboard';
+import { buildCsv, shareCsvFile } from '../../../utils/csv';
 import { CompletionSummary } from '../../../services/types';
+
+/** 维度汇总 tab（与看板 dim 同源 /dashboard/dim；订单/裁床行可下钻） */
+const DIM_TABS = [
+  { key: 'order', label: '订单' },
+  { key: 'bed', label: '裁床' },
+  { key: 'post', label: '部门' },
+  { key: 'group', label: '组' },
+  { key: 'user', label: '人' }
+] as Array<{ key: Exclude<DashboardDim, 'style'>; label: string }>;
 
 interface StyleVM {
   styleId: number;
@@ -56,6 +69,14 @@ Page({
     quick: '',
     loading: true,
     error: '',
+    // 视图切换（2026-10-29 与看板维度查看合并）：style=三层钻取 / dim=维度汇总
+    view: 'style' as 'style' | 'dim',
+    dimTabs: DIM_TABS,
+    dim: 'order' as Exclude<DashboardDim, 'style'>,
+    dimCols: [] as DashboardDimColumn[],
+    dimRows: [] as DashboardDimRow[],
+    dimLoading: false,
+    dimError: false,
     // 筛选
     userOptions: [] as FilterOption[],
     userIndex: 0,
@@ -88,7 +109,9 @@ Page({
   },
 
   onPullDownRefresh() {
-    Promise.all([this.load(), this.loadFilters()])
+    const jobs: Array<Promise<void>> = [this.load(), this.loadFilters()];
+    if (this.data.view === 'dim') jobs.push(this.loadDimView());
+    Promise.all(jobs)
       .then(() => wx.stopPullDownRefresh())
       .catch(() => wx.stopPullDownRefresh());
   },
@@ -202,6 +225,74 @@ Page({
   onRangeChange(e: WechatMiniprogram.CustomEvent<{ start: string; end: string; quick: string }>) {
     this.setData({ start: e.detail.start, end: e.detail.end, quick: e.detail.quick });
     this.load();
+    // 维度视图随日期联动刷新
+    if (this.data.view === 'dim') this.loadDimView();
+  },
+
+  // ============================================================
+  // 维度汇总视图（2026-10-29 合并看板「维度查看」：/dashboard/dim 同源）
+  // ============================================================
+
+  /** 视图切换：款式钻取=三层钻取；维度汇总=按订单/裁床/部门/组/人聚合 */
+  onViewTap(e: WechatMiniprogram.TouchEvent) {
+    const key = String(e.currentTarget.dataset.key || 'style');
+    if (key === this.data.view) return;
+    this.setData({ view: key === 'dim' ? 'dim' : 'style' });
+    if (key === 'dim' && !this.data.dimCols.length) this.loadDimView();
+  },
+
+  /** 切维度：拉 /dashboard/dim 聚合表（range=custom 复用页顶日期区间） */
+  onDimTab(e: WechatMiniprogram.TouchEvent) {
+    const key = String(e.currentTarget.dataset.key || 'order') as Exclude<DashboardDim, 'style'>;
+    if (!DIM_TABS.some((t) => t.key === key) || key === this.data.dim) return;
+    this.setData({ dim: key });
+    this.loadDimView();
+  },
+
+  loadDimView(): Promise<void> {
+    this.setData({ dimLoading: true, dimError: false });
+    return fetchDashboardDim(this.data.dim, 'custom',
+      { start: this.data.start, end: this.data.end })
+      .then((res) => this.setData({
+        dimLoading: false,
+        dimCols: res.columns || [],
+        dimRows: res.rows || [],
+        dimError: false
+      }))
+      .catch(() => this.setData({ dimLoading: false, dimError: true }));
+  },
+
+  onDimRetry() {
+    if (this.data.dimLoading) return;
+    this.loadDimView();
+  },
+
+  /** 维度行下钻：订单→订单详情、裁床→床次详情（后端 nav 白名单） */
+  onDimRowTap(e: WechatMiniprogram.TouchEvent) {
+    const row = this.data.dimRows[Number(e.currentTarget.dataset.index)];
+    if (!row || !row.nav) return;
+    const url = row.nav === 'order'
+      ? `/packages/admin/order-detail/index?id=${row.key}`
+      : `/packages/admin/production-detail/index?id=${row.key}`;
+    wx.navigateTo({
+      url,
+      fail: () => wx.showToast({ title: '页面未就绪', icon: 'none' })
+    });
+  },
+
+  /** 维度表导出 CSV（评审 Top10 #9）：当前 tab + 日期范围的整表 */
+  onDimExport() {
+    const { dimCols, dimRows, dim } = this.data;
+    if (!dimRows.length) {
+      wx.showToast({ title: '没有可导出的数据', icon: 'none' });
+      return;
+    }
+    const tabLabel = DIM_TABS.find((t) => t.key === dim)?.label || dim;
+    const headers = dimCols.map((c) => c.title);
+    const rows = dimRows.map((r) => r.cells.map((c) => String(c ?? '')));
+    shareCsvFile(`完成汇总_${tabLabel}_${this.data.start}_${this.data.end}.csv`,
+      buildCsv(headers, rows))
+      .catch(() => wx.showToast({ title: '导出失败', icon: 'none' }));
   },
 
   onUserFilter(e: WechatMiniprogram.PickerChange) {

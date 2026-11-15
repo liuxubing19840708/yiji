@@ -10,7 +10,9 @@ rm -f .coverage coverage_suite.json
 SCRIPT_SUITES="test_orders.py test_orders_gap.py test_newcode_gap.py test_scan_enhance.py \
 test_kanban_suite.py test_ops_accounts.py test_prod_gap.py \
 test_branch_backfill.py test_order_features.py test_salary_edge.py \
-test_deadline_notify.py test_e2e_full.py"
+test_deadline_notify.py test_e2e_full.py test_cost.py \
+test_tech.py test_warehouse_p1.py test_warehouse_p2.py test_quotation.py test_finance.py test_shipment.py \
+test_opening_stock.py test_ai_report.py test_e2e_consistency.py e2e_fullchain.py e2e_branches.py e2e_edge.py"
 
 for S in $SCRIPT_SUITES; do
   [ -f "$S" ] || { echo "===== SKIP $S (不存在) ====="; continue; }

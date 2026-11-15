@@ -1,0 +1,97 @@
+<!-- 外发管理（竞品对齐 GAP-5，2026-11-04） -->
+<view class="page">
+
+  <!-- 状态 tab + 导出 -->
+  <view class="top-bar">
+    <scroll-view scroll-x class="tabs-scroll">
+      <view class="tabs">
+        <view wx:for="{{tabs}}" wx:key="key"
+              class="tab {{statusIndex === index ? 'on' : ''}}"
+              data-index="{{index}}" bindtap="onStatusTap">{{item.label}}</view>
+      </view>
+    </scroll-view>
+    <view wx:if="{{canExport}}" class="export-btn {{exporting ? 'disabled' : ''}}" bindtap="onExport">导出</view>
+  </view>
+
+  <!-- 新建入口 -->
+  <view wx:if="{{canManage}}" class="card">
+    <button class="open-form-btn" bindtap="onOpenForm">+ 新建外发单</button>
+  </view>
+
+  <!-- 新建表单 -->
+  <view class="card form-card" wx:if="{{formOpen}}">
+    <view class="form-title">新建外发单</view>
+    <picker range="{{factoryNames}}" value="{{factoryIndex}}" bindchange="onFactoryChange">
+      <view class="picker-field {{factoryIndex > 0 ? '' : 'placeholder'}}">
+        <text>{{factoryNames[factoryIndex]}}</text>
+        <text class="caret">▾</text>
+      </view>
+    </picker>
+    <picker range="{{styleNames}}" value="{{styleIndex}}" bindchange="onStyleChange">
+      <view class="picker-field {{styleIndex > 0 ? '' : 'placeholder'}}">
+        <text>{{styleNames[styleIndex]}}</text>
+        <text class="caret">▾</text>
+      </view>
+    </picker>
+    <view class="form-row">
+      <input class="form-input" type="number" placeholder="外发数量" value="{{sendQty}}"
+             bindinput="onQtyInput" />
+      <input class="form-input" type="digit" placeholder="加工单价/件" value="{{unitPrice}}"
+             bindinput="onPriceInput" />
+    </view>
+    <picker mode="date" value="{{dueDate}}" bindchange="onDueChange">
+      <view class="picker-field {{dueDate ? '' : 'placeholder'}}">
+        <text>{{dueDate || '交回日期（可选）'}}</text>
+        <text class="caret">▾</text>
+      </view>
+    </picker>
+    <input class="form-input desc" placeholder="外发工序说明（如：水洗+整烫）" value="{{processDesc}}"
+           bindinput="onDescInput" />
+    <view class="form-actions">
+      <button class="btn ghost" bindtap="onCloseForm">取消</button>
+      <button class="btn primary {{formSaving ? 'disabled' : ''}}" bindtap="onSubmitForm">提交</button>
+    </view>
+  </view>
+
+  <!-- 列表 -->
+  <view wx:if="{{loading}}" class="state-tip">加载中…</view>
+  <empty-state wx:elif="{{!list.length}}" text="暂无外发单" sub="点「新建外发单」开始外发" />
+
+  <block wx:else>
+    <view wx:for="{{list}}" wx:key="id" class="card o-card">
+      <view class="o-head">
+        <text class="o-no">{{item.no}}</text>
+        <text class="o-status st-{{item.status}}">{{item.status_display}}</text>
+      </view>
+      <view class="o-info">
+        <text class="o-factory">{{item.supplier_name || item.factory_name}}</text>
+        <text wx:if="{{item.style_no}}" class="dim"> · {{item.style_no}}</text>
+        <text wx:if="{{item.order_no}}" class="dim"> · 订单 {{item.order_no}}</text>
+      </view>
+      <view wx:if="{{item.process_desc}}" class="o-desc">工序：{{item.process_desc}}</view>
+      <view class="o-qty">
+        外发 <text class="num">{{item.send_qty}}</text> 件
+        <block wx:if="{{item.received_qty}}"> · 已收回 <text class="num ok">{{item.received_qty}}</text> 件</block>
+        <block wx:if="{{item.due_date}}"> · 交回 {{item.due_date}}</block>
+      </view>
+      <view class="o-amount">加工费 <text class="num">{{item.amount}}</text> 元
+        <text class="dim">（{{item.unit_price}} 元/件）</text>
+      </view>
+      <view class="o-meta dim">
+        发出 {{item.send_date}}
+        <block wx:if="{{item.return_date}}"> · 收回 {{item.return_date}}</block>
+        <block wx:if="{{item.creator_name}}"> · {{item.creator_name}}</block>
+      </view>
+      <view wx:if="{{item.remark}}" class="o-remark dim">备注：{{item.remark}}</view>
+      <view class="o-actions" wx:if="{{canManage && item.status !== 'settled'}}">
+        <view wx:if="{{item.status === 'sent' || item.status === 'partial'}}" class="act primary"
+              data-id="{{item.id}}" bindtap="onReceive">收回</view>
+        <view wx:if="{{item.status === 'returned'}}" class="act primary"
+              data-id="{{item.id}}" bindtap="onSettle">结算</view>
+        <view wx:if="{{!item.received_qty}}" class="act danger"
+              data-id="{{item.id}}" bindtap="onDelete">删除</view>
+      </view>
+    </view>
+  </block>
+
+</view>

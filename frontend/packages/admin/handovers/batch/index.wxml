@@ -1,0 +1,27 @@
+<view class="page batch-page">
+  <view wx:if="{{denied}}" class="state text-3">暂无交接查看权限，请联系管理员</view>
+  <view wx:elif="{{loading}}" class="state text-3">加载中…</view>
+  <view wx:elif="{{error}}" class="state"><view class="text-3">批次汇总加载失败</view><button class="btn btn-ghost retry" bindtap="onRetry">重新加载</button></view>
+  <block wx:else>
+    <view class="card batch-head">
+      <view class="text-3">交接批次</view>
+      <view class="batch-no">{{batchNo}}</view>
+    </view>
+    <view wx:if="{{summary}}" class="card">
+      <view class="stats-row">
+        <view><text class="stat-num num">{{summary.handover_count}}</text><text class="text-3"> 交接单</text></view>
+        <view><text class="stat-num num">{{summary.received_count}}</text><text class="text-3"> 已接收</text></view>
+        <view><text class="stat-num num">{{summary.pending_count}}</text><text class="text-3"> 待接收</text></view>
+        <view><text class="stat-num num">{{summary.rejected_count}}</text><text class="text-3"> 已拒收</text></view>
+      </view>
+      <view class="row totals text-2"><view>应交合计 <text class="num">{{summary.total_quantity}}</text></view><view class="spacer" /><view>实收合计 <text class="num">{{summary.received_quantity}}</text></view></view>
+    </view>
+    <view wx:for="{{rows}}" wx:key="id" class="card handover-row" data-id="{{item.id}}" bindtap="onOpen">
+      <view class="row"><view class="row-title">{{item.handover_no}}</view><view class="spacer" /><view class="badge badge-{{item.status}}">{{item.statusText}}</view></view>
+      <view class="text-3 route">{{item.source_node_name}} → {{item.target_node_name}}</view>
+      <view class="text-2">{{item.targetText}}</view>
+      <view class="row row-bottom"><view class="text-2">应交 {{item.total_quantity}} · 实收 {{item.received_quantity}}</view><view wx:if="{{item.has_discrepancy}}" class="text-danger difference">有差异</view><view class="spacer" /><view class="text-3">详情 ›</view></view>
+    </view>
+    <empty-state wx:if="{{!rows.length}}" text="该批次暂无交接单" />
+  </block>
+</view>

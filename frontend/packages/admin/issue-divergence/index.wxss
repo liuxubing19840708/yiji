@@ -1,0 +1,148 @@
+/* 领料差异报表页样式（颜色/圆角/阴影一律取自 app.wxss 变量） */
+
+.filter-card {
+  margin-bottom: 24rpx;
+}
+
+.filter-row {
+  margin-bottom: 12rpx;
+}
+
+.filter-row:last-child {
+  margin-bottom: 0;
+}
+
+.filter-chip {
+  background: var(--color-bg);
+  border-radius: 999rpx;
+  padding: 12rpx 24rpx;
+  font-size: 24rpx;
+  color: var(--color-text-2);
+  max-width: 300rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-chip.wide {
+  max-width: 420rpx;
+}
+
+.search-btn {
+  background: var(--color-primary);
+  color: #ffffff;
+  font-size: 26rpx;
+  padding: 12rpx 36rpx;
+  border-radius: 999rpx;
+}
+
+.summary-card {
+  margin-bottom: 24rpx;
+}
+
+.stat {
+  flex: 1;
+  text-align: center;
+}
+
+.stat-num {
+  font-size: 34rpx;
+  font-weight: 600;
+}
+
+.warn-num {
+  color: var(--color-warning, #FF8800);
+}
+
+.total-line {
+  margin-top: 16rpx;
+  line-height: 1.6;
+}
+
+.div-card {
+  margin-bottom: 16rpx;
+}
+
+.item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-title {
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.badge {
+  margin-left: 12rpx;
+  font-size: 20rpx;
+  padding: 2rpx 14rpx;
+  border-radius: 999rpx;
+  flex-shrink: 0;
+}
+
+/* 超领橙徽标（与领料页同色） */
+.badge-over {
+  color: var(--color-warning, #FF8800);
+  background: rgba(255, 136, 0, 0.12);
+}
+
+/* 双口径四列 */
+.cols {
+  margin-top: 16rpx;
+}
+
+.col {
+  flex: 1;
+  text-align: center;
+  min-width: 0;
+}
+
+.col-num {
+  font-size: 28rpx;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sub-line {
+  margin-top: 12rpx;
+}
+
+.detail-hint {
+  margin-top: 12rpx;
+  color: var(--color-info);
+}
+
+.over-detail {
+  margin-top: 12rpx;
+  border-top: 2rpx solid var(--color-border);
+  padding-top: 12rpx;
+}
+
+.detail-line {
+  line-height: 1.7;
+}
+
+.link-btn {
+  color: var(--color-info);
+  font-size: 24rpx;
+}
+
+.pending-item {
+  margin-top: 10rpx;
+  line-height: 1.6;
+}
+
+.state {
+  text-align: center;
+  padding: 100rpx 0;
+}
+
+.state-btn {
+  margin-top: 24rpx;
+  width: 240rpx;
+  font-size: 28rpx;
+  padding: 14rpx 0;
+}

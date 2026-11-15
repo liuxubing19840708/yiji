@@ -1,0 +1,267 @@
+/* 物料管理页样式（颜色/圆角/阴影一律取自 app.wxss 变量） */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+
+.search {
+  flex: 1;
+  background: var(--color-card);
+  border-radius: 999rpx;
+  padding: 16rpx 28rpx;
+  font-size: 28rpx;
+  box-shadow: var(--shadow);
+}
+
+.tool-btn {
+  margin-left: 16rpx;
+  background: var(--color-card);
+  color: var(--color-info);
+  font-size: 26rpx;
+  padding: 16rpx 24rpx;
+  border-radius: 999rpx;
+  white-space: nowrap;
+  box-shadow: var(--shadow);
+}
+
+.add-btn {
+  margin-left: 16rpx;
+  background: var(--color-primary);
+  color: #ffffff;
+  font-size: 26rpx;
+  padding: 16rpx 24rpx;
+  border-radius: 999rpx;
+  white-space: nowrap;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-bottom: 24rpx;
+}
+
+.chip {
+  padding: 8rpx 26rpx;
+  border-radius: 999rpx;
+  background: var(--color-card);
+  border: 2rpx solid var(--color-border);
+  font-size: 24rpx;
+  color: var(--color-text-2);
+}
+
+.chip.chip-on {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.item-title {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.menu-dot {
+  padding: 10rpx 8rpx 10rpx 24rpx;
+  color: var(--color-text-3);
+  font-size: 48rpx;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.badge {
+  margin-left: 12rpx;
+  font-size: 20rpx;
+  padding: 2rpx 14rpx;
+  border-radius: 999rpx;
+  line-height: 1.6;
+}
+
+.badge-warn {
+  color: var(--color-warning);
+  background: rgba(247, 186, 30, 0.14);
+}
+
+.badge-gray {
+  color: var(--color-text-3);
+  background: var(--color-bg);
+}
+
+.mat-line {
+  margin-top: 6rpx;
+}
+
+.mat-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag {
+  flex-shrink: 0;
+  font-size: 22rpx;
+  color: var(--color-info);
+  background: rgba(22, 119, 255, 0.08);
+  padding: 2rpx 14rpx;
+  border-radius: 999rpx;
+}
+
+.mat-params {
+  margin-top: 8rpx;
+  flex-wrap: wrap;
+}
+
+.mat-param {
+  margin-left: 20rpx;
+}
+
+.state {
+  text-align: center;
+  padding: 120rpx 0;
+}
+
+.state-btn {
+  margin-top: 24rpx;
+  width: 240rpx;
+  font-size: 28rpx;
+  padding: 14rpx 0;
+}
+
+.load-more {
+  text-align: center;
+  padding: 24rpx 0;
+}
+
+/* ---- 编辑弹层（与款式管理同款 sheet 布局） ---- */
+.mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+}
+
+.sheet {
+  width: 100%;
+  background: var(--color-card);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.sheet-head {
+  margin-bottom: 16rpx;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  border-bottom: 2rpx solid var(--color-border);
+  padding: 22rpx 4rpx;
+}
+
+.label {
+  width: 180rpx;
+  color: var(--color-text-2);
+  font-size: 28rpx;
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  font-size: 30rpx;
+}
+
+.tip {
+  margin-top: 16rpx;
+  line-height: 1.6;
+}
+
+.sheet-body {
+  max-height: 64vh;
+}
+
+.sheet-save {
+  margin-top: 32rpx;
+}
+
+/* ---- 导入弹层 ---- */
+.import-warn {
+  background: rgba(247, 186, 30, 0.14);
+  color: var(--color-text);
+  border: 2rpx solid var(--color-warning);
+  border-radius: var(--radius);
+  padding: 16rpx 20rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  margin-bottom: 20rpx;
+}
+
+.import-tpl {
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  padding: 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.tpl-line {
+  margin-top: 6rpx;
+  font-size: 24rpx;
+}
+
+.import-btn {
+  margin: 8rpx 0 20rpx;
+}
+
+.import-stat {
+  margin: 8rpx 0;
+  font-size: 28rpx;
+}
+
+.import-ok {
+  color: var(--color-success);
+  margin-right: 32rpx;
+  font-weight: 600;
+}
+
+.import-bad {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.import-batch-fail {
+  color: var(--color-danger);
+  background: rgba(245, 63, 63, 0.08);
+  border-radius: var(--radius);
+  padding: 14rpx 20rpx;
+  font-size: 24rpx;
+  margin-bottom: 16rpx;
+}
+
+.error-list {
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  padding: 16rpx 20rpx;
+  max-height: 320rpx;
+  overflow-y: auto;
+}
+
+.error-line {
+  font-size: 24rpx;
+  color: var(--color-text-2);
+  line-height: 1.7;
+}
+
+.error-copy {
+  margin-top: 12rpx;
+  color: var(--color-info);
+  font-size: 26rpx;
+  text-align: right;
+}

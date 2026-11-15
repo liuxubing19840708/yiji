@@ -25,6 +25,7 @@ import {
 import {
   fetchProcessTemplates
 } from '../../../services/process-template';
+import { fetchQuotation, markQuotationStatus } from '../../../services/quotation';
 import { Order, OrderItem, Customer, Paginated, Style, Process, ProcessTemplate } from '../../../services/types';
 
 const PAGE_SIZE = 20;
@@ -168,10 +169,16 @@ Page({
     sheetTitle: '录入数量'
   },
 
+  /** 转单来源报价 id（openFromQuote 记录；订单创建成功后回写报价 won+order_id） */
+  fromQuoteId: 0,
+
   onLoad(options: Record<string, string>) {
     // 从订单详情「编辑」进入：带 id 载入订单
     if (options.id) {
       this.openEdit(Number(options.id));
+    } else if (options.quote) {
+      // 报价详情「转订单」进入：按报价单预填
+      this.openFromQuote(Number(options.quote));
     }
   },
 
@@ -366,6 +373,55 @@ Page({
       .catch((e) => {
         wx.showToast({
           title: isServiceDown(e) ? '服务升级中，请稍后再试' : '订单加载失败',
+          icon: 'none'
+        });
+        this.setData({ stage: 'list' });
+        this.reloadOrders();
+      });
+  },
+
+  /**
+   * 报价转订单（quote-detail「转订单」进入，options.quote）：
+   * 按报价单预填 客户/款式/款式工序价（报价人工快照同源于款式工序价），
+   * 色码矩阵留白待填（报价单无色码维度）；备注追加转单来源行。
+   */
+  openFromQuote(qid: number) {
+    this.onAddOrder();
+    this.fromQuoteId = qid; // 转单来源：订单创建成功后回写报价「已转单」（won+order_id）
+    Promise.all([fetchQuotation(qid), this.loadCustomers()])
+      .then(([q]) => {
+        // 用户可能已取消返回列表（stage 回 list）：不再回填
+        if (this.data.stage !== 'edit' || this.data.editingId !== 0) return;
+        const idx = q.customer
+          ? this.data.customers.findIndex((c) => c.id === q.customer) + 1
+          : 0;
+        const remark = [q.remark || '', `报价单 ${q.quote_no} 转单（报价数量 ${q.qty}）`]
+          .filter(Boolean).join('；');
+        this.setData({ customerIndex: idx, customer: q.customer || 0, remark });
+        if (!q.style) {
+          wx.showToast({ title: '报价单未挂款式，请手动选择', icon: 'none' });
+          return;
+        }
+        this.setData({ styleId: q.style });
+        fetchStyle(q.style)
+          .then((s: Style) => {
+            if (this.data.stage !== 'edit' || this.data.editingId !== 0) return;
+            this.setData({ styleObj: this.toStyleObj(s) });
+            const procRows: ProcRowVM[] = (s.processes || []).map((sp) => ({
+              process_id: sp.process,
+              name: sp.process_name,
+              price: String(sp.price || '')
+            }));
+            if (procRows.length) this.setData({ procRows });
+            wx.showToast({ title: '已按报价预填，请补色码数量', icon: 'none' });
+          })
+          .catch(() => {
+            wx.showToast({ title: '款式加载失败，请手动选择款式', icon: 'none' });
+          });
+      })
+      .catch((e) => {
+        wx.showToast({
+          title: isServiceDown(e) ? '服务升级中，请稍后再试' : '报价单加载失败',
           icon: 'none'
         });
         this.setData({ stage: 'list' });
@@ -1058,7 +1114,14 @@ Page({
       items
     };
     this.setData({ saving: true });
-    const done = () => {
+    const done = (created?: Order) => {
+      // 报价转单成功：回写报价「已转单」（won+order_id；lost 等非法流转静默忽略，
+      // 不阻塞订单结果——报价状态以报价页为准）
+      if (!editingId && created && this.fromQuoteId) {
+        const qid = this.fromQuoteId;
+        this.fromQuoteId = 0;
+        markQuotationStatus(qid, { status: 'won', order_id: created.id }).catch(() => {});
+      }
       this.setData({ saving: false, stage: 'list' });
       wx.showToast({ title: editingId ? '订单已保存' : '订单已创建', icon: 'success' });
       this.reloadOrders();
@@ -1071,9 +1134,9 @@ Page({
       /* 其余错误（400「字段名：原因」）toast 已由请求层统一弹出 */
     };
     if (editingId) {
-      updateOrder(editingId, payload).then(done).catch(fail);
+      updateOrder(editingId, payload).then(() => done()).catch(fail);
     } else {
-      createOrder(payload).then(done).catch(fail);
+      createOrder(payload).then((o) => done(o)).catch(fail);
     }
   }
 });

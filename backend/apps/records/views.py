@@ -1,4 +1,7 @@
 """扫菲登记视图：登记/撤销、工序选择器、扫菲工作台。"""
+import hashlib
+import json
+
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import DecimalField, F, Sum
@@ -6,17 +9,28 @@ from django.http import Http404
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from rest_framework import generics
+from rest_framework.exceptions import APIException, PermissionDenied
+from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.catalog.models import Process, StyleProcess, Ticket
 from apps.core.mixins import CompanyContextMixin
 from apps.core.pagination import DefaultPagination
+from apps.core.permissions import has_perm
 from apps.core.utils import q2, q3
 from apps.ops.models import AuditLog, CompanySetting
 from apps.ops.services import audit
-from apps.records.models import Record
+from apps.records.models import Record, ScanIdempotency
 from apps.records.serializers import RecordCreateSerializer, RecordSerializer
+
+
+def _can_see_price(user_company) -> bool:
+    """工价可见性（竞品对齐 GAP-6，2026-11-04）：工序 hide_price=True 时，
+    仅持 styles.price（上价/改价）或 salary.view（薪酬查询）者可见单价，
+    管理员岗位恒可见。登记/计件金额不受影响（走 _resolve_price 现价快照）。"""
+    return (has_perm(user_company, 'styles.price')
+            or has_perm(user_company, 'salary.view'))
 
 
 def _purge_deleted(model, **filters):
@@ -97,6 +111,12 @@ def _resolve_target_user(user_id):
         raise ValidationError({'user_id': '员工不存在'})
 
 
+class IdempotencyConflict(APIException):
+    status_code = 409
+    default_detail = '同一幂等键已用于不同登记载荷，请保留原载荷重试或更换新键'
+    default_code = 'idempotency_payload_conflict'
+
+
 class RecordListCreateView(CompanyContextMixin, generics.ListCreateAPIView):
     """登记记录列表 + 新增登记。
 
@@ -130,8 +150,47 @@ class RecordListCreateView(CompanyContextMixin, generics.ListCreateAPIView):
     def post(self, request, *args, **kwargs):
         serializer = RecordCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        record = self._create_record(serializer.validated_data)
-        return Response(RecordSerializer(record).data, status=201)
+        key = (request.headers.get('Idempotency-Key') or '').strip()
+        if not key:
+            # 兼容未升级的客户端：没有幂等键时保留原有聚合登记行为。
+            record = self._create_record(serializer.validated_data)
+            return Response(RecordSerializer(record).data, status=201)
+        if len(key) > 128:
+            raise ValidationError({'idempotency_key': '幂等键长度不能超过 128 个字符'})
+        # 重放也是当前操作人发起的登记请求，必须重新校验当前权限；
+        # 不能因为曾经持有幂等键就绕过撤权后的访问控制。
+        self.check_perm('records.create')
+        target_user_id = serializer.validated_data.get('user_id')
+        if target_user_id and target_user_id != request.user.id:
+            self.check_perm('scan.assist')
+        payload = json.dumps(serializer.validated_data, sort_keys=True,
+                             separators=(',', ':'), ensure_ascii=False)
+        payload_hash = hashlib.sha256(payload.encode('utf-8')).hexdigest()
+
+        # 凭据、登记、成本 stale 与协助审计在同一事务中提交。并发撞唯一键时，
+        # PostgreSQL 会等待首个事务结束；内层 savepoint 保证可继续读取并重放。
+        with transaction.atomic():
+            try:
+                with transaction.atomic():
+                    receipt = ScanIdempotency.objects.create(
+                        company=self.company, key=key, payload_hash=payload_hash,
+                        operator=request.user)
+            except IntegrityError:
+                receipt = ScanIdempotency.objects.select_for_update().get(
+                    company=self.company, key=key)
+                if receipt.operator_id != request.user.id:
+                    raise PermissionDenied('不能使用其他操作人的登记幂等键')
+                if receipt.payload_hash != payload_hash:
+                    raise IdempotencyConflict()
+                return Response(receipt.response_data, status=201)
+
+            record = self._create_record(serializer.validated_data)
+            # JSONRenderer 把 Decimal 等 DRF 类型转成可持久化的 JSON 原生类型。
+            receipt.response_data = json.loads(
+                JSONRenderer().render(RecordSerializer(record).data))
+            receipt.record = record
+            receipt.save(update_fields=['response_data', 'record'])
+        return Response(receipt.response_data, status=201)
 
     def _create_record(self, data):
         from apps.accounts.models import UserCompany
@@ -209,6 +268,8 @@ class RecordListCreateView(CompanyContextMixin, generics.ListCreateAPIView):
         # 锁扎行串行化同扎并发登记，保证「累计封顶」与「增量累加」原子生效
         with transaction.atomic():
             locked = Ticket.objects.select_for_update().get(pk=ticket.pk)
+            from apps.core.workflow_gates import enforce_manufacturing_gate
+            enforce_manufacturing_gate(self.company, locked, self.request.user)
             # 校验③：同一扎同一工序的全部员工登记数量合计 ≤ 扎数（2026-10-18 拍板）
             cur = (Record.objects.filter(company=self.company, ticket=locked,
                                          process=process)
@@ -249,6 +310,10 @@ class RecordListCreateView(CompanyContextMixin, generics.ListCreateAPIView):
                     record.save(update_fields=['qty', 'registered_at',
                                                'operator', 'updated_at'])
 
+        # P1 成本域 stale 埋点②（登记）：菲票所属床次的挂单订单成本翻 stale
+        from apps.cost.services import mark_ticket_stale
+        mark_ticket_stale(self.company, locked)
+
         if assist:
             style = ticket.production.style
             audit(self.company, AuditLog.Type.ASSIST, operator=self.request.user,
@@ -259,6 +324,44 @@ class RecordListCreateView(CompanyContextMixin, generics.ListCreateAPIView):
                            f'【扎号{ticket.bundle_no}】【用户：{user}】'
                            f'操作人：{self.request.user}'))
         return record
+
+
+def _revoke_one(view, instance):
+    """撤销单条登记：门禁 + 删除 + 留痕 + 成本 stale（单撤与批量撤销共用）。
+
+    门禁口径：本人当日可撤；他人/跨日需 records.revoke 点（管理员岗位恒通过）；
+    revoke_current_month_only 开关生效；已结算不可撤。
+    """
+    company, request = view.company, view.request
+    is_admin = view.user_company.post.is_admin
+    if instance.user_id == request.user.id:
+        if (not is_admin
+                and timezone.localtime(instance.registered_at).date()
+                != timezone.localdate()):
+            raise ValidationError('仅可撤销本人当日登记')
+    else:
+        # Plan A：撤销他人登记走权限点 records.revoke（旧 coarse key 不覆盖，管理员岗位恒通过）
+        view.check_perm('records.revoke')
+
+    if CompanySetting.get_bool(company, 'revoke_current_month_only'):
+        reg = timezone.localtime(instance.registered_at)
+        now = timezone.localtime()
+        if (reg.year, reg.month) != (now.year, now.month):
+            raise ValidationError('只能撤销当月登记')
+    if instance.settlement_id:
+        raise ValidationError('该登记已结算，不可撤销')
+
+    ticket = instance.ticket
+    instance.delete()
+    # P1 成本域 stale 埋点②（撤销）：菲票所属床次的挂单订单成本翻 stale
+    from apps.cost.services import mark_ticket_stale
+    mark_ticket_stale(company, ticket)
+    audit(company, AuditLog.Type.REVOKE, operator=request.user,
+          target_user=instance.user, bed_no=ticket.production.bed_no,
+          style_no=ticket.production.style.style_no,
+          bundle_no=ticket.bundle_no,
+          message=(f'撤销登记：【床次{ticket.production.bed_no}】'
+                   f'【扎号{ticket.bundle_no}】操作人：{request.user}'))
 
 
 class RecordDetailView(CompanyContextMixin, generics.DestroyAPIView):
@@ -280,32 +383,74 @@ class RecordDetailView(CompanyContextMixin, generics.DestroyAPIView):
             raise Http404('登记记录不存在')
 
     def perform_destroy(self, instance):
+        # 门禁+删除+留痕抽至 _revoke_one（批量撤销共用，口径不漂移）
+        _revoke_one(self, instance)
+
+    # ============ 修改数量填原因（竞品对齐 GAP-3，2026-11-04） ============
+
+    def put(self, request, pk):
+        """PUT /records/{id} {qty, reason}：修改登记数量，原因必填（留痕）。
+
+        用 PUT 而非 PATCH：wx.request 运行时不支持 PATCH（utils/request.ts）。
+        门禁与撤销同口径：本人当日可改；他人/跨日需 records.revoke 点；
+        已结算不可改；revoke_current_month_only 开关同样生效。
+        AuditLog Type.QTY 留痕（改前/改后 + 原因），成本 stale 联动。
+        """
+        instance = self.get_object()
         is_admin = self.user_company.post.is_admin
-        if instance.user_id == self.request.user.id:
+        if instance.user_id == request.user.id:
             if (not is_admin
                     and timezone.localtime(instance.registered_at).date()
                     != timezone.localdate()):
-                raise ValidationError('仅可撤销本人当日登记')
+                raise ValidationError('仅可修改本人当日登记')
         else:
-            # Plan A：撤销他人登记走权限点 records.revoke（旧 coarse key 不覆盖，管理员岗位恒通过）
             self.check_perm('records.revoke')
-
         if CompanySetting.get_bool(self.company, 'revoke_current_month_only'):
             reg = timezone.localtime(instance.registered_at)
             now = timezone.localtime()
             if (reg.year, reg.month) != (now.year, now.month):
-                raise ValidationError('只能撤销当月登记')
+                raise ValidationError('只能修改当月登记')
         if instance.settlement_id:
-            raise ValidationError('该登记已结算，不可撤销')
+            raise ValidationError('该登记已结算，不可修改')
+
+        reason = str(request.data.get('reason') or '').strip()
+        if not reason:
+            raise ValidationError({'reason': '修改数量必须填写原因'})
+        try:
+            qty = int(request.data.get('qty'))
+        except (TypeError, ValueError):
+            raise ValidationError({'qty': '数量必须为正整数'})
+        if qty <= 0:
+            raise ValidationError({'qty': '数量必须为正整数'})
 
         ticket = instance.ticket
-        instance.delete()
-        audit(self.company, AuditLog.Type.REVOKE, operator=self.request.user,
+        if ticket.production.is_locked:
+            raise ValidationError('床次已锁定，禁止修改登记')
+        # 封顶口径同登记：该扎该工序全员累计 ≤ 扎数
+        with transaction.atomic():
+            cur = (Record.objects.filter(company=self.company, ticket=ticket,
+                                         process=instance.process)
+                   .aggregate(s=Sum('qty'))['s'] or 0)
+            if cur - instance.qty + qty > ticket.qty:
+                raise ValidationError(
+                    {'qty': f'修改后超限：该扎该工序已登记 {cur} 件（含本条 '
+                            f'{instance.qty} 件），改为 {qty} 件将超过扎数 '
+                            f'{ticket.qty} 件'})
+            before = instance.qty
+            instance.qty = qty
+            instance.save(update_fields=['qty', 'updated_at'])
+
+        from apps.cost.services import mark_ticket_stale
+        mark_ticket_stale(self.company, ticket)
+        audit(self.company, AuditLog.Type.QTY, operator=request.user,
               target_user=instance.user, bed_no=ticket.production.bed_no,
               style_no=ticket.production.style.style_no,
               bundle_no=ticket.bundle_no,
-              message=(f'撤销登记：【床次{ticket.production.bed_no}】'
-                       f'【扎号{ticket.bundle_no}】操作人：{self.request.user}'))
+              message=(f'修改登记数量：【床次{ticket.production.bed_no}】'
+                       f'【扎号{ticket.bundle_no}】'
+                       f'{before} 件 → {qty} 件，原因：{reason}；'
+                       f'操作人：{request.user}'))
+        return Response(RecordSerializer(instance).data)
 
 
 class ProcessSelectorView(CompanyContextMixin, APIView):
@@ -347,8 +492,11 @@ class ProcessSelectorView(CompanyContextMixin, APIView):
             reg_map = {r['process_id']: r['s'] or 0 for r in rows}
         # cap = 扎数上限；无票上下文或 0 扎（无限扎口径，§3.3 SCAN-031）→ null
         cap = ticket.qty if ticket is not None and ticket.qty else None
+        show_price = _can_see_price(self.user_company)
         results = [{'id': p.id, 'name': p.name, 'is_fixed': p.is_fixed,
-                    'price': str(_resolve_price(ticket, p)),
+                    'price': (str(_resolve_price(ticket, p))
+                              if (show_price or not p.hide_price) else None),
+                    'price_hidden': bool(p.hide_price) and not show_price,
                     'registered_qty': reg_map.get(p.id, 0),
                     'cap': cap}
                    for p in proc_map.values()]
@@ -411,6 +559,9 @@ class TicketLookupView(CompanyContextMixin, APIView):
                 'style_id': prod.style_id,
                 'style_no': prod.style.style_no, 'style_name': prod.style.name,
                 'color': t.color, 'size': t.size, 'qty': t.qty,
+                # 2026-10-29 与 /scan/parse 同构补齐：床次 id 供手输码流程
+                # 与扫码一致启用「查看菲票/补打」入口（此前前端恒 prodId=0 禁用）
+                'production_id': prod.id,
                 'status': status, 'status_display': status_display,
             })
         return Response({'results': results, 'count': len(results)})
@@ -534,3 +685,161 @@ class WorkbenchView(CompanyContextMixin, APIView):
         return Response({'beds': beds,
                          'my_today': RecordSerializer(my_today, many=True).data,
                          'my_today_amount': f'{q2(my_amount):.2f}'})
+
+
+class BatchRegisterView(RecordListCreateView):
+    """批量协助登记（竞品对齐 GAP-2，2026-11-04）：选员工 → 选工序 → 多扎一次登记。
+
+    POST /records/batch-register
+      {process_id, user_id?, entries: [{ticket_id, qty?}, ...≤50]}
+    - 逐扎复用单条登记口径（_create_record：工序集/流转/封顶/增量补登/协助门禁
+      全同单条），单扎失败不影响其余（部分成功语义，按扎独立校验）；
+    - 返回 {'total','ok','fail','results':[{ticket_id,bundle_no,ok,error,record_id,qty,amount}]}。
+    """
+
+    MAX_ENTRIES = 50
+
+    def post(self, request, *args, **kwargs):
+        entries = request.data.get('entries')
+        if not isinstance(entries, list) or not entries:
+            raise ValidationError({'entries': 'entries 不能为空'})
+        if len(entries) > self.MAX_ENTRIES:
+            raise ValidationError({'entries': f'单次最多登记 {self.MAX_ENTRIES} 扎'})
+        process_id = request.data.get('process_id')
+        if not process_id:
+            raise ValidationError({'process_id': '工序不能为空'})
+        user_id = request.data.get('user_id')
+        results, ok = [], 0
+        for e in entries:
+            tid = e.get('ticket_id') if isinstance(e, dict) else None
+            if not tid:
+                results.append({'ticket_id': None, 'ok': False,
+                                'error': 'ticket_id 缺失'})
+                continue
+            data = {'ticket_id': tid, 'process_id': process_id,
+                    'qty': e.get('qty') if isinstance(e, dict) else None}
+            if user_id:
+                data['user_id'] = user_id
+            try:
+                record = self._create_record(data)
+                ok += 1
+                results.append({'ticket_id': tid,
+                                'bundle_no': record.ticket.bundle_no,
+                                'ok': True, 'record_id': record.id,
+                                'qty': record.qty,
+                                'amount': str(q2(record.qty * record.price))})
+            except ValidationError as exc:
+                results.append({'ticket_id': tid, 'ok': False,
+                                'error': self._flat_error(exc)})
+            except PermissionDenied as exc:
+                results.append({'ticket_id': tid, 'ok': False,
+                                'error': str(exc.detail if exc.detail else exc)})
+            except Http404 as exc:
+                results.append({'ticket_id': tid, 'ok': False,
+                                'error': str(exc)})
+        return Response({'total': len(entries), 'ok': ok,
+                         'fail': len(entries) - ok, 'results': results})
+
+    @staticmethod
+    def _flat_error(exc) -> str:
+        detail = getattr(exc, 'detail', None)
+        if isinstance(detail, dict):
+            return '；'.join(
+                f'{k}：{v[0] if isinstance(v, list) else v}' for k, v in detail.items())
+        return str(detail or exc)
+
+
+class BatchUndoView(CompanyContextMixin, APIView):
+    """批量撤销（竞品对齐 GAP-2，2026-11-04）：POST /records/batch-undo。
+
+    {record_ids: [...≤50]}；逐条复用单撤门禁（_revoke_one：records.revoke/
+    本人当日/当月开关/已结算拦截），部分成功语义；返回 per-id 结果。
+    """
+
+    MAX_IDS = 50
+
+    def post(self, request):
+        raw = request.data.get('record_ids')
+        if not isinstance(raw, list) or not raw:
+            raise ValidationError({'record_ids': 'record_ids 不能为空'})
+        try:
+            ids = [int(x) for x in raw]
+        except (TypeError, ValueError):
+            raise ValidationError({'record_ids': 'record_ids 须为 ID 数组'})
+        if len(ids) > self.MAX_IDS:
+            raise ValidationError({'record_ids': f'单次最多撤销 {self.MAX_IDS} 条'})
+        results, ok = [], 0
+        for rid in ids:
+            try:
+                record = (Record.objects.select_related(
+                    'ticket', 'ticket__production', 'ticket__production__style',
+                    'process', 'user').get(company=self.company, pk=rid))
+            except Record.DoesNotExist:
+                results.append({'record_id': rid, 'ok': False,
+                                'error': '登记记录不存在'})
+                continue
+            try:
+                _revoke_one(self, record)
+                ok += 1
+                results.append({'record_id': rid, 'ok': True})
+            except ValidationError as exc:
+                results.append({'record_id': rid, 'ok': False,
+                                'error': str(exc)})
+            except PermissionDenied as exc:
+                results.append({'record_id': rid, 'ok': False,
+                                'error': str(exc.detail if exc.detail else exc)})
+        return Response({'total': len(ids), 'ok': ok,
+                         'fail': len(ids) - ok, 'results': results})
+
+
+class RecordExportView(CompanyContextMixin, APIView):
+    """计件明细导出 xlsx（竞品对齐 GAP-7，2026-11-04）：GET /records/export。
+
+    筛选参数与登记列表完全同口径（user_id/ticket_id/process_id/date_from/
+    date_to/settlement=unsettled）；权限 salary.view（导出他人计件属薪酬查看域）。
+    上限 20000 行防失控；小程序端 wx.downloadFile + openDocument 打开。
+    """
+
+    MAX_ROWS = 20000
+
+    def get(self, request):
+        self.check_perm('salary.view')
+        qs = (Record.objects.filter(company=self.company)
+              .select_related('ticket', 'ticket__production__style',
+                              'process', 'user', 'operator'))
+        params = request.query_params
+        if params.get('user_id'):
+            qs = qs.filter(user_id=params['user_id'])
+        if params.get('ticket_id'):
+            qs = qs.filter(ticket_id=params['ticket_id'])
+        if params.get('process_id'):
+            qs = qs.filter(process_id=params['process_id'])
+        date_from = parse_date(params.get('date_from') or '')
+        if date_from:
+            qs = qs.filter(registered_at__date__gte=date_from)
+        date_to = parse_date(params.get('date_to') or '')
+        if date_to:
+            qs = qs.filter(registered_at__date__lte=date_to)
+        if params.get('settlement') == 'unsettled':
+            qs = qs.filter(settlement__isnull=True)
+
+        headers = ['日期', '员工', '款号', '床次', '扎号', '颜色', '尺码',
+                   '工序', '数量', '单价', '金额', '操作人']
+        rows = []
+        for r in qs.order_by('-registered_at')[:self.MAX_ROWS]:
+            rows.append([
+                timezone.localtime(r.registered_at).strftime('%Y-%m-%d %H:%M'),
+                str(r.user or ''),
+                r.ticket.production.style.style_no,
+                r.ticket.production.bed_no,
+                r.ticket.bundle_no,
+                r.ticket.color,
+                r.ticket.size,
+                r.process.name,
+                r.qty,
+                str(r.price),
+                str(q2(r.qty * r.price)),
+                str(r.operator or ''),
+            ])
+        from apps.core.export import xlsx_response
+        return xlsx_response(headers, rows, '计件明细')

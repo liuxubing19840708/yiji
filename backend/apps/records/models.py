@@ -56,3 +56,36 @@ class Record(BaseModel):
 
     def __str__(self):
         return f'{self.company_id}:{self.ticket_id}:{self.process_id}:{self.user_id}'
+
+
+class ScanIdempotency(models.Model):
+    """扫菲 POST 的公司级幂等凭据与首次响应快照。
+
+    Record 会按同票/同工序/同员工聚合并更新，因此不能只靠 Record 唯一约束：
+    重试必须返回首次业务结果，而不是再次累加或返回已被后续补登改变的记录。
+    """
+
+    company = models.ForeignKey(
+        'accounts.Company', models.CASCADE, related_name='scan_idempotency_keys',
+        verbose_name='公司')
+    key = models.CharField('幂等键', max_length=128)
+    payload_hash = models.CharField('规范化载荷 SHA-256', max_length=64)
+    operator = models.ForeignKey(
+        'accounts.User', models.CASCADE, related_name='scan_idempotency_keys',
+        verbose_name='首次操作人')
+    record = models.ForeignKey(
+        Record, models.SET_NULL, null=True, blank=True,
+        related_name='idempotency_receipts', verbose_name='首次登记记录')
+    response_data = models.JSONField('首次响应快照', default=dict, blank=True)
+    created_at = models.DateTimeField('创建时间', auto_now_add=True)
+
+    class Meta:
+        db_table = 'scan_idempotency'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['company', 'key'], name='uq_scan_idempotency_company_key'),
+        ]
+        indexes = [
+            models.Index(fields=['company', 'created_at'],
+                         name='idx_scan_idem_company_created'),
+        ]

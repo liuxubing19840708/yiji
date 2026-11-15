@@ -8,16 +8,17 @@ process_items=[{process_id, price}] 订单关联工序（视图/序列化器校�
 """
 from rest_framework import serializers
 
+from apps.core.serializers import validate_same_company
 from apps.catalog.models import Style
 from apps.orders.models import Order, OrderItem
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
-    """订单色码明细（只读展示）。"""
+    """订单色码明细（只读展示）。price=色码单价，null=未定价（P1 成本域新增）。"""
 
     class Meta:
         model = OrderItem
-        fields = ['id', 'color', 'size', 'qty']
+        fields = ['id', 'color', 'size', 'qty', 'price']
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -62,6 +63,12 @@ class OrderSerializer(serializers.ModelSerializer):
             'process_items': {'label': '订单工序'},
             'remark': {'label': '备注'},
         }
+
+    def validate_style(self, value):
+        return validate_same_company(self, value, '款式')
+
+    def validate_customer(self, value):
+        return validate_same_company(self, value, '客户')
 
     def validate_order_type(self, value):
         value = (value or '').strip()

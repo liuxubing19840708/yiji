@@ -1,14 +1,11 @@
 /**
- * 工作中（规格 §9.3）：
- * - 进行中床次：fetchProductions({ is_cut_done: false, is_locked: false })，展示登记进度
- *   （P3B beds 合并：映射为 utils/bed-progress.ts 的 BedProgressVM，
- *   交给共用组件 components/bed-progress 渲染，与看板「大屏」页签同一数据形状）
- * - 本人今日登记：fetchWorkbench 的 my_today（后端按登录人过滤），当日且未结算可撤销（deleteRecord）
+ * 我的登记：
+ * - 本人今日登记：fetchWorkbench 的 my_today（后端按登录人过滤）。
+ * - 当日且未结算可撤销（deleteRecord）；床次进度由生产管理和生产看板承载。
  */
 import { requireLogin, getUser } from '../../../utils/auth';
 import { hasPerm } from '../../../utils/perm';
-import { fetchProductions, fetchWorkbench, deleteRecord } from '../../../services/production';
-import { toBedProgressVM, BedProgressVM } from '../../../utils/bed-progress';
+import { fetchWorkbench, deleteRecord } from '../../../services/production';
 import { RecordItem } from '../../../services/types';
 import { today, fmtDateTime } from '../../../utils/format';
 
@@ -30,7 +27,6 @@ Page({
   data: {
     loading: true,
     loadError: false,
-    beds: [] as BedProgressVM[],
     records: [] as RecordRow[],
     /** 撤销请求进行中的记录 id */
     revokingId: 0
@@ -48,15 +44,7 @@ Page({
   async load() {
     this.setData({ loading: true, loadError: false });
     try {
-      const [prodRes, wbRes] = await Promise.all([
-        fetchProductions({ is_cut_done: false, is_locked: false }),
-        fetchWorkbench({}) as unknown as Promise<{ beds?: unknown[]; my_today?: RecordRow[] }>
-      ]);
-      // 后端筛选参数为 '0'/'1' 字符串（services 传 boolean 可能被忽略），客户端再兜底过滤；
-      // 进度口径（登记/裁货，封顶 100）在 toBedProgressVM 内统一（与看板大屏一致）
-      const beds = (prodRes.results || [])
-        .filter((p) => !p.is_cut_done && !p.is_locked)
-        .map(toBedProgressVM);
+      const wbRes = await fetchWorkbench({}) as unknown as { my_today?: RecordRow[] };
       const uid = (getUser() || { id: -1 }).id;
       const records = ((wbRes.my_today || []) as RecordRow[]).map((r) => ({
         ...r,
@@ -64,7 +52,6 @@ Page({
         timeText: fmtDateTime(r.registered_at)
       }));
       this.setData({
-        beds,
         records,
         loading: false
       });

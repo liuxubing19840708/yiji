@@ -1,0 +1,10 @@
+# 复制到 /etc/systemd/system/saofei-backup.timer
+[Unit]
+Description=Saofei daily backup timer
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

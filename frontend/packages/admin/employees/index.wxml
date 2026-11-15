@@ -181,4 +181,37 @@
       </button>
     </view>
   </view>
+
+  <!-- 设置工序弹层：与设置岗位、设置组平行 -->
+  <view wx:if="{{processVisible}}" class="mask" bindtap="closeProcess">
+    <view class="panel process-panel" catchtap="noop">
+      <view class="row panel-head">
+        <view class="h2">设置工序（{{processEmpName}}）</view>
+        <view class="spacer" />
+        <view class="panel-close" bindtap="closeProcess">×</view>
+      </view>
+      <view class="field process-search-field">
+        <input class="input" placeholder="搜索工序名称" confirm-type="search"
+               value="{{processKeyword}}" bindinput="onProcessSearch" />
+        <view wx:if="{{processKeyword}}" class="process-search-clear" bindtap="clearProcessSearch">×</view>
+      </view>
+      <hint-toggle text="选择该员工固定工序之外的可做工序；固定工序全员默认可选" />
+      <view wx:if="{{processLoading}}" class="process-state text-3">工序加载中…</view>
+      <empty-state wx:elif="{{!processList.length}}" text="未找到匹配工序" sub="可先在基础档案中添加工序" />
+      <scroll-view wx:else scroll-y class="process-options">
+        <view wx:for="{{processList}}" wx:key="id" class="process-option {{item.checked ? 'on' : ''}}"
+              data-id="{{item.id}}" bindtap="onToggleProcess">
+          <view class="process-check">{{item.checked ? '✓' : ''}}</view>
+          <view class="process-name">{{item.name}}</view>
+          <view wx:if="{{item.is_fixed}}" class="badge badge-gray">固定</view>
+        </view>
+      </scroll-view>
+      <view class="row process-save-row">
+        <view class="text-3">已选 {{processSelectedCount}} 项</view>
+        <view class="spacer" />
+        <button class="btn btn-primary process-save {{processSaving || processLoading ? 'disabled' : ''}}"
+                bindtap="submitProcesses">{{processSaving ? '保存中…' : '保存'}}</button>
+      </view>
+    </view>
+  </view>
 </view>

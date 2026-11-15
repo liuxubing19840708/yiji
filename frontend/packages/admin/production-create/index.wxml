@@ -352,3 +352,6 @@
     bind:cancel="onPreviewCancel"
   />
 </view>
+
+<!-- 打印进度（可取消，utils/print-flow 驱动） -->
+<print-progress show="{{printFlow.show}}" done="{{printFlow.done}}" total="{{printFlow.total}}" bind:cancel="onFlowCancel" />

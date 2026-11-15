@@ -1,12 +1,19 @@
 <!-- 工序 Tab：固定工序开关 + 本人指定工序（规格 §9.1） -->
 <view class="page">
 
+  <view class="process-filters">
+    <input class="process-search" placeholder="搜索工序名称" value="{{keyword}}" bindinput="onKeyword" confirm-type="search" />
+    <picker mode="selector" range="{{fixedFilterNames}}" value="{{fixedFilterIndex}}" bindchange="onFixedFilter">
+      <view class="process-filter-picker">{{fixedFilterNames[fixedFilterIndex]}} ▾</view>
+    </picker>
+  </view>
+
   <view class="card">
     <view class="row">
       <view class="h2">固定工序</view>
       <view class="spacer"></view>
       <!-- 管理员可新建工序档案（后端需「款式管理」权限） -->
-      <view wx:if="{{isAdmin}}" class="add-proc-btn" bindtap="onOpenAdd">＋ 新建工序</view>
+      <view wx:if="{{canManage}}" class="add-proc-btn" bindtap="onOpenAdd">＋ 新建工序</view>
     </view>
     <view class="text-3">开启后成为扫菲可选工序；整件工厂只留「整件」即可扫码直登{{isAdmin ? '；长按工序可删除' : ''}}</view>
 
@@ -20,18 +27,26 @@
     </block>
 
     <!-- 空态 -->
-    <empty-state wx:elif="{{!list.length}}" text="暂无工序"
+    <empty-state wx:elif="{{!listView.length}}" text="暂无匹配工序"
                  sub="{{isAdmin ? '点右上「＋ 新建工序」添加' : '请联系管理员添加工序'}}" />
 
     <!-- 列表 -->
     <block wx:else><view class="proc-list">
-      <view wx:for="{{list}}" wx:key="id" class="proc-row" data-id="{{item.id}}" bindlongpress="onDeleteProcess">
+      <view wx:for="{{listView}}" wx:key="id" class="proc-row" data-id="{{item.id}}" bindlongpress="onDeleteProcess">
         <view class="row">
           <view class="proc-name">{{item.name}}</view>
           <view class="spacer"></view>
+          <!-- 关键工序（GAP-8）+ 隐藏工价（GAP-6）：管理员开关，2026-11-04 -->
+          <view wx:if="{{canManage}}" class="proc-flag {{item.is_key ? 'on' : ''}}" data-id="{{item.id}}" data-field="is_key" bindtap="onToggleField">关键</view>
+          <view wx:if="{{canManage}}" class="proc-flag {{item.hide_price ? 'on' : ''}}" data-id="{{item.id}}" data-field="hide_price" bindtap="onToggleField">价隐</view>
           <view class="toggle {{item.is_fixed ? 'on' : ''}} {{savingId === item.id ? 'disabled' : ''}}" data-id="{{item.id}}" bindtap="onToggleFixed">
             <view class="toggle-knob"></view>
           </view>
+        </view>
+        <view class="row proc-meta">
+          <view class="text-3">默认工价 ¥{{item.default_price || '0.000'}} · 排序 {{item.sort || 0}}</view>
+          <view class="spacer"></view>
+          <view wx:if="{{canManage}}" class="proc-edit" data-id="{{item.id}}" catchtap="onOpenEdit">编辑</view>
         </view>
       </view>
     </view></block>
@@ -86,10 +101,10 @@
   <view class="mask" wx:if="{{showAdd}}" bindtap="onCloseAdd">
     <view class="sheet" catchtap="stopBubble">
       <view class="sheet-head">
-        <view class="sheet-title">新建工序</view>
+        <view class="sheet-title">{{addEditingId ? '编辑工序' : '新建工序'}}</view>
         <view class="spacer"></view>
         <button class="btn btn-plain head-btn" bindtap="onCloseAdd" disabled="{{addSaving}}">取消</button>
-        <button class="btn btn-primary head-btn" loading="{{addSaving}}" bindtap="onConfirmAdd">创建</button>
+        <button class="btn btn-primary head-btn" loading="{{addSaving}}" bindtap="onConfirmAdd">{{addEditingId ? '保存' : '创建'}}</button>
       </view>
       <scroll-view scroll-y class="sheet-body" scroll-into-view="{{focusId}}"
                    style="{{kbHeight ? 'padding-bottom:' + kbHeight + 'px' : ''}}">
@@ -105,7 +120,15 @@
                  placeholder="0.000（可留空，款式工序里再上价）"
                  value="{{addPrice}}" bindinput="onAddPrice" bindfocus="onFieldFocus" />
         </view>
-      <view class="text-3 sheet-tip">创建后可在此列表打开「固定工序」开关；单价也可在款式「工序单价」里按款式单独配</view>
+        <view class="sheet-field">
+          <text class="sheet-label">排序</text>
+          <input class="sheet-input" id="f-add-sort" adjust-position="{{false}}" type="number"
+                 value="{{addSort}}" bindinput="onAddSort" bindfocus="onFieldFocus" />
+        </view>
+        <view class="sheet-field"><text class="sheet-label">固定工序</text><switch checked="{{addFixed}}" bindchange="onAddFixed" color="#FF7A00" /></view>
+        <view class="sheet-field"><text class="sheet-label">关键工序</text><switch checked="{{addKey}}" bindchange="onAddKey" color="#FF7A00" /></view>
+        <view class="sheet-field"><text class="sheet-label">隐藏单价</text><switch checked="{{addHidePrice}}" bindchange="onAddHidePrice" color="#FF7A00" /></view>
+      <view class="text-3 sheet-tip">这是兜底价：扫码计价优先用床次价（建单时可改），其次款式「工序单价」，最后才取这里。创建后可在此列表打开「固定工序」开关</view>
       </scroll-view>
     </view>
   </view>
@@ -138,7 +161,7 @@
           >{{item.name}}</view>
         </view>
         <block wx:if="{{tplRows.length}}">
-          <view class="text-3 tpl-chips-tip">已选工序工价（元/件，可改）：</view>
+          <view class="text-3 tpl-chips-tip">已选工序工价（元/件，可改；仅作建单预填价，建单时仍可逐条改）：</view>
           <view class="sheet-field" wx:for="{{tplRows}}" wx:key="id">
             <text class="sheet-label">{{item.name}}</text>
             <input class="sheet-input" id="f-tpl-row-{{index}}" adjust-position="{{false}}" type="digit" placeholder="0"

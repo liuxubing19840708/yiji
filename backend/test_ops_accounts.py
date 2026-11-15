@@ -570,10 +570,11 @@ def main():
     w2_link.fixed_salary = None
     w2_link.save(update_fields=['fixed_salary'])
     st, d = api('POST', f'/employees/{w2_link.id}/resign', TA, CID)
-    check('G19 无登记可正常离职前提（w2 未结算待造）', st in (200, 400), f'{st} {d}')
-    if st == 200:  # 上一轮残留登记已清时 w2 直接离职成功，此处复职再补登记
-        UserCompany.objects.filter(pk=w2_link.pk).update(status=UserCompany.Status.ACTIVE)
-        w2_link.refresh_from_db()
+    check('G19 无登记可正常离职前提（w2 未结算待造）',
+          st == 200 and d.get('status') == UserCompany.Status.RESIGNED, f'{st} {d}')
+    # 隔离库中无未结登记时必须能离职；随后复职，补造未结登记验证拦截。
+    UserCompany.objects.filter(pk=w2_link.pk).update(status=UserCompany.Status.ACTIVE)
+    w2_link.refresh_from_db()
     # P1 床次在 H 段创建；此处先建最小菲票供登记约束
     prod0 = Production.objects.create(company=company, style=Style.objects.create(
         company=company, style_no='OPAF-S0', name='离职前置款'), bed_no='OPAF-B0',
@@ -727,7 +728,7 @@ def main():
     st, d = api('DELETE', f'/posts/{worker_post.id}', TA, CID)
     check('G57 有在职成员岗位禁删 → 400', st == 400, f'{st} {d}')
     st, d = api('DELETE', f'/posts/{qc_id}', TA, CID)
-    check('G58 空岗位删除 → 204', st in (200, 204), f'{st} {d}')
+    check('G58 空岗位删除 → 204', st == 204, f'{st} {d}')
 
     # ================================================================
     print('\n===== H. catalog 款式 =====')
@@ -816,11 +817,10 @@ def main():
             check(f'H21d save_style_processes 非法入参 #{_i + 1} 拒绝', False, '未抛')
         except ValidationError:
             check(f'H21d save_style_processes 非法入参 #{_i + 1} 拒绝', True)
-    try:
-        save_style_processes(company, {'process_items': [{'process_id': p_cut.id, 'sort': 'x'}]}, s_tmp)
-        check('H21e save_style_processes sort 非法兜底 0', True)
-    except ValidationError as _e:
-        check('H21e save_style_processes sort 非法兜底 0', False, str(_e))
+    save_style_processes(
+        company, {'process_items': [{'process_id': p_cut.id, 'sort': 'x'}]}, s_tmp)
+    check('H21e save_style_processes sort 非法兜底 0',
+          StyleProcess.objects.get(style=s_tmp, process=p_cut).sort == 0)
     st, d = api('DELETE', f'/styles/{s_tmp.id}', TA, CID)
     check('H21f 删无票款式 → 204', st == 204, f'{st} {d}')
 
@@ -896,7 +896,7 @@ def main():
     st, d = api('GET', '/process-templates?keyword=A2', TA, CID)
     check('H39 模板 keyword 筛选', st == 200 and d.get('count', 0) == 1, f'{st}')
     st, d = api('DELETE', f'/process-templates/{tpl.id}', TA, CID)
-    check('H40 删模板 → 200/204（软删）', st in (200, 204), f'{st} {d}')
+    check('H40 删模板 → 200/204（软删）', st == 204, f'{st} {d}')
     st, d = api('POST', '/process-templates', TA, CID, data={'name': 'OPAF模板A2'})
     check('H41 软删同名重建（硬清软删行）', st == 201, f'{st} {d}')
 
@@ -916,7 +916,7 @@ def main():
     st, d = api('PUT', f'/customer-groups/{g2.id}', TA, CID, data={'name': 'OPAF组二改'})
     check('H46 分组改名成功', st == 200, f'{st} {d}')
     st, d = api('DELETE', f'/customer-groups/{g2.id}', TA, CID)
-    check('H47 删分组 → 204', st in (200, 204), f'{st} {d}')
+    check('H47 删分组 → 204', st == 204, f'{st} {d}')
 
     st, d = api('POST', '/customers', TA, CID, data={'name': '客户乙'})
     check('H48 客户编号留空自动 KH 号', st == 201 and str(d.get('customer_no', '')).startswith('KH'),
@@ -934,7 +934,7 @@ def main():
                 data={'customer_no': 'KH0002', 'name': '客户乙', 'phone': '13800000000'})
     check('H53 客户改号成功', st == 200 and d.get('customer_no') == 'KH0002', f'{st} {d}')
     st, d = api('DELETE', f'/customers/{cust2.id}', TA, CID)
-    check('H54 删客户 → 204', st in (200, 204), f'{st} {d}')
+    check('H54 删客户 → 204', st == 204, f'{st} {d}')
 
     # ================================================================
     print('\n===== I. 编菲 / 菲票 =====')
@@ -1065,7 +1065,7 @@ def main():
     check('I39 被款式使用工序禁删 → 400', st == 400, f'{st} {d}')
     p_del = Process.objects.create(company=company, name='OPAF可删工序', sort=96)
     st, d = api('DELETE', f'/processes/{p_del.id}', TA, CID)
-    check('I40 删空闲工序 → 204', st in (200, 204), f'{st} {d}')
+    check('I40 删空闲工序 → 204', st == 204, f'{st} {d}')
 
     # ================================================================
     print('\n===== J. warehouse 批次 / 血缘 =====')

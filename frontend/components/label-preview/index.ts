@@ -5,13 +5,17 @@
  * 用法：<label-preview show tickets label-style company bind:confirm bind:cancel />
  */
 import {
-  computeLabelLayout, LabelLayout, LabelStyle, PrintTicketData, PrintCompanyInfo
+  computeLabelLayout, resolveFontMult, LabelLayout, LabelStyle, PrintTicketData, PrintCompanyInfo
 } from '../../utils/bluetooth/templates';
 import { make as makeQrMatrix } from '../../utils/qrcode';
-import { getEffectiveLabelStyle } from '../../services/printer';
+import { getEffectiveLabelStyle, getPrinter, setSkipPreview } from '../../services/printer';
+import * as bt from '../../utils/bluetooth/adapter';
 
 /** 画布显示区最长边（px），按纸张比例换算另一边 */
 const CANVAS_MAX = 300;
+
+/** 构建标记：预览弹层右上可见，用于确认真机跑的是哪一版代码（真机排查用，随排版改动更新） */
+const BUILD_TAG = 'B1026G';
 
 /** 绘制上下文别名（2d canvas） */
 type Ctx = WechatMiniprogram.CanvasRenderingContext.CanvasRenderingContext2D;
@@ -55,7 +59,12 @@ Component({
     canPrev: false,
     canNext: false,
     curTicket: {} as PrintTicketData,
-    styleLabel: ''
+    styleLabel: '',
+    /** 当前绑定打印机连接状态（确认前可见，避免点确认才知道没连） */
+    connName: '',
+    connOk: false,
+    /** 「以后批量打印不再预览」勾选（仅批量 count>1 展示，确认时写入开关） */
+    skipNext: false
   },
 
   methods: {
@@ -80,11 +89,17 @@ Component({
     },
 
     onConfirm() {
+      // 勾选「不再预览」：写本机开关，批量入口下次直接打印（打印管理可恢复）
+      if (this.data.skipNext) setSkipPreview(true);
       this.triggerEvent('confirm', { index: this.data.index });
     },
 
     onCancel() {
       this.triggerEvent('cancel');
+    },
+
+    onSkipChange(e: { detail: { value: Array<string> } }) {
+      this.setData({ skipNext: (e.detail.value || []).length > 0 });
     },
 
     /** 弹层打开/翻页时重绘当前菲票 */
@@ -95,7 +110,8 @@ Component({
       const idx = Math.min(this.data.index, tickets.length - 1);
       const st = self.currentStyle();
       const company = this.properties.company as unknown as PrintCompanyInfo | undefined;
-      const layout = computeLabelLayout(st, tickets[idx], company);
+      // 字号倍率与蓝牙位图打印一致（样式 fontMult），预览=实打所见即所得
+      const layout = computeLabelLayout(st, tickets[idx], company, resolveFontMult(st));
       const portrait = layout.heightMm > layout.widthMm;
       const cssW = portrait
         ? Math.round(CANVAS_MAX * layout.widthMm / layout.heightMm)
@@ -109,9 +125,16 @@ Component({
         canPrev: idx > 0,
         canNext: idx < tickets.length - 1,
         curTicket: tickets[idx],
-        styleLabel: `${layout.widthMm}×${layout.heightMm}mm`,
+        styleLabel: `${layout.widthMm}×${layout.heightMm}mm · ${BUILD_TAG}`,
         canvasCssW: cssW,
-        canvasCssH: cssH
+        canvasCssH: cssH,
+        skipNext: false
+      });
+      // 连接状态 chip：确认前就知道打印机是否还在线
+      const p = getPrinter();
+      this.setData({
+        connName: p ? p.name : '',
+        connOk: !!(p && bt.isConnected(p.deviceId))
       });
       // canvas 尺寸刚变，等一拍再取节点绘制
       wx.nextTick(() => self.draw(layout, cssW, cssH));
@@ -154,12 +177,27 @@ Component({
         for (const el of layout.elements) {
           if (el.type === 'qr') {
             (this as unknown as ComponentInstance).drawQr(ctx, ticket.qr_code || '', el, scale);
-          } else {
+          } else if (el.rot === 180) {
+            // 倒排文字（码下模式）：绕文字框右下角旋转 180，与 TSPL 锚点口径一致
             const fs = 24 * (el.ymul || 1) * scale;
             ctx.fillStyle = '#000000';
             ctx.font = `${fs}px sans-serif`;
             ctx.textBaseline = 'top';
-            ctx.fillText(el.text || '', el.x * scale, el.y * scale + fs * 0.12);
+            ctx.save();
+            ctx.translate((el.x + el.w) * scale, (el.y + el.h) * scale);
+            ctx.rotate(Math.PI);
+            ctx.fillText(el.text || '', 0, fs * 0.12);
+            ctx.restore();
+          } else {
+            // 文字：按 TSPL 放大倍数双向拉伸（2x 大两号后与实打同宽同高）
+            ctx.save();
+            ctx.translate(el.x * scale, el.y * scale);
+            ctx.scale(el.xmul || 1, el.ymul || 1);
+            ctx.fillStyle = '#000000';
+            ctx.font = `${24 * scale}px sans-serif`;
+            ctx.textBaseline = 'top';
+            ctx.fillText(el.text || '', 0, 24 * scale * 0.12);
+            ctx.restore();
           }
         }
       });
@@ -196,7 +234,7 @@ Component({
 
 /** 本组件实例（含私有 canvas 缓存与方法别名） */
 type ComponentInstance = WechatMiniprogram.Component.Instance<
-  { canvasCssW: number; canvasCssH: number; index: number; count: number; canPrev: boolean; canNext: boolean; curTicket: PrintTicketData; styleLabel: string },
+  { canvasCssW: number; canvasCssH: number; index: number; count: number; canPrev: boolean; canNext: boolean; curTicket: PrintTicketData; styleLabel: string; connName: string; connOk: boolean; skipNext: boolean },
   Record<string, never>,
   {
     currentStyle(): LabelStyle;

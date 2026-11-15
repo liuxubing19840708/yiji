@@ -36,6 +36,9 @@ class SettingSerializer(serializers.Serializer):
         unknown = [k for k in data if k not in CompanySetting.DEFAULTS]
         if unknown:
             raise serializers.ValidationError(f'未知设置项：{", ".join(unknown)}')
+        for key in ('preproduction_gate_mode', 'manufacturing_gate_mode'):
+            if key in data and data[key] not in ('off', 'warn', 'strict'):
+                raise serializers.ValidationError({key: '仅支持 off/warn/strict'})
         return data
 
     def to_representation(self, instance):

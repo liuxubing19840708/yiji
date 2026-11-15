@@ -3,8 +3,8 @@
  *
  * 流程：openBluetoothAdapter → startBluetoothDevicesDiscovery（按名称前缀过滤打印机，
  * 可配置）→ stopDiscovery → createBLEConnection → 探测可写 characteristic
- * （write 属性，优先 write-no-response）→ writeInChunks（默认 20 字节分包、
- * 包间约 20ms 延时）→ 断开 / 关闭适配器清理。
+ * （write 属性，优先 write-no-response）→ writeInChunks（自动分包：iOS 180
+ * 字节/包、安卓 20 字节/包或协商 MTU-3，包间约 20ms 延时）→ 断开 / 关闭适配器清理。
  *
  * 全部 Promise 化；失败统一抛 Error（message 为显式中文）。
  * 注：分包大小固定 20 字节（Android 最小 MTU 安全值）；iOS 可通过 setBLEMTU
@@ -185,11 +185,33 @@ async function getCharacteristics(deviceId: string, serviceId: string): Promise<
   }
 }
 
+/** 协商成功的 MTU（setBLEMTU 仅安卓支持；iOS 由系统自动协商，通常 ≥185） */
+let negotiatedMtu = 0;
+
 /** iOS 协商更大 MTU 提速（§21.4）；失败不影响打印（仅影响速度） */
 async function trySetMtu(deviceId: string): Promise<void> {
   try {
-    await invoke((o) => wx.setBLEMTU(o), { deviceId, mtu: 185 });
-  } catch (e) { /* 静默：部分安卓机型不支持 */ }
+    const res = await invoke<{ mtu: number }>((o) => wx.setBLEMTU(o), { deviceId, mtu: 185 });
+    if (res && typeof res.mtu === 'number') negotiatedMtu = res.mtu;
+  } catch (e) { /* 静默：iOS 不支持（系统已自动协商），部分安卓机型不支持 */ }
+}
+
+/** 位图打印前确保 MTU 已协商：连接时协商是异步发出未等待，整签位图约 32KB，
+ *  按 20 字节保守分包要 1600+ 包（分钟级），必须先确认协商结果再发。
+ *  失败（部分安卓不支持）不抛错，仅回落保守分包慢速打印。 */
+export async function ensureMtu(deviceId: string): Promise<void> {
+  if (!negotiatedMtu) await trySetMtu(deviceId);
+}
+
+/** 自动分包大小：iOS 系统协商 MTU 通常 ≥185，可安全发 180 字节/包；
+ *  安卓仅在 setBLEMTU 协商成功后放宽到 mtu-3，否则保守 20 字节。
+ *  大批量打印（上百扎）数据耗时约 1/9。 */
+function autoChunkSize(): number {
+  try {
+    const info = wx.getDeviceInfo ? wx.getDeviceInfo() : wx.getSystemInfoSync();
+    if (info.platform === 'ios') return 180;
+  } catch (e) { /* 取不到平台信息走保守值 */ }
+  return negotiatedMtu > 23 ? negotiatedMtu - 3 : 20;
 }
 
 // ============ 连接状态（模块级缓存，供连续打印复用） ============
@@ -301,19 +323,21 @@ async function writeChunk(point: WritablePoint, deviceId: string, value: ArrayBu
 }
 
 /**
- * 分包写入：默认每包 20 字节、包间 20ms 延时（§7.2，iOS 必须串行+间隔）。
+ * 分包写入：默认自动分包（iOS 180 字节/包、安卓 20 字节/包，协商 MTU 成功则
+ * mtu-3），包间 20ms 延时（§7.2，iOS 必须串行+间隔）。显式传 chunkSize 可覆盖。
  * 断连（10006）后抛错，由上层引导重连。
  */
 export async function writeInChunks(
   deviceId: string,
   data: ArrayBuffer,
-  chunkSize = 20,
+  chunkSize = 0,
   delayMs = 20
 ): Promise<void> {
   const point = await ensureConnected(deviceId);
+  const size = chunkSize > 0 ? chunkSize : autoChunkSize();
   const u8 = new Uint8Array(data);
-  for (let offset = 0; offset < u8.length; offset += chunkSize) {
-    const end = Math.min(offset + chunkSize, u8.length);
+  for (let offset = 0; offset < u8.length; offset += size) {
+    const end = Math.min(offset + size, u8.length);
     const part = u8.slice(offset, end); // slice 拷贝，保证独立 buffer
     await writeChunk(point, deviceId, part.buffer);
     if (end < u8.length) {

@@ -82,6 +82,7 @@
       <view wx:if="{{orderLoading}}" class="text-3">加载中…</view>
       <block wx:else>
         <hint-toggle wx:if="{{!orderRows.length}}" text="未配置订单工序（扫菲按款式工序计价）" />
+        <hint-toggle wx:if="{{orderRows.length}}" text="这里配了价的工序按此价计，其余按款式工序价（再兜底工序默认价）" />
         <view class="row o-row" wx:for="{{orderRows}}" wx:key="process">
           <view class="o-name">{{item.process_name}}</view>
           <view class="text-3" wx:if="{{item.isSaved}}">默认 {{item.priceText}}</view>
@@ -145,3 +146,6 @@
     bind:cancel="onPreviewCancel"
   />
 </view>
+
+<!-- 打印进度（可取消，utils/print-flow 驱动） -->
+<print-progress show="{{printFlow.show}}" done="{{printFlow.done}}" total="{{printFlow.total}}" bind:cancel="onFlowCancel" />

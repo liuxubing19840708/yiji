@@ -1,0 +1,41 @@
+<!-- 薪资条（竞品对齐 GAP-4，2026-11-04）：按结算单逐员工展示 -->
+<view class="page">
+
+  <!-- 头部：期间 + 合计 + 导出 -->
+  <view class="card head-card">
+    <view class="row">
+      <view>
+        <view class="h2 num">¥{{totalText}}</view>
+        <view class="text-3">{{periodText}} · {{employeeCount}} 人</view>
+      </view>
+      <view class="spacer" />
+      <view class="badge badge-gray">{{statusDisplay}}</view>
+    </view>
+    <button class="export-btn {{exporting ? 'disabled' : ''}}" bindtap="onExport">
+      {{exporting ? '导出中…' : '导出打印（xlsx）'}}
+    </button>
+  </view>
+
+  <view wx:if="{{loading}}" class="state-tip">加载中…</view>
+  <empty-state wx:elif="{{!slips.length}}" text="该结算单无登记明细"
+               sub="可能为固定工资或已撤销的单据" />
+
+  <!-- 逐员工薪资条 -->
+  <block wx:else>
+    <view wx:for="{{slips}}" wx:key="name" class="card slip-card">
+      <view class="row">
+        <view class="h2">{{item.name}}</view>
+        <view class="spacer" />
+        <view class="h2 num">¥{{item.amountText}}</view>
+      </view>
+      <view wx:if="{{item.fromSnapshot}}" class="snap-tag text-3">金额为结算快照</view>
+      <view wx:for="{{item.items}}" wx:for-item="it" wx:key="index" class="row it-row">
+        <text class="text-2">{{it.process}}</text>
+        <view class="spacer" />
+        <text class="text-3">{{it.qty}} 件</text>
+        <text class="it-amount num">¥{{it.amountText}}</text>
+      </view>
+    </view>
+  </block>
+
+</view>

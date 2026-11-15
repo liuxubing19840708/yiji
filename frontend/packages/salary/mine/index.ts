@@ -115,14 +115,16 @@ Page({
     const uid = options.user_id ? Number(options.user_id) : (getUser() || { id: 0 }).id;
     const otherName = options.name ? decodeURIComponent(options.name) : '';
     const isSelf = uid === (getUser() || { id: -1 }).id;
-    const r = monthRange();
+    const r = options.start && options.end
+      ? { start: options.start, end: options.end }
+      : monthRange();
     this.setData({
       uid,
       isSelf,
       otherName,
       start: r.start,
       end: r.end,
-      quick: 'month'
+      quick: options.start && options.end ? '' : 'month'
     });
     if (!isSelf) {
       wx.setNavigationBarTitle({ title: otherName || '员工薪酬详情' });

@@ -135,6 +135,8 @@ def preclean(company, keep_phone=None):
     OrderItem.all_objects.filter(order__in=my_orders).delete()
     my_orders.delete()
     ProcessTemplate.all_objects.filter(company=company, name__startswith=MARK).delete()
+    from apps.tech.models import Bom  # noqa: E402  # D4 套件建了生效BOM，PROTECT 须先于款式删除
+    Bom.all_objects.filter(style__company=company, style__style_no__startswith=MARK).delete()
     Style.all_objects.filter(company=company, style_no__startswith=MARK).delete()
     Process.all_objects.filter(company=company, name__startswith=MARK).delete()
     Customer.all_objects.filter(company=company, customer_no__startswith=MARK).delete()
@@ -194,6 +196,12 @@ T_PLAIN = login(H_PLAIN)
 style = Style.objects.create(company=company, style_no=f'{MARK}-S1', name='功能测试款',
                              image='/media/uploads/tfot-s1.jpg')
 style_b = Style.objects.create(company=company_b, style_no=f'{MARK}-SB', name='B厂测试款')
+# D4 开裁缺 BOM 拦截（2026-10-24）：建床需款式有 active BOM，测试款补齐
+from apps.tech.models import Bom  # noqa: E402
+if not Bom.all_objects.filter(company=company, style=style).exists():
+    Bom.objects.create(company=company, style=style, version=1, status=Bom.Status.ACTIVE)
+if not Bom.all_objects.filter(company=company_b, style=style_b).exists():
+    Bom.objects.create(company=company_b, style=style_b, version=1, status=Bom.Status.ACTIVE)
 proc = Process.objects.create(company=company, name=f'{MARK}-P1', is_fixed=True,
                               default_price='2.500')
 proc_b = Process.objects.create(company=company_b, name=f'{MARK}-PB', is_fixed=True)

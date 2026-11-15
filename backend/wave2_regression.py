@@ -26,22 +26,35 @@ c = Client()
 PASS, FAIL = [], []
 
 # ---- 预清理（幂等：上次中断可能留下半截数据） ----
+# 本套件曾误以管理员首个公司（真实厂 id=86）为目标写入（10-24 污染根源）。
+# 修正：所有写操作只对测试厂——目标厂 = 用户公司列表中首个非 86 的厂（与下方 COMPANY_ID 同口径）。
+W2_CID = (UserCompany.objects.filter(user__phone='13800000001', is_deleted=False)
+          .exclude(company_id=86).order_by('id')
+          .values_list('company_id', flat=True).first())
 from apps.accounts.models import Post as PostM
 from apps.catalog.models import CustomerGroup
-Record.all_objects.filter(ticket__production__bed_no='R901')._raw_delete(Record.all_objects.db)
-Ticket.all_objects.filter(production__bed_no='R901')._raw_delete(Ticket.all_objects.db)
-Production.all_objects.filter(bed_no='R901')._raw_delete(Production.all_objects.db)
+Record.all_objects.filter(ticket__production__bed_no='R901', ticket__production__company_id=W2_CID)._raw_delete(Record.all_objects.db)
+# M4 打印明细也引用菲票：先清引用再删票（顺序缺陷修复，同质检员R 岗位先例）
+from apps.catalog.models import TicketPrintLog
+TicketPrintLog.all_objects.filter(ticket__production__bed_no='R901', ticket__production__company_id=W2_CID)._raw_delete(TicketPrintLog.all_objects.db)
+Ticket.all_objects.filter(production__bed_no='R901', production__company_id=W2_CID)._raw_delete(Ticket.all_objects.db)
+Production.all_objects.filter(bed_no='R901', company_id=W2_CID)._raw_delete(Production.all_objects.db)
 from apps.catalog.models import StyleProcess
-StyleProcess.all_objects.filter(style__style_no__in=['RG001', 'RG002'])._raw_delete(StyleProcess.all_objects.db)
-Style.all_objects.filter(style_no__in=['RG001', 'RG002'])._raw_delete(Style.all_objects.db)
-Customer.all_objects.filter(name__in=['回归客户', '回归分组', 'RGC01'])._raw_delete(Customer.all_objects.db)
-CustomerGroup.all_objects.filter(name__in=['回归分组', '探查分组'])._raw_delete(CustomerGroup.all_objects.db)
+from apps.tech.models import Bom as TechBom, BomItem as TechBomItem, Material as TechMaterial
+# 先清引用再删款（顺序缺陷修复：残留 BOM 挂款时 FK 拦住删款）；限目标测试厂，真实厂(86)零触碰
+TechBomItem.all_objects.filter(bom__style__style_no__in=['RG001', 'RG002'], bom__company_id=W2_CID)._raw_delete(TechBomItem.all_objects.db)
+TechBom.all_objects.filter(style__style_no__in=['RG001', 'RG002'], company_id=W2_CID)._raw_delete(TechBom.all_objects.db)
+TechMaterial.all_objects.filter(code='RGM01', company_id=W2_CID)._raw_delete(TechMaterial.all_objects.db)
+StyleProcess.all_objects.filter(style__style_no__in=['RG001', 'RG002'], style__company_id=W2_CID)._raw_delete(StyleProcess.all_objects.db)
+Style.all_objects.filter(style_no__in=['RG001', 'RG002'], company_id=W2_CID)._raw_delete(Style.all_objects.db)
+Customer.all_objects.filter(name__in=['回归客户', '回归分组', 'RGC01'], company_id=W2_CID)._raw_delete(Customer.all_objects.db)
+CustomerGroup.all_objects.filter(name__in=['回归分组', '探查分组'], company_id=W2_CID)._raw_delete(CustomerGroup.all_objects.db)
 # 历史回归运行可能遗留 auto_cut_done=1（会把新床次直接标记裁完，阻塞 4.2）
-CompanySetting.objects.filter(company_id=2, key='auto_cut_done').delete()
-Process.all_objects.filter(name='回归工序')._raw_delete(Process.all_objects.db)
-# 先清引用再删岗（顺序缺陷修复：残留成员挂岗时 FK 会拦住删岗）
-UserCompany.all_objects.filter(post__name='质检员R')._raw_delete(UserCompany.all_objects.db)
-PostM.all_objects.filter(name='质检员R')._raw_delete(PostM.all_objects.db)
+CompanySetting.objects.filter(company_id__in=[2, W2_CID], key='auto_cut_done').delete()
+Process.all_objects.filter(name='回归工序', company_id=W2_CID)._raw_delete(Process.all_objects.db)
+# 先清引用再删岗（顺序缺陷修复：残留成员挂岗时 FK 会拦住删岗）；限目标测试厂
+UserCompany.all_objects.filter(post__name='质检员R', company_id=W2_CID)._raw_delete(UserCompany.all_objects.db)
+PostM.all_objects.filter(name='质检员R', company_id=W2_CID)._raw_delete(PostM.all_objects.db)
 u0 = User.objects.filter(phone='13977776666').first()
 if u0:
     UserCompany.all_objects.filter(user=u0).delete()
@@ -76,7 +89,8 @@ AT = admin['access']
 ADMIN_UID = admin['user']['id']
 
 code, d = req('get', '/companies/mine', AT)
-COMPANY_ID = d[0]['id']
+# 真实厂（汉川旭东, id=86）只读：跳过它取首个测试厂（与预清理 W2_CID 同口径）
+COMPANY_ID = next((x['id'] for x in d if x['id'] != 86), None)
 check('1.3 公司列表', code == 200 and COMPANY_ID, f'cid={COMPANY_ID}')
 
 # ============ 2. 岗位/员工 ============
@@ -136,6 +150,17 @@ STYLE2 = d.get('id')
 check('3.4 款式工序配置', code in (200, 201), f'{code}')
 
 # ============ 4. 生产/编菲 ============
+# P1 起开裁前置校验：款式须有生效 BOM（回测补 BOM 建档+激活，物料占位不参与后续断言）
+code, mat = req('post', '/tech/materials', AT, COMPANY_ID,
+                {'code': 'RGM01', 'name': '回归面料', 'category': 'fabric', 'unit': '米'})
+RG_MAT = mat.get('id')
+check('4.0a BOM物料建档', code in (200, 201) and RG_MAT, f'{code}')
+code, bom = req('post', '/tech/boms', AT, COMPANY_ID,
+                {'style': STYLE2, 'items': [{'material': RG_MAT, 'kind': 'main',
+                                             'color': '红', 'size': 'M', 'unit_usage': '1.5'}]})
+check('4.0b BOM草稿建档', code in (200, 201) and bom.get('id'), f'{code}')
+code, d = req('post', f"/tech/boms/{bom.get('id')}/activate", AT, COMPANY_ID)
+check('4.0c BOM激活', code in (200, 201) and d.get('status') == 'active', f'{code}')
 code, prod = req('post', '/productions', AT, COMPANY_ID,
                  {'style': STYLE2, 'bed_no': 'R901', 'order_type': '自产'})
 PROD = prod.get('id')
@@ -244,7 +269,7 @@ code, d = req('put', f'/employees/{invited["id"]}/assigned-processes', AT, COMPA
 check('7.2 跨公司工序被拒', code == 400, f'{code}')
 
 code, d = req('post', '/tickets/print', AT, COMPANY_ID, {'ticket_ids': [TK['id'], TK['id']]})
-check('7.3 打印上报去重', code == 200 and d.get('printed') == 1, f'{code} {str(d)[:80]}')
+check('7.3 打印上报去重', code == 200 and d.get('reported') == 1, f'{code} {str(d)[:80]}')
 code, tk_list = req('get', f'/tickets?production_id={PROD}', AT, COMPANY_ID)
 tk_rows = tk_list.get('results') if isinstance(tk_list, dict) else tk_list
 tk_detail = next((t for t in (tk_rows or []) if t.get('id') == TK['id']), {})
@@ -285,11 +310,19 @@ check('9.2 含回归款', any((s.get('style_no') == 'RG002') for s in styles_lvl
 # ============ 清理：恢复演示库 ============
 print('\n---- cleanup ----')
 try:
-    Record.all_objects.filter(ticket__production__bed_no__in=['R901'])._raw_delete(Record.all_objects.db)
-    Ticket.all_objects.filter(production__bed_no__in=['R901'])._raw_delete(Ticket.all_objects.db)
-    Production.all_objects.filter(bed_no__in=['R901'])._raw_delete(Production.all_objects.db)
+    Record.all_objects.filter(ticket__production__bed_no__in=['R901'], ticket__production__company_id=COMPANY_ID)._raw_delete(Record.all_objects.db)
+    # 打印明细挂票：先清再删票（同预清理顺序，防 FK 拦删）
+    from apps.catalog.models import TicketPrintLog
+    TicketPrintLog.all_objects.filter(ticket__production__bed_no__in=['R901'], ticket__production__company_id=COMPANY_ID)._raw_delete(TicketPrintLog.all_objects.db)
+    Ticket.all_objects.filter(production__bed_no__in=['R901'], production__company_id=COMPANY_ID)._raw_delete(Ticket.all_objects.db)
+    Production.all_objects.filter(bed_no__in=['R901'], company_id=COMPANY_ID)._raw_delete(Production.all_objects.db)
     from apps.catalog.models import StyleProcess
-    StyleProcess.all_objects.filter(style__style_no__in=['RG001', 'RG002'])._raw_delete(StyleProcess.all_objects.db)
+    from apps.tech.models import BomItem as TechBomItem, Material as TechMaterial
+    StyleProcess.all_objects.filter(style__style_no__in=['RG001', 'RG002'], style__company_id=COMPANY_ID)._raw_delete(StyleProcess.all_objects.db)
+    # P1 BOM 产物回清：先明细后主表再物料（防 FK 拦删）
+    TechBomItem.all_objects.filter(bom__style_id__in=[sid for sid in (STYLE, STYLE2) if sid])._raw_delete(TechBomItem.all_objects.db)
+    TechBom.all_objects.filter(style_id__in=[sid for sid in (STYLE, STYLE2) if sid])._raw_delete(TechBom.all_objects.db)
+    TechMaterial.all_objects.filter(code='RGM01', company_id=COMPANY_ID)._raw_delete(TechMaterial.all_objects.db)
     for sid in (STYLE, STYLE2):
         if sid:
             Style.all_objects.filter(pk=sid)._raw_delete(Style.all_objects.db)

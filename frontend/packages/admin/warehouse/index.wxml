@@ -30,6 +30,14 @@
     <block wx:if="{{tab !== 'issue'}}">
       <input class="input" placeholder="面料名称（必填）" value="{{fabric}}" bindinput="onFabric" />
       <input class="input" placeholder="颜色（可空）" value="{{color}}" bindinput="onColor" />
+      <picker range="{{materials}}" range-key="label" bindchange="onPickMaterial">
+        <view class="input picker">物料：{{materialIndex >= 0 ? materials[materialIndex].label : '点选（选填，选后带出单价单位）'}}</view>
+      </picker>
+      <input class="input" type="digit" placeholder="{{tab === 'purchase' ? '单价（可空）' : '入库单价（可空）'}}" value="{{price}}" bindinput="onPrice" />
+      <picker mode="selector" range="{{priceUnitLabels}}" value="{{priceUnitIndex}}" bindchange="onPickPriceUnit">
+        <view class="input picker">单价单位：{{priceUnitLabels[priceUnitIndex]}}</view>
+      </picker>
+      <view class="text-3 hint" wx:if="{{priceHint}}">{{priceHint}}</view>
     </block>
 
     <block wx:if="{{tab === 'stockin'}}">
@@ -56,7 +64,7 @@
       </view>
       <view class="text-3">{{item.supplier_name || '-'}} · {{item.ordered_at}}</view>
       <view class="text-3" wx:for="{{item.items}}" wx:for-item="it" wx:key="id">
-        {{it.fabric_name}} {{it.color || ''}} ×{{it.qty}}{{it.unit || ''}}
+        {{it.material_name || it.fabric_name}} {{it.color || ''}} ×{{it.qty}}{{it.unit || ''}}
       </view>
       <button wx:if="{{item.status === 'draft'}}" class="btn btn-ghost confirm-btn"
               data-tab="purchase" data-index="{{index}}" wx:if="{{canManage}}" bindtap="onConfirm">确认</button>
@@ -72,7 +80,7 @@
       </view>
       <view class="text-3">{{item.in_at}}</view>
       <view class="text-3" wx:for="{{item.items}}" wx:for-item="it" wx:key="id">
-        {{it.fabric_name}} {{it.color || ''}} · 批次 {{it.lot_no}} ×{{it.qty}}{{it.unit || ''}}
+        {{it.material_name || it.fabric_name}} {{it.color || ''}} · 批次 {{it.lot_no}} ×{{it.qty}}{{it.unit || ''}}
       </view>
       <button wx:if="{{item.status === 'draft'}}" class="btn btn-ghost confirm-btn"
               data-tab="stockin" data-index="{{index}}" wx:if="{{canManage}}" bindtap="onConfirm">确认</button>

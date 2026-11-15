@@ -43,6 +43,7 @@
         <view class="text-3">{{item.timeText}}</view>
       </view>
       <view class="nt-message {{item.is_read ? 'text-2' : ''}}">{{item.message}}</view>
+      <view wx:if="{{item.linkText}}" class="text-3">{{item.linkText}}</view>
     </view>
 
     <view class="text-3 nt-center nt-more">

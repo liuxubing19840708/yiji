@@ -1,6 +1,6 @@
 /**
  * 员工管理列表：置顶、状态筛选（全部/待审核/在职/离职）、待审核通过/拒绝、
- * 在职 ⋯ 菜单（设置岗位/设置组/设置工资/办理离职）、离职复职；离职遇未结算记录二次确认。
+ * 在职 ⋯ 菜单（设置岗位/设置组/设置工序/设置工资/办理离职）、离职复职；离职遇未结算记录二次确认。
  * 「邀请员工」（规格 §11.1）：手机号 + 姓名/岗位弹层 → 创建待审核成员。
  */
 import { requireLogin } from '../../../utils/auth';
@@ -9,12 +9,17 @@ import {
   fetchEmployees, approveEmployee, rejectEmployee, resignEmployee,
   rehireEmployee, setEmployeePost, setEmployeeGroup, pinEmployee, fetchPosts
 } from '../../../services/auth';
-import { inviteEmployee } from '../../../services/org';
+import { inviteEmployee, setAssignedProcesses, EmployeeWithProcesses } from '../../../services/org';
 import { updateEmployeeConfig } from '../../../services/salary';
-import { Employee, MemberStatus, Post } from '../../../services/types';
+import { fetchProcesses } from '../../../services/catalog';
+import { Employee, MemberStatus, Post, Process } from '../../../services/types';
 import { currentCompanyId } from '../../../utils/format';
 
 type TabKey = 'all' | 'pending' | 'active' | 'resigned';
+
+interface ProcessVM extends Process {
+  checked: boolean;
+}
 
 interface EmpVM extends Employee {
   initial: string;
@@ -79,11 +84,22 @@ Page({
     salaryAmount: '',                   // fixed：金额（空串或 0 = 取消固定工资）
     salaryFixedKind: 'day' as 'day' | 'month',
     salaryRate: '',                     // whole：整件单价 / commission：提成比例%
-    salarySubmitting: false
+    salarySubmitting: false,
+    // 设置工序弹层：与设置岗位、设置组平行，维护员工固定工序之外的可做工序
+    processVisible: false,
+    processEmpId: 0,
+    processEmpName: '',
+    processLoading: false,
+    processSaving: false,
+    processKeyword: '',
+    processList: [] as ProcessVM[],
+    processSelectedCount: 0
   },
 
   /** 接口原始列表（筛选前的全量数据） */
   all: [] as Employee[],
+  allProcesses: [] as Process[],
+  checkedProcessIds: [] as number[],
 
   onLoad(options: Record<string, string | undefined>) {
     // 岗位管理「查看成员」跳入：?post=<postId> 直接按岗位过滤
@@ -232,7 +248,7 @@ Page({
     if (!emp) return;
     if (emp.status === 1) {
       // 「设置工资」仅在职员工显示，且按 salary.config 点显隐
-      const items = ['设置岗位', '设置组'];
+      const items = ['设置岗位', '设置组', '设置工序'];
       if (this.data.canSalary) items.push('设置工资');
       items.push('办理离职');
       wx.showActionSheet({
@@ -241,6 +257,7 @@ Page({
           const label = items[r.tapIndex];
           if (label === '设置岗位') this.pickPost(emp);
           else if (label === '设置组') this.pickGroup(emp);
+          else if (label === '设置工序') this.pickProcess(emp as EmployeeWithProcesses);
           else if (label === '设置工资') this.pickSalary(emp);
           else if (label === '办理离职') this.askResign(emp);
         }
@@ -312,6 +329,81 @@ Page({
           .catch(() => {});
       }
     });
+  },
+
+  // ---- 设置工序（员工固定工序之外的可做工序） ----
+
+  pickProcess(emp: EmployeeWithProcesses) {
+    this.checkedProcessIds = [...(emp.assigned_processes || [])];
+    this.setData({
+      processVisible: true,
+      processEmpId: emp.id,
+      processEmpName: emp.name,
+      processLoading: true,
+      processSaving: false,
+      processKeyword: '',
+      processList: [],
+      processSelectedCount: this.checkedProcessIds.length
+    });
+    fetchProcesses().then((processes) => {
+      // 防止等待期间已切换到其他员工或关闭弹层后旧请求覆盖新状态。
+      if (!this.data.processVisible || this.data.processEmpId !== emp.id) return;
+      this.allProcesses = processes;
+      this.applyProcessView();
+      this.setData({ processLoading: false });
+    }).catch(() => {
+      if (this.data.processEmpId === emp.id) {
+        this.setData({ processVisible: false, processLoading: false });
+      }
+    });
+  },
+
+  applyProcessView() {
+    const keyword = this.data.processKeyword.trim();
+    const processList = this.allProcesses
+      .filter((p) => !keyword || p.name.includes(keyword))
+      .map((p) => ({ ...p, checked: this.checkedProcessIds.includes(p.id) }));
+    this.setData({ processList, processSelectedCount: this.checkedProcessIds.length });
+  },
+
+  onProcessSearch(e: WechatMiniprogram.Input) {
+    this.setData({ processKeyword: e.detail.value }, () => this.applyProcessView());
+  },
+
+  clearProcessSearch() {
+    this.setData({ processKeyword: '' }, () => this.applyProcessView());
+  },
+
+  onToggleProcess(e: WechatMiniprogram.TouchEvent) {
+    if (this.data.processSaving) return;
+    const id = Number(e.currentTarget.dataset.id);
+    const index = this.checkedProcessIds.indexOf(id);
+    if (index >= 0) this.checkedProcessIds.splice(index, 1);
+    else this.checkedProcessIds.push(id);
+    this.applyProcessView();
+  },
+
+  closeProcess() {
+    if (this.data.processSaving) return;
+    this.setData({ processVisible: false, processLoading: false, processKeyword: '', processList: [] });
+  },
+
+  submitProcesses() {
+    if (this.data.processSaving || this.data.processLoading) return;
+    const id = this.data.processEmpId;
+    const emp = this.all.find((item) => item.id === id) as EmployeeWithProcesses | undefined;
+    if (!emp) return;
+    const ids = [...this.checkedProcessIds];
+    if (JSON.stringify([...ids].sort()) === JSON.stringify([...(emp.assigned_processes || [])].sort())) {
+      wx.showToast({ title: '未做修改', icon: 'none' });
+      return;
+    }
+    this.setData({ processSaving: true });
+    setAssignedProcesses(id, ids).then((updated) => {
+      this.all = this.all.map((item) => item.id === id ? { ...item, assigned_processes: updated.assigned_processes || ids } : item);
+      this.setData({ processVisible: false, processSaving: false, processList: [] });
+      wx.showToast({ title: '可做工序已保存', icon: 'success' });
+    }).catch(() => this.setData({ processSaving: false }));
   },
 
   // ---- 设置工资（四类工资制，四选一互斥：固定/整件计件/工序计件/计件提成） ----

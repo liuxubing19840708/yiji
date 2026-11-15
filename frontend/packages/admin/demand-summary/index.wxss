@@ -1,0 +1,124 @@
+/* 采购需求汇总页样式（取 app.wxss 变量） */
+
+.filter-card {
+  margin-bottom: 20rpx;
+}
+
+.filter-chip {
+  padding: 12rpx 24rpx;
+  border-radius: 999rpx;
+  background: var(--color-bg);
+  font-size: 24rpx;
+  color: var(--color-text-2);
+  margin-right: 16rpx;
+}
+
+.filter-note {
+  margin-top: 14rpx;
+}
+
+.pending-bar {
+  background: #FFF7E8;
+  border: 2rpx solid #FFD591;
+  color: #AD6800;
+  font-size: 24rpx;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.sum-card {
+  margin-bottom: 20rpx;
+}
+
+.sum-note {
+  margin-top: 12rpx;
+}
+
+.cols {
+  margin-top: 12rpx;
+}
+
+.col {
+  flex: 1;
+  text-align: center;
+}
+
+.col-num {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.suggest-hl {
+  text-decoration: underline;
+}
+
+.row-card {
+  margin-bottom: 20rpx;
+}
+
+.item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-title {
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.unit-line {
+  margin-top: 10rpx;
+}
+
+.state {
+  padding: 120rpx 40rpx;
+  text-align: center;
+}
+
+.state-btn {
+  margin-top: 24rpx;
+}
+
+.loading-more {
+  text-align: center;
+  padding: 20rpx 0 40rpx;
+}
+
+/* P2.5 安全库存口径开关 + 一键生成采购单 */
+.act-row {
+  margin-top: 16rpx;
+  align-items: center;
+}
+
+.safety-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.toggle-dot {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  border: 3rpx solid var(--color-border);
+  background: var(--color-card, #ffffff);
+}
+
+.toggle-dot.on {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.gen-btn {
+  background: var(--color-primary);
+  color: #ffffff;
+  font-size: 26rpx;
+  padding: 12rpx 28rpx;
+  border-radius: 999rpx;
+  white-space: nowrap;
+}
+
+.gen-btn.disabled {
+  opacity: 0.6;
+}

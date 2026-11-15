@@ -111,6 +111,8 @@ Production.all_objects.filter(company=company).delete()
 OrderItem.all_objects.filter(order__company=company).delete()
 Order.all_objects.filter(company=company).delete()
 StyleProcess.objects.filter(style__company=company).delete()
+from apps.tech.models import Bom  # noqa: E402  # D4 套件建了生效BOM，PROTECT 须先于款式删除
+Bom.all_objects.filter(company=company).delete()
 Style.all_objects.filter(company=company).delete()
 Process.all_objects.filter(company=company).delete()
 UserCompany.all_objects.filter(company=company, post__is_admin=False).delete()
@@ -136,6 +138,11 @@ P1, P2, P3, P4, P5 = (procs[i] for i in range(1, 6))
 sa = Style.objects.create(company=company, style_no='PDGF-SA', name='多工序款')
 sb = Style.objects.create(company=company, style_no='PDGF-SB', name='无工序款')
 sd = Style.objects.create(company=company, style_no='PDGF-SD', name='款式价覆盖款')
+# D4 开裁缺 BOM 拦截（2026-10-24）：建床需款式有 active BOM，测试款补齐
+from apps.tech.models import Bom  # noqa: E402
+for _s in (sa, sb, sd):
+    if not Bom.all_objects.filter(company=company, style=_s).exists():
+        Bom.objects.create(company=company, style=_s, version=1, status=Bom.Status.ACTIVE)
 StyleProcess.objects.create(style=sa, process=P1, price='0.500', sort=1, allow_skip=True)
 StyleProcess.objects.create(style=sa, process=P2, price='1.000', sort=2, allow_skip=False)
 StyleProcess.objects.create(style=sd, process=P2, price='0.880', sort=1, allow_skip=True)
@@ -355,7 +362,7 @@ check('改单后订单工序两道含价',
 st, d = api('DELETE', f'/productions/{bed_del2.id}', TA, CID)
 check('删除有登记床次 → 400', st == 400, f'http {st} {d}')
 st, d = api('DELETE', f'/productions/{bed_del.id}', TA, CID)
-check('删除无登记床次 → 204', st in (200, 204), f'http {st} {d}')
+check('删除无登记床次 → 204', st == 204, f'http {st} {d}')
 check('删除后菲票级联软删',
       Ticket.all_objects.filter(production=bed_del, is_deleted=True).count() == 1
       and not Ticket.objects.filter(production=bed_del).exists())
@@ -529,7 +536,7 @@ st, d = api('POST', '/records', TW1, CID,
 check('员工本人登记 5 件', st == 201, f'http {st} {d}')
 today_rec = Record.objects.get(pk=d['id'])
 st, d = api('DELETE', f'/records/{today_rec.id}', TA, CID)
-check('管理员撤销他人当日登记', st in (200, 204), f'http {st} {d}')
+check('管理员撤销他人当日登记', st == 204, f'http {st} {d}')
 st, d = api('POST', '/records', TW1, CID,
             {'ticket_id': t_a2.id, 'process_id': P1.id, 'qty': 5})
 check('员工再次登记（撤销后新建）', st == 201, f'http {st} {d}')
@@ -548,7 +555,7 @@ check('只撤当月开关：上月登记 → 400', st == 400, f'http {st} {d}')
 CompanySetting.objects.filter(company=company,
                               key='revoke_current_month_only').update(value='0')
 st, d = api('DELETE', f'/records/{old_rec.id}', TA, CID)
-check('关开关后上月登记可撤', st in (200, 204), f'http {st} {d}')
+check('关开关后上月登记可撤', st == 204, f'http {st} {d}')
 CompanySetting.objects.filter(company=company,
                               key='revoke_current_month_only').delete()
 

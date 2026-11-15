@@ -1,8 +1,8 @@
 <view class="page">
   <!-- Tab -->
   <view class="tabs">
-    <view class="tab {{tab === 'groups' ? 'active' : ''}}" data-tab="groups" bindtap="onTab">客户分组</view>
     <view class="tab {{tab === 'customers' ? 'active' : ''}}" data-tab="customers" bindtap="onTab">全部客户</view>
+    <view class="tab {{tab === 'groups' ? 'active' : ''}}" data-tab="groups" bindtap="onTab">客户分组</view>
   </view>
 
   <!-- ============ 客户分组 ============ -->
@@ -88,7 +88,7 @@
       </view>
       <view class="field">
         <text class="label">电话</text>
-        <input class="input" type="number" placeholder="选填" value="{{form.phone}}" bindinput="onFormPhone" />
+        <input class="input" placeholder="选填" value="{{form.phone}}" bindinput="onFormPhone" maxlength="30" />
       </view>
       <picker mode="selector" range="{{groupNames}}" value="{{form.groupIndex}}" bindchange="onFormGroup">
         <view class="field">
@@ -98,7 +98,7 @@
       </picker>
       <view class="field">
         <text class="label">备注</text>
-        <input class="input" placeholder="选填" value="{{form.remark}}" bindinput="onFormRemark" />
+        <textarea class="input remark-input" placeholder="选填" value="{{form.remark}}" bindinput="onFormRemark" maxlength="500" />
       </view>
 
       <button class="btn btn-info sheet-save" loading="{{saving}}" bindtap="onSaveCustomer">保存</button>

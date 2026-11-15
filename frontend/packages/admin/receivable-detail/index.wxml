@@ -1,0 +1,103 @@
+<view class="page">
+  <!-- 无权限防御态（finance.view；后端 403 兜底） -->
+  <view wx:if="{{denied}}" class="state">
+    <view class="text-3">暂无「应收查看」权限，请联系管理员开通</view>
+  </view>
+
+  <view wx:elif="{{loading}}" class="state text-3">加载中…</view>
+  <view wx:elif="{{error}}" class="state">
+    <view class="text-3">加载失败，请重试</view>
+    <button class="btn btn-ghost state-btn" bindtap="load">重新加载</button>
+  </view>
+  <empty-state wx:elif="{{gone}}" text="应收不存在或已作废" sub="作废后从列表下架（软删，日志可追）" />
+
+  <block wx:elif="{{rec}}">
+    <!-- 头部：单号/客户/订单/状态 -->
+    <view class="card">
+      <view class="row">
+        <view class="item-main">
+          <view class="item-title">{{rec.receivable_no}}</view>
+          <view class="text-3">{{rec.status_display}} · 建于 {{rec.created_at}}</view>
+        </view>
+      </view>
+      <view class="text-3 info-line">客户 {{rec.customer_name || '—'}}<text wx:if="{{rec.order_no}}"> · 订单 {{rec.order_no}}</text></view>
+      <view class="text-3 info-line" wx:if="{{rec.remark}}">备注：{{rec.remark}}</view>
+    </view>
+
+    <!-- 金额三列 -->
+    <view class="card">
+      <view class="row cols">
+        <view class="col">
+          <view class="col-num num">{{rec.amount}}</view>
+          <view class="text-3">应收</view>
+        </view>
+        <view class="col">
+          <view class="col-num num">{{rec.received_amount}}</view>
+          <view class="text-3">已收</view>
+        </view>
+        <view class="col">
+          <view class="col-num num {{rec.status === 'settled' ? 'text-3' : 'text-danger'}}">{{rec.outstanding}}</view>
+          <view class="text-3">剩余</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 收款记录时间线：GET /finance/receivables/{id}/receipt-lines（缺口 B 已补），
+         倒序逐笔展示；已撤销（软删）行后端不回，留痕走 ops 审计日志 -->
+    <view class="card">
+      <view class="row"><view class="h2">收款记录</view><view class="spacer"></view>
+        <view class="text-3">已收 {{rec.received_amount}} / {{rec.amount}}</view></view>
+      <view wx:if="{{lines.length}}" class="timeline">
+        <view class="tl-row" wx:for="{{lines}}" wx:key="id">
+          <view class="tl-dot"></view>
+          <view class="tl-main">
+            <view class="tl-line1">
+              <text class="tl-amt num">{{item.amount}}</text>
+              <text class="text-3">{{item.method_display}}</text>
+            </view>
+            <view class="text-3 tl-line2">{{item.received_at}}<text wx:if="{{item.handler}}"> · 经手 {{item.handler}}</text><text wx:if="{{item.remark}}"> · {{item.remark}}</text></view>
+          </view>
+        </view>
+      </view>
+      <view wx:else class="text-3 timeline-note">
+        暂无收款记录；核销/撤销后本页即时刷新，撤销明细可在 ops 审计日志中追溯。
+      </view>
+    </view>
+
+    <!-- 动作区（finance.manage 显隐） -->
+    <view class="card" wx:if="{{canManage}}">
+      <view class="row act-wrap">
+        <view class="act act-primary" bindtap="onOpenReceipt">收款核销</view>
+        <view class="act" bindtap="onRevoke">撤销收款</view>
+        <view class="act act-lost" bindtap="onVoid">作废</view>
+      </view>
+      <view class="text-3 act-note">超收硬拦：本次核销 + 已收 ≤ 应收（前端预校验，后端 400 兜底）；作废前须先撤销全部收款。</view>
+    </view>
+  </block>
+
+  <!-- ============ 核销弹层（finance.manage） ============ -->
+  <view class="mask" wx:if="{{receiptVisible}}" bindtap="onCloseReceipt">
+    <view class="sheet" catchtap="noop">
+      <view class="row sheet-head">
+        <view class="h2">收款核销</view>
+        <view class="spacer"></view>
+        <view class="text-3" bindtap="onCloseReceipt">关闭</view>
+      </view>
+      <view class="text-3 sheet-sub" wx:if="{{rec}}">{{rec.receivable_no}} · 应收 {{rec.amount}} · 已收 {{rec.received_amount}} · 剩余 {{rec.outstanding}}</view>
+      <input class="input" type="digit" placeholder="本次核销金额（>0）"
+        value="{{amount}}" bindinput="onAmount" />
+      <picker mode="date" value="{{receivedAt}}" bindchange="onReceivedAtChange">
+        <view class="picker-box">实际收款日期：{{receivedAt || '默认今天'}} ▾</view>
+      </picker>
+      <picker mode="selector" range="{{methodLabels}}" value="{{methodIndex}}" bindchange="onMethodChange">
+        <view class="picker-box">方式：{{methodLabels[methodIndex]}} ▾</view>
+      </picker>
+      <input class="input" placeholder="经手人（选填，≤32字）"
+        value="{{handler}}" bindinput="onHandler" />
+      <input class="input" placeholder="备注（选填）"
+        value="{{remark}}" bindinput="onRemark" />
+      <view class="err-line" wx:if="{{receiptError}}">⚠ {{receiptError}}</view>
+      <button class="btn btn-primary" loading="{{receiptSaving}}" bindtap="onSaveReceipt">确认核销</button>
+    </view>
+  </view>
+</view>

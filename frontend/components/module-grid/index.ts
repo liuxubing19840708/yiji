@@ -14,8 +14,8 @@ export interface ModuleItem {
 }
 
 const TAB_PATHS = [
-  '/pages/index/index', '/pages/process/index', '/pages/scan/index',
-  '/pages/notifications/index', '/pages/profile/index'
+  '/pages/index/index', '/pages/scan/index',
+  '/pages/notifications/index', '/pages/profile/index', '/pages/ai-report/index'
 ];
 
 Component({

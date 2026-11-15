@@ -1,4 +1,9 @@
 /* 工序 Tab 样式：走 app.wxss 设计令牌 */
+.process-filters { display: flex; gap: 16rpx; margin-bottom: 24rpx; }
+.process-search { flex: 1; min-width: 0; padding: 16rpx 24rpx; border-radius: 999rpx; background: var(--color-card); font-size: 26rpx; box-shadow: var(--shadow); }
+.process-filter-picker { padding: 16rpx 20rpx; border-radius: 999rpx; background: var(--color-card); color: var(--color-text-2); font-size: 24rpx; white-space: nowrap; box-shadow: var(--shadow); }
+.proc-meta { margin-top: 12rpx; font-size: 24rpx; }
+.proc-edit { padding: 4rpx 0 4rpx 24rpx; color: var(--color-primary); font-size: 26rpx; }
 .state-tip {
   text-align: center;
   color: var(--color-text-3);
@@ -148,4 +153,21 @@
   background: var(--color-primary-light);
   border-color: var(--color-primary);
   color: var(--color-primary);
+}
+
+/* 关键工序/隐藏工价 chip（GAP-6/8，2026-11-04） */
+.proc-flag {
+  flex-shrink: 0;
+  margin-right: 12rpx;
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+  font-size: 20rpx;
+  color: var(--text-3, #999);
+  background: rgba(0, 0, 0, 0.05);
+  border: 1rpx solid transparent;
+}
+.proc-flag.on {
+  color: var(--color-primary, #2f6fed);
+  background: var(--color-primary-light, rgba(47, 111, 237, 0.1));
+  border-color: var(--color-primary, #2f6fed);
 }

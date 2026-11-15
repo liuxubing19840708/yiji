@@ -3,6 +3,7 @@
  * 契约以后端 apps/production/views.py、apps/records/views.py 为准（2026-10-15 全量核对）。
  */
 import { http } from '../utils/request';
+import { BASE_URL } from '../utils/config';
 import {
   Production, ProductionProcessItem, RecordItem, ScanParseResult,
   Workbench, Paginated, ProcessSelectorItem
@@ -33,6 +34,9 @@ export function createProduction(data: {
   source_order_no?: string;
   /** 挂单开床：带 order_id 时 style 可不传（后端从订单继承款式） */
   order_id?: number;
+  /** D4 无生效BOM拦截放行：需同时带 bypass_reason（后端 ops audit 留痕） */
+  bom_bypass?: boolean;
+  bypass_reason?: string;
   process_items?: Array<{ process_id: number; price?: string }>;
 }): Promise<Production> {
   return http.post<Production>('/productions', data as Record<string, unknown>);
@@ -68,6 +72,52 @@ export function updateOrderProcesses(id: number, processItems: Array<{ process_i
 /** 该床次的菲票列表：{count, process_count, results} */
 export function fetchProductionBundles(id: number, params?: { page?: number; page_size?: number }): Promise<{ count: number; process_count: number; results: Array<Record<string, unknown>> }> {
   return http.get(`/productions/${id}/bundles`, params);
+}
+
+// ---- 按扎卡片视图（竞品对齐借鉴#1，2026-11-05）：expand=1 逐扎逐工序明细 ----
+
+/** 扎上单条登记（改数/撤销的行内入口；无 salary.view 时后端不下发明细） */
+export interface BundleRecordItem {
+  id: number;
+  qty: number;
+  user_id: number;
+  user_name: string;
+  registered_at: string;
+  is_today: boolean;
+  settled: boolean;
+}
+
+/** 扎卡上的工序行：价目 + 已登量 + 记录明细 */
+export interface BundleProcessItem {
+  process_id: number;
+  name: string;
+  price: string;
+  registered_qty: number;
+  done: boolean;
+  records: BundleRecordItem[];
+}
+
+/** 扎卡行：基础字段同旧 bundles，expand=1 时附 processes */
+export interface BundleCardRow {
+  id: number;
+  bundle_no: string;
+  color: string;
+  size: string;
+  qty: number;
+  is_printed: boolean;
+  registered_process_count: number;
+  process_count: number;
+  registered_qty: number;
+  state: 'none' | 'partial' | 'done';
+  state_display: string;
+  processes?: BundleProcessItem[];
+}
+
+export function fetchBundleCards(
+  id: number,
+  params?: { keyword?: string; state?: string }
+): Promise<{ count: number; process_count: number; can_see_records: boolean; results: BundleCardRow[] }> {
+  return http.get(`/productions/${id}/bundles`, { expand: 1, ...params });
 }
 
 /** 裁货明细（颜色×尺码汇总） */
@@ -120,6 +170,66 @@ export function deleteRecord(id: number): Promise<unknown> {
   return http.del(`/records/${id}`);
 }
 
+/** 修改登记数量（原因必填，后端留痕；竞品对齐 GAP-3，2026-11-04；wx.request 无 PATCH 走 PUT） */
+export function updateRecordQty(
+  id: number, data: { qty: number; reason: string }
+): Promise<unknown> {
+  return http.put<unknown>(`/records/${id}`, data as unknown as Record<string, unknown>);
+}
+
+/** 批量登记结果行（GAP-2）：ok=false 时 error 带原因（超限/工序不在配置/锁定…） */
+export interface BatchRegisterResultRow {
+  ticket_id: number | null;
+  bundle_no?: string;
+  ok: boolean;
+  error?: string;
+  record_id?: number;
+  qty?: number;
+  amount?: string;
+}
+
+export interface BatchRegisterResult {
+  total: number;
+  ok: number;
+  fail: number;
+  results: BatchRegisterResultRow[];
+}
+
+/** 批量协助登记（竞品对齐 GAP-2，2026-11-04）：选员工→选工序→多扎一次登记，部分成功语义 */
+export function batchRegister(data: {
+  process_id: number;
+  user_id?: number;
+  entries: Array<{ ticket_id: number; qty?: number }>;
+}): Promise<BatchRegisterResult> {
+  return http.post<BatchRegisterResult>('/records/batch-register', data as unknown as Record<string, unknown>);
+}
+
+export interface BatchUndoResultRow { record_id: number; ok: boolean; error?: string; }
+export interface BatchUndoResult { total: number; ok: number; fail: number; results: BatchUndoResultRow[]; }
+
+/** 批量撤销（GAP-2）：逐条复用单撤门禁，部分成功语义 */
+export function batchUndo(recordIds: number[]): Promise<BatchUndoResult> {
+  return http.post<BatchUndoResult>(
+    '/records/batch-undo', { record_ids: recordIds } as unknown as Record<string, unknown>);
+}
+
+/**
+ * 计件明细导出（竞品对齐 GAP-7，2026-11-04）：GET /records/export 返回 xlsx 文件流，
+ * 需 wx.downloadFile（带 Authorization 头）→ wx.openDocument 打开。
+ * 返回完整 URL 供 downloadFile 使用；权限 salary.view 由后端校验。
+ */
+export function recordsExportUrl(params?: {
+  user_id?: number; process_id?: number; date_from?: string; date_to?: string;
+}): string {
+  const qs: string[] = [];
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') qs.push(`${k}=${encodeURIComponent(String(v))}`);
+    });
+  }
+  return `${BASE_URL}/records${qs.length ? `?${qs.join('&')}` : ''}`;
+}
+
 /**
  * 登记页工序选择器：{results: [{id,name,is_fixed,price}], single}。
  * 传 ticket_id/user_id 时单价按该菲票解析（订单工序可覆盖款式价）。
@@ -145,6 +255,8 @@ export interface TicketLookupRow {
   qty: number;
   style_no?: string;
   style_name?: string;
+  /** 床次 id（2026-10-29 与 /scan/parse 同构补齐）：选中后启用补打入口 */
+  production_id?: number;
   /** 所属床次锁定态（后端若返回则前端预拦截，最终以后端 400 为准） */
   is_locked?: boolean;
   /** SA3 实际返回：status=locked/cut_done/normal（按床次派生） */

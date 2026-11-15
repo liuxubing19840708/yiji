@@ -33,14 +33,14 @@ const REGISTERED = 45;   // 接近满扎：徽标 45/50
   let page = null;         // 扫菲页（可达时）
   const api = new ApiClient();
   let wholeProcessId = 0;
-  let flippedProcess = null;   // 临时置 is_fixed 的工序（finally 还原）
+  let styleId = 0;
   let fx = null;
 
   try {
     await api.login();
-    s.check('B1 后端登录（公司 86）', true, `token=${api.token ? 'ok' : '空'}`);
+    s.check('B1 后端登录（隔离测试公司）', true, `token=${api.token ? 'ok' : '空'}`);
   } catch (e) {
-    s.check('B1 后端登录（公司 86）', false, String(e.message || e));
+    s.check('B1 后端登录（隔离测试公司）', false, String(e.message || e));
     s.summary();
     return;
   }
@@ -55,26 +55,24 @@ const REGISTERED = 45;   // 接近满扎：徽标 45/50
   } catch (e) { /* 构造失败在下方给出线索 */ }
 
   try {
+    const style = await api.post('/styles', {
+      style_no: 'UISCAN-S1', name: 'UI扫码隔离测试款'
+    });
+    if (style.code !== 201) throw new Error(`创建隔离款式失败 code=${style.code}`);
+    styleId = style.data.id;
     fx = await buildBedFixture(api, {
       orderNo: MARK, bedNo: BED, totalQty: TOTAL_QTY,
-      registerQty: REGISTERED, styleId: 407, processId: wholeProcessId
+      registerQty: REGISTERED, styleId, processId: wholeProcessId
     });
     s.check('B2 API 数据构造：订单+床次+菲票+预登记45件', !!fx.ticketId,
       `order=${fx.orderId} prod=${fx.prodId} ticket=${fx.ticketId} records=${fx.recordIds.length}`);
-    // selector 口径 = 固定工序 ∪ 员工指定工序（不含床次自配工序）：公司 86 只有
-    // 「整件」1 个固定工序 → 单选态会自动跳过工序选择、徽标不渲染。
-    // 处置：临时把一个工序置 is_fixed=true（记住原值，finally 还原），凑 2 工序。
-    const allProcs = await api.get('/processes?page=1&page_size=50');
-    const second = ((allProcs && allProcs.results) || []).find((p) => p.id !== wholeProcessId);
-    if (second) {
-      await api.put(`/processes/${second.id}`, {
-        name: second.name,
-        default_price: second.default_price,
-        is_fixed: true,
-        sort: second.sort
-      });
-      flippedProcess = { id: second.id, origin: second };
-    }
+    // selector 口径 = 固定工序 ∪ 员工指定工序（不含床次自配工序）：隔离测试公司 只有
+    // 新公司默认只有「整件」1 个固定工序 → 单选态会跳过工序选择。
+    // 在本隔离公司新建第二个固定工序，不修改任何共享档案。
+    const secondProcess = await api.post('/processes', {
+      name: 'UISCAN-辅助工序', default_price: '0.05', is_fixed: true, sort: 90
+    });
+    if (secondProcess.code !== 201) throw new Error('创建隔离辅助工序失败');
   } catch (e) {
     s.check('B2 API 数据构造：订单+床次+菲票+预登记45件', false, String((e && e.message) || e).slice(0, 140));
   }
@@ -151,7 +149,7 @@ const REGISTERED = 45;   // 接近满扎：徽标 45/50
         const rows = await elements(page, '.lookup-row');
         if (rows.length < 1) throw new Error('无候选行');
         const txt = await elementText(rows[0]);
-        const need = ['RG001-1', BED, '黑色', '1', String(TOTAL_QTY)];
+        const need = ['UISCAN-S1', BED, '黑色', '1', String(TOTAL_QTY)];
         const miss = need.filter((k) => txt.indexOf(k) < 0);
         if (miss.length) throw new Error('缺字段: ' + miss.join(',') + ' | 行文本: ' + txt.slice(0, 80));
       }, true);
@@ -212,24 +210,6 @@ const REGISTERED = 45;   // 接近满扎：徽标 45/50
       s.check('B4 清理：UISCAN- 前缀数据已清', cleaned >= 1 || !fx, `删除订单数=${cleaned}`);
     } catch (e) {
       s.check('B4 清理：UISCAN- 前缀数据已清', false, String((e && e.message) || e).slice(0, 120));
-    }
-
-    // ---- 还原临时置位的固定工序（真实库不留痕） ----
-    if (flippedProcess) {
-      try {
-        const r = await api.put(`/processes/${flippedProcess.id}`, {
-          name: flippedProcess.origin.name,
-          default_price: flippedProcess.origin.default_price,
-          is_fixed: flippedProcess.origin.is_fixed,
-          sort: flippedProcess.origin.sort
-        });
-        s.check('B5 还原：临时固定工序已复原 is_fixed=' + flippedProcess.origin.is_fixed,
-          r.code === 200, `code=${r.code}`);
-      } catch (e) {
-        s.check('B5 还原：临时固定工序已复原', false, String((e && e.message) || e).slice(0, 120));
-      }
-    } else {
-      s.check('B5 还原：无临时固定工序需还原', true, '未触发 flip 或前置未构造');
     }
 
     if (mp) {

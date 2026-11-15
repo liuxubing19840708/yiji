@@ -79,6 +79,12 @@ class OrderItem(BaseModel):
     color = models.CharField('颜色', max_length=64)
     size = models.CharField('尺码', max_length=32)
     qty = models.PositiveIntegerField('订单数量')
+    # P1 成本域（2026-10-24 DDL 批准）：色码单价，可空=未定价。
+    # revenue = Σ items.qty × price；存量订单 NULL=无收入侧，毛利显示「—」并提示补价。
+    # 理论收入与实际收款（折扣/尾数/坏账）差异属预期，P2 应收核销后以收款实绩复核。
+    price = models.DecimalField('色码单价', max_digits=10, decimal_places=3,
+                                null=True, blank=True,
+                                help_text='理论收入=Σqty×price，与实际收款差异属预期')
 
     class Meta:
         db_table = 'order_item'

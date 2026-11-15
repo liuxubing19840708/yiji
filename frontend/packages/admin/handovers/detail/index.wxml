@@ -1,0 +1,105 @@
+<view class="page detail-page">
+  <view wx:if="{{denied}}" class="state text-3">暂无交接查看权限，请联系管理员</view>
+  <view wx:elif="{{loading}}" class="state text-3">加载中…</view>
+  <view wx:elif="{{error || !detail}}" class="state">
+    <view class="text-3">交接详情加载失败</view>
+    <button class="btn btn-ghost retry" bindtap="onRetry">重新加载</button>
+  </view>
+  <block wx:else>
+    <view class="card">
+      <view class="row">
+        <view class="h1 handover-no">{{detail.handover_no}}</view>
+        <view class="spacer" />
+        <view class="badge badge-{{detail.status}}">{{detail.statusText}}</view>
+      </view>
+      <view class="route">{{detail.source_node_name}} → {{detail.target_node_name}}</view>
+      <view class="info-line text-2">接收方：{{detail.targetText}}</view>
+      <view class="info-line text-2">交出人：{{detail.created_by_name}} · {{detail.createdAtText}}</view>
+      <view wx:if="{{detail.received_by_name}}" class="info-line text-2">实际接收：{{detail.received_by_name}} · {{detail.receivedAtText}}</view>
+      <view wx:if="{{detail.is_overdue}}" class="info-line text-danger">待接收已超时 {{detail.overdue_minutes}} 分钟，请尽快处理</view>
+      <view wx:if="{{detail.remark}}" class="info-line text-2">备注：{{detail.remark}}</view>
+      <view wx:if="{{detail.reject_reason}}" class="info-line text-danger">拒收原因：{{detail.reject_reason}}</view>
+      <view class="batch-link" bindtap="onOpenBatch">批次 {{detail.batch_no}} ›</view>
+    </view>
+
+    <view class="card quantity-card">
+      <view><text class="big-num num">{{detail.total_quantity}}</text><text class="text-3"> 应交</text></view>
+      <view><text class="big-num num">{{detail.received_quantity}}</text><text class="text-3"> 实收</text></view>
+      <view wx:if="{{detail.has_discrepancy}}" class="difference-mark">有差异</view>
+    </view>
+
+    <view class="card">
+      <view class="h2 section-title">菲票明细</view>
+      <block wx:for="{{detail.items}}" wx:key="id">
+        <view class="item-card {{item.difference ? 'expanded' : ''}}">
+          <view class="row">
+            <view class="item-main">
+              <view class="item-title">{{item.ticket_label}}</view>
+              <view class="text-3">菲票 ID {{item.ticket}} · 应交 {{item.quantity}}</view>
+            </view>
+            <view wx:if="{{showDiscrepancies && detail.canReceive}}" class="difference-toggle" data-index="{{index}}" bindtap="onToggleItemDifference">{{item.difference ? '收起' : '登记差异'}}</view>
+            <view wx:else class="text-2">实收 {{item.received_quantity}}</view>
+          </view>
+          <view wx:if="{{!showDiscrepancies && item.difference_type}}" class="saved-difference text-danger">{{item.differenceTypeText}} · {{item.reason}}</view>
+          <view wx:if="{{showDiscrepancies && item.difference}}" class="difference-form">
+            <view class="form-label">实收数量</view>
+            <input class="form-input" type="number" value="{{item.receivedInput}}" data-index="{{index}}" bindinput="onReceivedInput" />
+            <view class="form-label">差异类型</view>
+            <picker mode="selector" range="{{typeNames}}" value="{{item.differenceIndex}}" data-index="{{index}}" bindchange="onDifferenceTypeChange">
+              <view class="form-input picker-input">{{typeNames[item.differenceIndex]}} ▾</view>
+            </picker>
+            <view class="form-label">差异原因（必填）</view>
+            <textarea class="form-textarea" value="{{item.reason}}" data-index="{{index}}" maxlength="500" placeholder="说明短少、破损等实际情况" bindinput="onDifferenceReasonInput" />
+          </view>
+        </view>
+      </block>
+    </view>
+
+    <view wx:if="{{detail.canReceive}}" class="card action-card">
+      <view wx:if="{{showDiscrepancies}}">
+        <view class="h2 section-title">差异接收</view>
+        <view class="text-3 form-hint">只提交已展开的差异项，其余菲票默认全收。</view>
+        <textarea class="form-textarea batch-reason" value="{{receiveReason}}" maxlength="500" placeholder="整批差异说明（选填）" bindinput="onReceiveReasonInput" />
+        <button class="btn btn-primary {{action ? 'disabled' : ''}}" bindtap="onReceiveWithDifferences">确认差异并接收</button>
+        <button class="btn btn-plain secondary-btn" bindtap="onToggleDiscrepancies">返回正常接收</button>
+      </view>
+      <view wx:else class="normal-actions">
+        <button class="btn btn-primary {{action ? 'disabled' : ''}}" bindtap="onReceiveAll">全部接收</button>
+        <button class="btn btn-plain secondary-btn" bindtap="onToggleDiscrepancies">有差异，逐项登记</button>
+        <button class="text-button danger-button" bindtap="onShowReject">拒收</button>
+      </view>
+    </view>
+
+    <view wx:if="{{detail.canReassign}}" class="card">
+      <view class="row"><view class="h2">交接管理</view><view class="spacer" /><button class="text-button" bindtap="onShowReassign">改派</button></view>
+    </view>
+
+    <view wx:if="{{rejectMode}}" class="card popup-form">
+      <view class="h2 section-title">拒收交接</view>
+      <textarea class="form-textarea" value="{{rejectReason}}" maxlength="500" placeholder="拒收原因（必填）" bindinput="onRejectReasonInput" />
+      <view class="row form-buttons"><button class="btn btn-plain" bindtap="onCancelForm">取消</button><button class="btn btn-primary {{action ? 'disabled' : ''}}" bindtap="onReject">确认拒收</button></view>
+    </view>
+    <view wx:if="{{reassignMode}}" class="card popup-form">
+      <view class="h2 section-title">改派接收人</view>
+      <view class="form-label">新接收人用户 ID</view>
+      <input class="form-input" type="number" value="{{receiverInput}}" placeholder="请输入本公司在职成员用户ID" bindinput="onReceiverInput" />
+      <view class="form-label">改派原因（必填）</view>
+      <textarea class="form-textarea" value="{{reassignReason}}" maxlength="500" placeholder="改派原因将保留在事件中" bindinput="onReassignReasonInput" />
+      <view class="row form-buttons"><button class="btn btn-plain" bindtap="onCancelForm">取消</button><button class="btn btn-primary {{action ? 'disabled' : ''}}" bindtap="onReassign">确认改派</button></view>
+    </view>
+
+    <view class="card">
+      <view class="h2 section-title">操作记录</view>
+      <empty-state wx:if="{{!detail.events.length}}" text="暂无操作记录" />
+      <view wx:for="{{detail.events}}" wx:key="id" class="event-row">
+        <view class="event-dot" />
+        <view class="event-main">
+          <view class="row"><view>{{item.actionText}}</view><view class="spacer" /><view class="text-3">{{item.createdAtText}}</view></view>
+          <view class="text-3">操作账号：{{item.actor_name}}</view>
+          <view wx:if="{{item.actual_user_name}}" class="text-3">实际责任人：{{item.actual_user_name}}</view>
+          <view wx:if="{{item.reason}}" class="event-reason text-2">{{item.reason}}</view>
+        </view>
+      </view>
+    </view>
+  </block>
+</view>

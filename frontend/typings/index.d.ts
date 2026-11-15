@@ -19,5 +19,5 @@ interface IAppOption {
   };
 }
 
-/** tabBar 页面索引（custom-tab-bar setSelected 用） */
-type TabKey = 'index' | 'process' | 'scan' | 'notifications' | 'profile';
+/** tabBar 页面索引（custom-tab-bar setSelected 用；AI问报=中央 FAB，无常规索引） */
+type TabKey = 'index' | 'scan' | 'notifications' | 'profile';

@@ -2,6 +2,8 @@
  * 薪酬结算接口（salary）。
  */
 import { http } from '../utils/request';
+import { BASE_URL } from '../utils/config';
+import { getToken, getCompanyId } from '../utils/auth';
 import {
   SalaryCompanySummary, EmployeeSalaryDetail, Settlement, SalaryAdjust,
   SettleApply, CompletionSummary, Paginated
@@ -155,6 +157,71 @@ export function createAdjust(user_id: number, amount: string, reason: string): P
   return http.post<SalaryAdjust>('/salary/adjust', { user_id, amount, reason });
 }
 
+// ============ 实付工资（支付事实不可编辑/删除，只能填原因作废） ============
+
+export type SalaryPaymentMethod = 'bank' | 'cash' | 'wechat' | 'alipay' | 'other';
+export type SalaryPaymentStatus = 'active' | 'void';
+
+export interface SalaryPaymentAllocation {
+  id: number;
+  settlement: number;
+  amount: string;
+  settlement_amount: string;
+  paid_amount: string;
+  outstanding: string;
+}
+
+export interface SalaryPayment {
+  id: number;
+  company: number;
+  employee: number;
+  employee_name: string;
+  paid_at: string;
+  method: SalaryPaymentMethod | string;
+  transaction_ref: string;
+  note: string;
+  operator: number | null;
+  operator_name: string;
+  amount: string;
+  status: SalaryPaymentStatus;
+  status_display: string;
+  void_reason: string;
+  voided_by: number | null;
+  voided_by_name: string;
+  voided_at: string | null;
+  allocations: SalaryPaymentAllocation[];
+  created_at: string;
+}
+
+export interface SalaryPaymentCreateInput {
+  employee_id: number;
+  paid_at: string;
+  method: SalaryPaymentMethod;
+  transaction_ref: string;
+  note?: string;
+  amount: string;
+  allocations?: Array<{ settlement_id: number; amount: string }>;
+}
+
+export function fetchSalaryPayments(params?: {
+  employee_id?: number; status?: SalaryPaymentStatus;
+  date_from?: string; date_to?: string; page?: number; page_size?: number;
+}): Promise<Paginated<SalaryPayment>> {
+  return http.get<Paginated<SalaryPayment>>('/salary/payments', params);
+}
+
+export function fetchSalaryPayment(id: number): Promise<SalaryPayment> {
+  return http.get<SalaryPayment>(`/salary/payments/${id}`);
+}
+
+export function createSalaryPayment(data: SalaryPaymentCreateInput): Promise<SalaryPayment> {
+  return http.post<SalaryPayment>('/salary/payments', { ...data });
+}
+
+export function voidSalaryPayment(id: number, reason: string): Promise<SalaryPayment> {
+  return http.post<SalaryPayment>(`/salary/payments/${id}/void`, { reason });
+}
+
 // ============ 结算单（管理员） ============
 
 export function fetchSettlements(params?: { user_id?: number; date_from?: string; date_to?: string; page?: number; page_size?: number }): Promise<Paginated<Settlement>> {
@@ -205,4 +272,59 @@ export function fetchCompletion(params?: {
   style_id?: number; process_id?: number;
 }): Promise<CompletionSummary> {
   return http.get<CompletionSummary>('/salary/summary/completion', params);
+}
+
+// ============ 薪资条（竞品对齐 GAP-4，2026-11-04） ============
+
+/** 薪资条响应（GET /salary/settlements/{id}/payslip） */
+export interface PayslipRow {
+  user_id: number;
+  name: string;
+  amount: string;
+  snapshot_amount: string | null;
+  items: Array<{ process: string; qty: number; amount: string }>;
+}
+
+export interface PayslipResponse {
+  settlement: {
+    id: number;
+    period_start: string;
+    period_end: string;
+    status: string;
+    status_display: string;
+    employee_count: number;
+    amount: string;
+    created_at: string;
+  };
+  rows: PayslipRow[];
+  total: string;
+}
+
+/** 薪资条数据（salary.view 点；已撤销结算单可查，对账用） */
+export function fetchPayslip(id: number): Promise<PayslipResponse> {
+  return http.get<PayslipResponse>(`/salary/settlements/${id}/payslip`);
+}
+
+/** 薪资条 xlsx 导出（wx.downloadFile 直连，需带鉴权头；复用 quality 下载法） */
+export function downloadPayslipExport(id: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    wx.downloadFile({
+      url: `${BASE_URL}/salary/settlements/${id}/payslip/export`,
+      header: {
+        Authorization: `Bearer ${getToken()}`,
+        'X-Company-Id': String(getCompanyId())
+      },
+      success: (res) => {
+        if (res.statusCode !== 200) { reject(new Error(`下载失败 ${res.statusCode}`)); return; }
+        wx.openDocument({
+          filePath: res.tempFilePath,
+          fileType: 'xlsx',
+          showMenu: true,
+          success: () => resolve(),
+          fail: (e) => reject(e)
+        });
+      },
+      fail: (e) => reject(e)
+    });
+  });
 }

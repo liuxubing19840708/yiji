@@ -147,6 +147,9 @@ if free_ticket is None:
         from apps.catalog.models import Style  # noqa: E402
         _style = Style.objects.filter(company_id=2).first() or \
             Style.objects.create(company_id=2, style_no='EDGE-S1', name='边界测试款')
+        from apps.tech.models import Bom  # noqa: E402  # P4 建床需 active BOM
+        if not Bom.all_objects.filter(style=_style).exists():
+            Bom.objects.create(company_id=2, style=_style, version=1, status=Bom.Status.ACTIVE)
         _prod = Production.objects.create(company_id=2, style=_style, bed_no='EDGE-B1',
                                           total_qty=100)
     else:
@@ -249,10 +252,15 @@ check('E8f 满员时邀请被拒(规则⑨)', code == 400 and '上限' in str(d)
 _style0 = _StyleM.objects.filter(style_no='EDGEDEL').first()
 if _style0:
     _ProdM.all_objects.filter(style_id=_style0.id).delete()
+    from apps.tech.models import Bom as _BomPre  # noqa: E402  # P4 建床需 BOM：残留 BOM 会挡款式删除
+    _BomPre.all_objects.filter(style_id=_style0.id).delete()
     _style0.delete()
 code, st = api('POST', '/styles', AT, 2, {'style_no': 'EDGEDEL', 'name': '边缘删除款'})
 check('E9a 建测试款式', code == 201, f'{code}')
 SID = st['id'] if code == 201 else None
+from apps.tech.models import Bom as _BomM  # noqa: E402  # P4 建床需 active BOM
+if SID and not _BomM.all_objects.filter(style_id=SID).exists():
+    _BomM.objects.create(company_id=2, style_id=SID, version=1, status=_BomM.Status.ACTIVE)
 code, prod = api('POST', '/productions', AT, 2, {'style': SID, 'bed_no': '9999', 'order_type': '自产'})
 check('E9b 建床次', code == 201, f'{code} {str(prod)[:80]}')
 PROD_ID = prod.get('id') if code == 201 else None
@@ -268,6 +276,7 @@ check('E9d 删除有菲票款式被拒(400)', code == 400 and '无法删除' in 
 from apps.accounts.models import Post as _PostM  # noqa: E402
 from apps.ops.models import CompanySetting as _CSM, Notification as _NotifM  # noqa: E402
 _ProdM.all_objects.filter(style_id=SID).delete()   # 级联删菲票
+_BomM.all_objects.filter(style_id=SID).delete()    # BOM.style PROTECT 挡款式删除
 _StyleM.objects.filter(style_no='EDGEDEL').delete()
 for _u in User.objects.filter(phone__in=CAP_PHONES):
     try:

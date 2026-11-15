@@ -19,6 +19,7 @@ from apps.core.utils import q3
 from apps.ops.models import AuditLog, CompanySetting
 from apps.ops.services import audit
 from apps.orders.models import Order
+from apps.catalog.models import Process
 from apps.production.models import Production, ProductionProcess
 from apps.production.plan_rows import build_plan_rows, plan_window
 from apps.production.serializers import ProductionSerializer
@@ -116,6 +117,17 @@ def _inherit_order_processes(production, order):
         ProductionProcess.objects.bulk_create(rows)
 
 
+def _style_or_default_price(production, process_id):
+    """单价回退：款式工序价 > 工序默认价（床次价优先链的下游，2026-11-05 按扎卡片用）。"""
+    from apps.catalog.models import StyleProcess
+    sp = StyleProcess.objects.filter(style=production.style, process_id=process_id,
+                                     is_deleted=False).first()
+    if sp and sp.price:
+        return q3(sp.price)
+    proc = Process.objects.filter(id=process_id).first()
+    return q3(proc.default_price) if proc else 0
+
+
 def _process_count(production) -> int:
     """该床次配置的工序总数（订单工序优先，退回款式工序）。
 
@@ -158,8 +170,9 @@ class ProductionListCreateView(CompanyContextMixin, generics.ListCreateAPIView):
     pagination_class = DefaultPagination
 
     def get_queryset(self):
-        qs = Production.objects.filter(company=self.company).select_related(
-            'style', 'customer')
+        qs = (Production.objects.filter(company=self.company)
+              .select_related('style', 'customer', 'order')
+              .prefetch_related('order_processes__process'))
         keyword = self.request.query_params.get('keyword')
         if keyword:
             qs = qs.filter(Q(style__style_no__icontains=keyword)
@@ -229,6 +242,28 @@ class ProductionListCreateView(CompanyContextMixin, generics.ListCreateAPIView):
                 raise ValidationError({'order_id': '订单不属于本公司'})
             if order.status != Order.Status.PRODUCING:
                 raise ValidationError({'order_id': '订单已完结或已取消，不可挂单'})
+        # ---- D4 开裁缺 BOM 拦截（上线落地方案 §11-D4，SA-P2-5 2026-10-24）----
+        # 口径：开裁生效款式（请求 style 或挂单订单款式继承）无 active BOM → 400 拦截，
+        # 提示先在 BOM 管理激活；例外通道对齐 C3 缸差「拦截+留痕放行」先例：
+        # bom_bypass=true 且 bypass_reason 必填 → 放行并在下方 ops audit() 留痕；
+        # 无款式（存量/特殊单）不拦；有 active BOM 正常放行。
+        # 权限不变（production.manage legacy_key 旧裁床岗零回归）。
+        eff_style = serializer.validated_data.get('style')
+        if eff_style is None and order is not None and order.style_id:
+            eff_style = order.style
+        bom_bypass = False
+        bypass_reason = ''
+        if eff_style is not None:
+            from apps.tech.models import Bom
+            if not Bom.objects.filter(company=self.company, style=eff_style,
+                                      status=Bom.Status.ACTIVE).exists():
+                if not self.request.data.get('bom_bypass'):
+                    raise ValidationError(
+                        {'style': '该款式无生效BOM，请先在BOM管理激活后开裁'})
+                bypass_reason = str(self.request.data.get('bypass_reason') or '').strip()
+                if not bypass_reason:
+                    raise ValidationError({'bypass_reason': '请填写无BOM开裁放行原因'})
+                bom_bypass = True
         with transaction.atomic():
             # process_items 由 _save_order_processes 从 request.data 落库，
             # 不能留在 validated_data 里（save 会当模型字段传给 Production → TypeError）
@@ -266,6 +301,12 @@ class ProductionListCreateView(CompanyContextMixin, generics.ListCreateAPIView):
               style_no=instance.style.style_no,
               message=f'新建床次订单：【床次{instance.bed_no}】'
                       +(f'（挂单 {order.order_no}）' if order is not None else ''))
+        if bom_bypass:
+            # D4 例外通道留痕（对齐 C3 缸差「拦截+留痕放行」先例）
+            audit(self.company, AuditLog.Type.OTHER, operator=self.request.user,
+                  bed_no=instance.bed_no, style_no=instance.style.style_no,
+                  message=f'无生效BOM开裁放行：【床次{instance.bed_no}】'
+                          f'款式【{instance.style.style_no}】原因：{bypass_reason}')
 
 
 class ProductionDetailView(CompanyContextMixin, generics.RetrieveUpdateDestroyAPIView):
@@ -443,7 +484,14 @@ class ProductionOrderProcessView(CompanyContextMixin, APIView):
 
 
 class ProductionBundleListView(CompanyContextMixin, APIView):
-    """按扎号查看：展开该床次所有菲票扎，每扎显示状态（未登记/部分登记/完成）。"""
+    """按扎号查看：展开该床次所有菲票扎，每扎显示状态（未登记/部分登记/完成）。
+
+    expand=1（按扎卡片视图，竞品对齐 2026-11-05）：逐扎附 processes 明细——
+    床次工序清单（订单工序优先退回款式工序，价随计价链：床次>款式>默认）+
+    每工序已登量/是否登满；登记明细（逐条记录 id/经手人/时间）仅对
+    salary.view / records.revoke 权限者下发（行内改数/撤销用，后端 PUT/DELETE
+    仍有最终门禁），无权者只有聚合计数，员工工资不外泄。
+    """
 
     def get(self, request, pk):
         try:
@@ -454,9 +502,18 @@ class ProductionBundleListView(CompanyContextMixin, APIView):
 
         tickets = Ticket.objects.filter(company=self.company, production=production) \
             .order_by('bed_no', 'id')
-        # 每扎已登记的工序数与件数（口径唯一：stats.bundle_ticket_stats）
         rec_map = bundle_ticket_stats(self.company, production)
         process_count = _process_count(production)
+
+        expand = request.query_params.get('expand') == '1'
+        proc_list, detail_map, can_see_records = [], {}, False
+        if expand:
+            proc_list = self._process_list(production)
+            # 聚合计数无权限敏感性；逐条记录（人/时间/改撤入口）按薪酬查看口径下发
+            can_see_records = (self.has_perm('salary.view')
+                               or self.has_perm('records.revoke'))
+            detail_map = self._record_detail_map(production)
+        records_off = not can_see_records
 
         keyword = request.query_params.get('keyword')
         state = request.query_params.get('state')  # none/partial/done
@@ -475,7 +532,7 @@ class ProductionBundleListView(CompanyContextMixin, APIView):
                 continue
             if state and ticket_state != state:
                 continue
-            items.append({
+            item = {
                 'id': ticket.id,
                 'bundle_no': ticket.bundle_no,
                 'color': ticket.color,
@@ -489,9 +546,79 @@ class ProductionBundleListView(CompanyContextMixin, APIView):
                 'state': ticket_state,
                 'state_display': {'none': '未登记', 'partial': '部分登记',
                                   'done': '完成'}[ticket_state],
-            })
+            }
+            if expand:
+                per = detail_map.get(ticket.id, {})
+                item['processes'] = [{
+                    'process_id': p['process_id'],
+                    'name': p['name'],
+                    'price': p['price'],
+                    'registered_qty': int(per.get(p['process_id'], {}).get('qty') or 0),
+                    'done': int(per.get(p['process_id'], {}).get('qty') or 0) >= ticket.qty,
+                    # 无薪酬查看权：只给计数，记录明细（人/改撤入口）置空
+                    'records': [] if records_off
+                    else per.get(p['process_id'], {}).get('records', []),
+                } for p in proc_list]
+            items.append(item)
         return Response({'count': len(items), 'process_count': process_count,
+                         'can_see_records': can_see_records,
                          'results': items})
+
+    @staticmethod
+    def _process_list(production):
+        """该床次工序清单（订单工序优先，退回款式工序；单价随计价链回退）。"""
+        procs = []
+        pp_rows = (ProductionProcess.objects.filter(production=production,
+                                                    is_deleted=False)
+                   .select_related('process').order_by('id'))
+        if pp_rows.exists():
+            for pp in pp_rows:
+                price = pp.price if pp.price else _style_or_default_price(
+                    production, pp.process_id)
+                procs.append({'process_id': pp.process_id,
+                              'name': pp.process.name, 'price': q3(price)})
+        else:
+            from apps.catalog.models import StyleProcess
+            sp_rows = (StyleProcess.objects.filter(style=production.style,
+                                                   is_deleted=False)
+                       .select_related('process').order_by('sort', 'id'))
+            for sp in sp_rows:
+                procs.append({'process_id': sp.process_id,
+                              'name': sp.process.name,
+                              'price': q3(sp.price if sp.price
+                                          else sp.process.default_price)})
+        return procs
+
+    def _record_detail_map(self, production):
+        """该床次登记按（扎, 工序）聚合：{ticket_id: {process_id: {qty, records}}}。
+
+        records 按时间升序（首条=最早登记），逐条含 id/qty/user_id/user_name/
+        registered_at/settled（前端行内改数/撤销按钮按 settled/本人当日预显隐，
+        最终门禁在 PUT/DELETE /records/{id}）。
+        """
+        from apps.records.models import Record
+
+        detail = {}
+        rows = (Record.objects.filter(company=self.company,
+                                      ticket__production=production)
+                .select_related('process', 'user')
+                .order_by('registered_at', 'id'))
+        today = timezone.localdate()
+        for r in rows:
+            reg = timezone.localtime(r.registered_at)
+            p = (detail.setdefault(r.ticket_id, {})
+                 .setdefault(r.process_id, {'qty': 0, 'records': []}))
+            p['qty'] += int(r.qty or 0)
+            p['records'].append({
+                'id': r.id,
+                'qty': int(r.qty or 0),
+                'user_id': r.user_id,
+                'user_name': r.user.real_name or r.user.username,
+                'registered_at': reg.strftime('%m-%d %H:%M'),
+                'is_today': reg.date() == today,
+                'settled': bool(r.settlement_id),
+            })
+        return detail
 
 
 class ProductionCutDetailView(CompanyContextMixin, APIView):
@@ -785,16 +912,18 @@ class DashboardView(CompanyContextMixin, APIView):
 class DashboardDimView(CompanyContextMixin, APIView):
     """看板维度查看（2026-10-23 用户需求）：按订单/裁床/部门(岗位)/组/人 聚合登记数据。
 
-    GET /api/dashboard/dim?dim=order|bed|post|group|user&range=&start_date=&end_date=
+    GET /api/dashboard/dim?dim=order|bed|post|group|user|process&range=&start_date=&end_date=
     range 解析与 DashboardView 完全同口径（registered_at 落区间）；dim=style 的
     「按款式」视图走既有模板渲染接口（/api/kanban/render），不经过这里。
+    dim=process（竞品对齐 GAP-8/GAP-1 报表中心「工序生产对照表」，2026-11-04）：
+    按工序聚合；key_only=1 只看关键工序（Process.is_key）。
     返回扁平表：{dim, columns:[{key,title,width}], rows:[{key, nav, cells:[...]}]}，
     小程序看板「计划表」维度切换后直接渲染；nav 供行下钻（order→订单详情、
     bed→床次详情），其余维度不可点。
     金额 = Σ qty×price（计件工资口径，与薪酬 unsettled 一致，未结算不剔除）。
     """
 
-    DIMS = ('order', 'bed', 'post', 'group', 'user')
+    DIMS = ('order', 'bed', 'post', 'group', 'user', 'process')
 
     def get(self, request):
         from decimal import Decimal
@@ -827,6 +956,10 @@ class DashboardDimView(CompanyContextMixin, APIView):
                    .filter(registered_at__date__gte=start,
                            registered_at__date__lte=end)
                    .order_by())  # order_by() 必须前置：Meta.ordering 会混入 GROUP BY
+        # GAP-8 关键工序聚焦：仅 process 维度响应 key_only=1（其余维度忽略）
+        if (dim == 'process'
+                and request.query_params.get('key_only') == '1'):
+            records = records.filter(process__is_key=True)
 
         def amount():
             # 聚合实例不可跨 QuerySet 复用（Django 会缓存解析状态），每次现建
@@ -910,6 +1043,37 @@ class DashboardDimView(CompanyContextMixin, APIView):
                     money(row['amount']),
                     ('已裁完' if row['ticket__production__is_cut_done']
                      else ('已锁定' if row['ticket__production__is_locked'] else '生产中')),
+                ],
+            } for row in qs]
+
+        elif dim == 'process':
+            # ---- 按工序（2026-11-04 GAP-8）：范围内登记按工序聚合，
+            # 对齐竞品报表中心「工序生产对照表」；key_only=1 已在上方过滤 ----
+            qs = (records.values('process_id', 'process__name')
+                  .annotate(amount=amount(), qty=Sum('qty'),
+                            tickets=Count('ticket_id', distinct=True),
+                            users=Count('user', distinct=True))
+                  .order_by('-qty'))
+            columns = [
+                {'key': 'name', 'title': '工序', 'width': 140},
+                {'key': 'tickets', 'title': '菲票数', 'width': 100},
+                {'key': 'qty', 'title': '登记件数', 'width': 120},
+                {'key': 'users', 'title': '人数', 'width': 90},
+                {'key': 'amount', 'title': '金额', 'width': 110},
+                {'key': 'is_key', 'title': '关键', 'width': 70},
+            ]
+            key_ids = set(Process.objects.filter(
+                company=company, is_key=True).values_list('id', flat=True))
+            rows = [{
+                'key': str(row['process_id']),
+                'nav': '',
+                'cells': [
+                    row['process__name'] or f"#{row['process_id']}",
+                    str(row['tickets']),
+                    str(int(row['qty'] or 0)),
+                    str(row['users']),
+                    money(row['amount']),
+                    '是' if row['process_id'] in key_ids else '',
                 ],
             } for row in qs]
 

@@ -93,6 +93,7 @@ Page({
     productionsLoading: false,
     // ---- 操作 ----
     canOpenBed: false,
+    canPreproductionView: false,
     acting: false
   },
 
@@ -100,7 +101,8 @@ Page({
     this.setData({
       id: Number(options.id) || 0,
       // ＋开床按钮按 production.manage 点显隐（挂单开床是生产动作）
-      canOpenBed: hasPerm('production.manage')
+      canOpenBed: hasPerm('production.manage'),
+      canPreproductionView: hasPerm('preproduction.view')
     });
   },
 
@@ -301,6 +303,10 @@ Page({
     wx.navigateTo({ url: `/packages/admin/production-create/index?order_id=${this.data.id}` });
   },
 
+  onOpenPreproduction() {
+    wx.navigateTo({ url: `/packages/admin/preproduction/index?id=${this.data.id}` });
+  },
+
   /** 备注图片预览（当前张起步，全组可左右滑） */
   onPreviewRemarkImage(e: WechatMiniprogram.TouchEvent) {
     const idx = Number(e.currentTarget.dataset.index);
@@ -321,6 +327,11 @@ Page({
 
   onEdit() {
     wx.navigateTo({ url: `/packages/admin/orders/index?id=${this.data.id}` });
+  },
+
+  /** 变更留痕时间线（差距 #3，2026-11-03）：改价/改状态/删除等审计聚合页 */
+  onOpenAuditLogs() {
+    wx.navigateTo({ url: `/packages/admin/order-audit/index?id=${this.data.id}` });
   },
 
   onMarkDone() {

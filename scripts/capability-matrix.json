@@ -1,0 +1,386 @@
+{
+  "version": 1,
+  "description": "Web 与微信小程序能力基线。supported 要求入口、路由、API 和权限登记可静态核验；不代表 UI 或真机验收已通过。",
+  "route_exclusions": [
+    { "route": "packages/admin/placeholder/index", "reason": "通用空占位页，不是业务能力" },
+    { "route": "packages/salary/placeholder/index", "reason": "薪酬空占位页，不是业务能力" }
+  ],
+  "capabilities": [
+    {
+      "id": "orders.manage",
+      "name": "订单管理",
+      "permissions": ["orders.manage"],
+      "apis": ["/api/orders"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/OrdersView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/orders/index", "routes": ["packages/admin/order-detail/index", "packages/admin/order-audit/index"] }
+    },
+    {
+      "id": "production.manage",
+      "name": "生产床次与编菲",
+      "permissions": ["production.manage"],
+      "apis": ["/api/productions"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/ProductionView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/productions/index", "routes": ["packages/admin/production-create/index", "packages/admin/production-detail/index", "packages/admin/bundle-view/index"] }
+    },
+    {
+      "id": "production.kanban",
+      "name": "生产看板",
+      "permissions": ["kanban.view"],
+      "apis": ["/api/records/workbench"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/KanbanView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/kanban/index" }
+    },
+    {
+      "id": "records.scan",
+      "name": "扫菲登记",
+      "permissions": ["records.create"],
+      "apis": ["/api/records"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/ScanView.vue" },
+      "miniprogram": { "status": "supported", "route": "pages/scan/index", "routes": ["packages/admin/assist/index"] }
+    },
+    {
+      "id": "records.list",
+      "name": "计件记录",
+      "permissions": ["working.view"],
+      "apis": ["/api/records"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/RecordsView.vue", "entries": ["frontend-web/src/views/WorkingView.vue"] },
+      "miniprogram": { "status": "supported", "route": "packages/admin/records/index", "routes": ["packages/admin/in-progress/index"] }
+    },
+    {
+      "id": "records.batch_register",
+      "name": "批量代登",
+      "permissions": ["scan.assist"],
+      "apis": ["/api/records/batch-register"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/BatchRegisterView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/batch-register/index" }
+    },
+    {
+      "id": "quality.manage",
+      "name": "质量管理",
+      "permissions": ["quality.view"],
+      "apis": ["/api/quality/records"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/QualityView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/quality/index" }
+    },
+    {
+      "id": "outsource.manage",
+      "name": "外发管理",
+      "permissions": ["outsource.view"],
+      "apis": ["/api/outsource/orders"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/OutsourceView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/outsource/index" }
+    },
+    {
+      "id": "shipments.manage",
+      "name": "出货装箱",
+      "permissions": ["shipment.view"],
+      "apis": ["/api/shipments"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/ShipmentsView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/shipments/index", "routes": ["packages/admin/shipment-detail/index"] }
+    },
+    {
+      "id": "salary.settlement",
+      "name": "薪酬结算",
+      "permissions": ["salary.view"],
+      "apis": ["/api/salary/settlements"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/SalaryView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/salary/company/index", "routes": ["packages/salary/changes/index", "packages/salary/payslip/index"] }
+    },
+    {
+      "id": "salary.payment",
+      "name": "工资实付与多结算分摊",
+      "permissions": ["salary.review"],
+      "apis": ["/api/salary/payments"],
+      "web": { "status": "supported", "entry": "frontend-web/src/components/SalaryPayments.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/salary/payments/index" }
+    },
+    {
+      "id": "finance.receivable",
+      "name": "应收与收款核销",
+      "permissions": ["finance.view"],
+      "apis": ["/api/finance/receivables"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/FinanceView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/receivables/index", "routes": ["packages/admin/receivable-detail/index"] }
+    },
+    {
+      "id": "finance.cash_operations",
+      "name": "应付、供应商付款、其他收支与经营现金流",
+      "permissions": ["finance.view"],
+      "apis": ["/api/finance/payables", "/api/finance/supplier-payments", "/api/finance/cash-entries", "/api/finance/cash-flow"],
+      "web": { "status": "supported", "entry": "frontend-web/src/components/FinanceCashView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/funds/index" }
+    },
+    {
+      "id": "warehouse.manage",
+      "name": "采购与库存",
+      "permissions": ["warehouse.manage"],
+      "apis": ["/api/lots"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/WarehouseView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/warehouse/index" }
+    },
+    {
+      "id": "tech.manage",
+      "name": "物料与 BOM",
+      "permissions": ["tech.material"],
+      "apis": ["/api/tech/materials", "/api/tech/boms"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/TechView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/tech-materials/index", "routes": ["packages/admin/tech-boms/index"] }
+    },
+    {
+      "id": "cost.manage",
+      "name": "订单成本与工资对账",
+      "permissions": ["cost.view"],
+      "apis": ["/api/cost/orders"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/CostsView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/cost/index", "routes": ["packages/admin/cost-wage/index", "packages/admin/order-pnl/index"] }
+    },
+    {
+      "id": "quotation.manage",
+      "name": "报价管理",
+      "permissions": ["quotation.view"],
+      "apis": ["/api/quotation/quotations"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/QuotationsView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/quote-list/index", "routes": ["packages/admin/quote-detail/index", "packages/admin/quote-edit/index", "packages/admin/quote-compare/index"] }
+    },
+    {
+      "id": "organization.manage",
+      "name": "员工与岗位",
+      "permissions": ["employees.manage"],
+      "apis": ["/api/employees"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/OrganizationView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/employees/index", "routes": ["packages/admin/posts/index", "packages/admin/assigned/index"] }
+    },
+    {
+      "id": "notifications.view",
+      "name": "站内通知",
+      "permissions": [],
+      "apis": ["/api/notifications"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/NotificationsView.vue" },
+      "miniprogram": { "status": "supported", "route": "pages/notifications/index" }
+    },
+    {
+      "id": "ai.query_plan",
+      "name": "AI 自然语言与受治理动态报表",
+      "permissions": [],
+      "apis": ["/api/ai/report/query", "/api/ai/report/catalog"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/AiView.vue" },
+      "miniprogram": { "status": "supported", "route": "pages/ai-report/index" }
+    },
+    {
+      "id": "ai.export",
+      "name": "AI 异步 Excel 导出",
+      "permissions": ["ai.export"],
+      "apis": ["/api/ai/report/exports"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/AiView.vue" },
+      "miniprogram": { "status": "supported", "route": "pages/ai-report/index" }
+    },
+    {
+      "id": "ai.schedule",
+      "name": "AI 定时任务与运行中心",
+      "permissions": [],
+      "apis": ["/api/ai/report/schedules"],
+      "web": { "status": "supported", "entry": "frontend-web/src/components/ScheduleManager.vue" },
+      "miniprogram": { "status": "supported", "route": "pages/ai-report/index" }
+    },
+    {
+      "id": "mini.offline_scan",
+      "name": "离线扫菲队列与服务端幂等补发",
+      "permissions": ["records.create"],
+      "apis": ["/api/records"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/ScanView.vue" },
+      "miniprogram": { "status": "supported", "route": "pages/scan/index" }
+    },
+    {
+      "id": "mini.ai_voice",
+      "name": "AI 语音输入与识别后复核",
+      "permissions": [],
+      "apis": [],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/AiView.vue" },
+      "miniprogram": { "status": "supported", "route": "pages/ai-report/index" }
+    },
+    {
+      "id": "mini.bluetooth_print",
+      "name": "蓝牙菲票打印、队列与历史",
+      "permissions": ["print.manage"],
+      "apis": [],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/PrintingView.vue", "entries": ["frontend-web/src/components/TicketPrintDialog.vue"] },
+      "miniprogram": { "status": "supported", "route": "packages/admin/cloud-printer/index" }
+    },
+    {
+      "id": "preproduction.manage",
+      "name": "产前工艺、样衣、评审、交底与大货审批",
+      "permissions": ["preproduction.view", "preproduction.manage", "preproduction.brief", "preproduction.approve"],
+      "apis": ["/api/preproduction/tech-packs"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/PreproductionView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/preproduction/index", "routes": ["packages/admin/full-production/preproduction/index"] }
+    },
+    {
+      "id": "manufacturing.flow",
+      "name": "生产节点与统一数量流水",
+      "permissions": ["manufacturing.view", "manufacturing.manage", "manufacturing.reverse"],
+      "apis": ["/api/manufacturing/stages", "/api/manufacturing/routes", "/api/manufacturing/ledger"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/ManufacturingFlowView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/full-production/index", "routes": ["packages/admin/full-production/onsite/index", "packages/admin/full-production/operations/index"] }
+    },
+    {
+      "id": "quality.inspection",
+      "name": "半检、尾查、返修复检与报废",
+      "permissions": ["quality.view", "quality.manage"],
+      "apis": ["/api/quality/inspections"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/ManufacturingFlowView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/full-production/index", "routes": ["packages/admin/full-production/quality/index"] }
+    },
+    {
+      "id": "cutting.handoff",
+      "name": "裁片下发与车间签收",
+      "permissions": ["cutting.view", "cutting.manage"],
+      "apis": ["/api/cutting/handovers"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/ManufacturingFlowView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/full-production/index" }
+    },
+    {
+      "id": "handover.responsibility",
+      "name": "通用责任交接与裁片差异接收",
+      "permissions": ["handover.view", "handover.create", "handover.receive", "handover.manage"],
+      "apis": ["/api/handovers", "/api/handovers/policies"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/HandoverView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/handovers/index/index", "routes": ["packages/admin/handovers/create/index", "packages/admin/handovers/detail/index", "packages/admin/handovers/batch/index", "packages/admin/handovers/policy/index"] }
+    },
+    {
+      "id": "finished_goods.stock",
+      "name": "包装、成品入库与成品库存",
+      "permissions": ["finished_goods.view", "finished_goods.manage"],
+      "apis": ["/api/finished-goods/packing-tasks", "/api/finished-goods/inbounds", "/api/finished-goods/inventory"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/ManufacturingFlowView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/full-production/index", "routes": ["packages/admin/full-production/packing/index"] }
+    },
+    {
+      "id": "workspace.dashboard",
+      "name": "首页工作台与权限宫格",
+      "permissions": [],
+      "apis": ["/api/records/workbench"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/DashboardView.vue" },
+      "miniprogram": { "status": "supported", "route": "pages/index/index" }
+    },
+    {
+      "id": "account.profile",
+      "name": "登录、建厂入厂与个人资料",
+      "permissions": [],
+      "apis": ["/api/companies/mine"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/ProfileView.vue", "entries": ["frontend-web/src/views/LoginView.vue", "frontend-web/src/views/SettingsView.vue"] },
+      "miniprogram": { "status": "supported", "route": "pages/profile/index", "routes": ["pages/login/index", "packages/admin/company/index", "packages/admin/profile-edit/index"] }
+    },
+    {
+      "id": "catalog.styles",
+      "name": "款式、款式工序与工艺媒体",
+      "permissions": ["styles.manage"],
+      "apis": ["/api/styles"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/MasterDataView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/styles/index", "routes": ["packages/admin/master/index", "packages/admin/style-detail/index", "packages/admin/style-process/index"] }
+    },
+    {
+      "id": "catalog.customers",
+      "name": "客户与客户分组",
+      "permissions": ["customers.manage"],
+      "apis": ["/api/customers"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/MasterDataView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/customers/index" }
+    },
+    {
+      "id": "catalog.processes",
+      "name": "工序、工序模板与指定工序",
+      "permissions": ["styles.manage"],
+      "apis": ["/api/processes"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/MasterDataView.vue", "entries": ["frontend-web/src/views/AssignedProcessView.vue"] },
+      "miniprogram": { "status": "supported", "route": "pages/process/index" }
+    },
+    {
+      "id": "salary.personal",
+      "name": "我的薪酬、订单薪酬与完成汇总",
+      "permissions": ["my_salary.view", "salary.view"],
+      "apis": ["/api/salary/summary/completion"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/SalaryView.vue", "entries": ["frontend-web/src/components/SalaryDimensions.vue"] },
+      "miniprogram": { "status": "supported", "route": "packages/salary/mine/index", "routes": ["packages/salary/order/index", "packages/salary/completion/index"] }
+    },
+    {
+      "id": "warehouse.receipts",
+      "name": "采购暂收与 IQC 确认入库",
+      "permissions": ["warehouse.manage"],
+      "apis": ["/api/receipts"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/WarehouseView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/receipts/index", "routes": ["packages/admin/receipt-detail/index"] }
+    },
+    {
+      "id": "warehouse.material_issue",
+      "name": "按床领退料与差异报表",
+      "permissions": ["warehouse.manage"],
+      "apis": ["/api/material-issues", "/api/issues/divergence"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/WarehouseView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/material-issue/index", "routes": ["packages/admin/issue-divergence/index"] }
+    },
+    {
+      "id": "warehouse.suppliers",
+      "name": "供应商档案",
+      "permissions": ["warehouse.supplier"],
+      "apis": ["/api/suppliers"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/WarehouseView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/suppliers/index" }
+    },
+    {
+      "id": "warehouse.demand",
+      "name": "采购需求汇总",
+      "permissions": ["warehouse.manage"],
+      "apis": ["/api/demand-summary"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/WarehouseView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/demand-summary/index" }
+    },
+    {
+      "id": "finance.stock_valuation",
+      "name": "库存估值",
+      "permissions": ["finance.manage"],
+      "apis": ["/api/finance/stock-valuation"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/FinanceView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/stock-valuation/index" }
+    },
+    {
+      "id": "warehouse.trace",
+      "name": "批次、床次与菲票质量追溯",
+      "permissions": ["trace.view"],
+      "apis": ["/api/trace/lot"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/WarehouseView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/trace/index", "routes": ["packages/admin/trace-detail/index"] }
+    },
+    {
+      "id": "system.settings",
+      "name": "公司信息与系统设置",
+      "permissions": ["settings.manage"],
+      "apis": ["/api/settings"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/SettingsView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/settings/index" }
+    },
+    {
+      "id": "system.logs",
+      "name": "操作日志与客户端日志",
+      "permissions": ["logs.view", "logs.client"],
+      "apis": ["/api/audit-logs", "/api/client-logs"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/SettingsView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/logs/index", "routes": ["packages/admin/client-logs/index"] }
+    },
+    {
+      "id": "company.qr",
+      "name": "公司二维码",
+      "permissions": ["company.qr"],
+      "apis": ["/api/companies/mine"],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/CompanyQrView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/company-qr/index" }
+    },
+    {
+      "id": "workspace.help",
+      "name": "用户帮助与操作说明",
+      "permissions": [],
+      "apis": [],
+      "web": { "status": "supported", "entry": "frontend-web/src/views/HelpView.vue" },
+      "miniprogram": { "status": "supported", "route": "packages/admin/help/index" }
+    }
+  ]
+}

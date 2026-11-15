@@ -1,0 +1,9 @@
+# 复制到 /etc/systemd/system/saofei-backup.service
+[Unit]
+Description=Saofei daily backup (pg_dump + media tar)
+
+[Service]
+Type=oneshot
+User=saofei
+WorkingDirectory=/opt/saofei/backend
+ExecStart=/opt/saofei/backend/deploy/backup.sh

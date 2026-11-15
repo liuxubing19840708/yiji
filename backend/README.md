@@ -39,6 +39,19 @@ python manage.py runserver
 登录后调用 `POST /api/auth/login`（微信 code）或验证码登录换取 JWT token；
 后续请求携带 `Authorization: Bearer <token>` 和 `X-Company-Id: <公司ID>` 请求头。
 
+### AI 异步导出与定时报表 worker
+
+启用 Web 异步导出和定时报表后，除 Web 进程外还需用同一环境、同一数据库持续运行两个独立 worker：
+
+```bash
+python manage.py process_ai_exports --poll 2
+python manage.py process_ai_schedules --poll 2
+```
+
+先执行 `python manage.py migrate`。生产环境应由 systemd/supervisor 等服务管理器托管并配置重启；不要依赖开发终端或裸线程。私有文件目录 `AI_EXPORT_ROOT` 不得通过 nginx 直接暴露。定时任务每次重新校验权限，通知不保存查询结果。详细接口、权限、过期清理和测试边界见 `apps/ai_report/QUERY_PLAN.md`。
+
+定时报表运行中心提供 `GET /api/ai/report/schedules/runs`、`POST /api/ai/report/schedules/{id}/run` 和 `POST /api/ai/report/schedules/runs/{id}/retry`。后两者请求体必须包含 UUID `request_id`；同一任务的重复键返回首次运行而不重复执行或通知。启用、停用任务都可由所有者手动执行，失败的自然或手动运行可重试为新审计记录，成功运行不能重试。运行列表只含所有者自己的安全元数据，不返回计划、业务结果、行数、筛选值或异常文本。
+
 ## 接口约定
 
 - 所有业务接口位于 `/api/` 前缀下，URL **不带尾斜杠**。
@@ -77,6 +90,17 @@ python manage.py runserver
   （生成结算单）→ 员工可 `PUT .../<pk>/void` 作废本人待审核申请。
 - `GET /api/salary/summary/completion`（管理员）：完成情况三级钻取
   款式 → 工序 → 菲票明细 + 颜色/尺码矩阵 + 员工汇总。
+- `GET/POST /api/salary/payments`、`GET /api/salary/payments/<id>`：真实工资支付及员工/结算分摊；分摊合计须等于支付金额。
+- `POST /api/salary/payments/<id>/void`：填写作废原因，保留支付事实并停止抵扣；不支持 PATCH/DELETE 支付流水。
+- 原 `PUT /api/salary/settle-applies/<id>/pay` 保持兼容，同时生成可追溯支付及分摊。
+
+## 应付与其他收支（finance）
+
+- `GET/POST /api/finance/payables`、`GET /api/finance/payables/<id>`：财务确认应付、累计已付和未付余额。
+- `POST /api/finance/payables/<id>/void`：无有效付款时才允许作废应付。
+- `GET/POST /api/finance/supplier-payments`、`POST /api/finance/supplier-payments/<id>/void`：供应商付款、应付核销与作废回退，事务内防超付和外部流水号防重。
+- `GET/POST /api/finance/cash-entries`、`POST /api/finance/cash-entries/<id>/void`：手工费用支出和其他收入，不重复记录工资、客户回款或供应商付款。
+- `GET /api/finance/cash-flow`：按 `date_from/date_to/group_by=day|month` 汇总五类真实经营现金流，同时要求 `finance.manage` 和 `salary.view`；不是利润表。
 
 ## 业务规则要点
 
@@ -85,3 +109,15 @@ python manage.py runserver
 - 结算金额为快照（`Record.qty * Record.price` 四舍五入到分），之后改价不影响已结算数据。
 - 敏感操作（改价、撤销、结算、发放、调整）均写入操作日志并站内通知相关员工。
 - 所有业务模型软删除（`is_deleted`），查询默认过滤已删除数据。
+
+## 全业务流程端到端测试
+
+流程矩阵、跨模块数量/金额对拍、租户权限、并发和异常恢复设计见 `docs/e2e-all-process-design.md`。所有自动化测试必须使用 Django 隔离测试库，不得对开发库执行旧的硬编码公司清理脚本。
+
+完整目标清单位于 `run_postgres_regression.py` 的 `TEST_TARGETS`：包括 `apps` 下真实 TestCase、根目录真实 TestCase、跨域资金链和 PostgreSQL 并发专项。旧的 `test_*.py` 脚本式套件只由 `test_full_functional` 在隔离事务中执行，不能用裸 `manage.py test --noinput` 直接导入。
+
+```bash
+python run_postgres_regression.py
+```
+
+该门禁使用一次性临时 PostgreSQL 实例，并另外执行独立空库的迁移升级检查。使用本机隔离测试角色时，可通过环境变量注入 `DB_ENGINE=postgres`、`DB_NAME`、`DB_USER`、`DB_PASSWORD` 后执行同一明确目标清单；密码不得写入项目、命令或日志。API/真实 HTTP、SQLite/PostgreSQL、自动化/真机验收结果必须分别报告。

@@ -1,0 +1,29 @@
+<view class="page">
+  <view wx:if="{{denied}}" class="state">
+    <view class="text-3">暂无「订单查看」权限，请联系管理员开通</view>
+  </view>
+
+  <block wx:else>
+    <view wx:if="{{loading && !rows.length}}" class="state text-3">加载中…</view>
+    <view wx:elif="{{error && !rows.length}}" class="state">
+      <view class="text-3">加载失败，请重试</view>
+      <button class="btn btn-ghost state-btn" bindtap="reload">重新加载</button>
+    </view>
+    <empty-state wx:elif="{{loaded && !rows.length}}" text="暂无变更记录"
+      sub="改价/改状态/删除等操作会自动留痕" />
+
+    <view class="card log-card" wx:for="{{rows}}" wx:key="id">
+      <view class="row">
+        <view class="badge {{item.typeClass}}">{{item.typeText}}</view>
+        <view class="spacer"></view>
+        <view class="text-3">{{item.time}}</view>
+      </view>
+      <view class="log-msg">{{item.message}}</view>
+      <view wx:if="{{item.diffText}}" class="log-diff text-3">{{item.diffText}}</view>
+      <view class="text-3">操作人：{{item.operatorName}}{{item.targetName ? ' · 对象：' + item.targetName : ''}}</view>
+    </view>
+
+    <view wx:if="{{loading && rows.length}}" class="text-3 loading-more">加载中…</view>
+    <view wx:elif="{{loaded && !hasMore && rows.length}}" class="text-3 loading-more">没有更多了</view>
+  </block>
+</view>

@@ -1,0 +1,25 @@
+.handover-page { padding-bottom: 60rpx; }
+.toolbar { display: flex; align-items: center; margin-bottom: 24rpx; }
+.tabs { display: flex; flex: 1; background: var(--color-card); border-radius: 999rpx; padding: 6rpx; }
+.tab { flex: 1; text-align: center; padding: 14rpx 0; color: var(--color-text-2); border-radius: 999rpx; }
+.tab.active { background: var(--color-primary); color: #fff; font-weight: 600; }
+.policy-link { color: var(--color-info); padding: 16rpx 0 16rpx 24rpx; }
+.batch-filter { margin: 0 8rpx 20rpx; word-break: break-all; }
+.handover-card { padding: 24rpx; }
+.card-main { flex: 1; min-width: 0; }
+.handover-no { font-weight: 600; margin-bottom: 6rpx; }
+.badge-pending { color: var(--color-primary); background: var(--color-primary-light); }
+.badge-received { color: var(--color-success); background: #E8FFEA; }
+.badge-rejected, .badge-cancelled { color: var(--color-text-3); background: #F2F3F5; }
+.quantity-row { display: flex; align-items: baseline; margin: 24rpx 0 12rpx; }
+.quantity-row > view { margin-right: 32rpx; }
+.quantity { font-size: 40rpx; font-weight: 600; }
+.difference-tag { color: var(--color-danger); font-size: 24rpx; }
+.target-line { line-height: 1.6; }
+.reason { margin-top: 12rpx; font-size: 24rpx; }
+.card-actions { border-top: 2rpx solid var(--color-border); margin-top: 20rpx; padding-top: 18rpx; }
+.batch-link { word-break: break-all; max-width: 60%; }
+.small-btn { width: 180rpx; padding: 12rpx 0; margin: 0; font-size: 26rpx; }
+.state { padding: 100rpx 0; text-align: center; }
+.retry { width: 220rpx; margin-top: 24rpx; font-size: 26rpx; }
+.state-inline { text-align: center; padding: 24rpx; }

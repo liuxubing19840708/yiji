@@ -1,0 +1,47 @@
+<view class="page handover-page">
+  <view wx:if="{{denied}}" class="state text-3">暂无交接查看权限，请联系管理员</view>
+  <block wx:else>
+    <view class="toolbar">
+      <view class="tabs">
+        <view class="tab {{box === 'mine' && !batchNo ? 'active' : ''}}" data-box="mine" bindtap="onBoxChange">待我接收</view>
+        <view class="tab {{box === 'created' && !batchNo ? 'active' : ''}}" data-box="created" bindtap="onBoxChange">我发起</view>
+      </view>
+      <view wx:if="{{canManage}}" class="policy-link" bindtap="onPolicy">策略</view>
+    </view>
+    <view wx:if="{{batchNo}}" class="batch-filter text-2">批次：{{batchNo}}</view>
+
+    <view wx:if="{{loading}}" class="state text-3">加载中…</view>
+    <view wx:elif="{{error && !rows.length}}" class="state">
+      <view class="text-3">交接单加载失败</view>
+      <button class="btn btn-ghost retry" bindtap="onRetry">重新加载</button>
+    </view>
+    <block wx:else>
+      <empty-state wx:if="{{!rows.length}}" text="{{box === 'mine' ? '暂无待接收交接' : '暂无发起的交接'}}" />
+      <view wx:for="{{rows}}" wx:key="id" class="card handover-card" data-id="{{item.id}}" bindtap="onOpen">
+        <view class="row">
+          <view class="card-main">
+            <view class="handover-no">{{item.handover_no}}</view>
+            <view class="text-3">{{item.source_node_name}} → {{item.target_node_name}} · {{item.createdAtText}}</view>
+          </view>
+          <view class="badge badge-{{item.status}}">{{item.statusText}}</view>
+        </view>
+        <view class="quantity-row">
+          <view><text class="quantity num">{{item.total_quantity}}</text><text class="text-3"> 应交</text></view>
+          <view class="text-2">已收 <text class="num">{{item.received_quantity}}</text></view>
+          <view wx:if="{{item.has_discrepancy}}" class="difference-tag">有差异</view>
+        </view>
+        <view class="text-2 target-line">{{item.targetText}}</view>
+        <view wx:if="{{item.is_overdue}}" class="text-danger reason">已超时 {{item.overdue_minutes}} 分钟，请尽快接收或改派</view>
+        <view wx:if="{{item.reject_reason}}" class="text-danger reason">拒收原因：{{item.reject_reason}}</view>
+        <view class="row card-actions">
+          <view class="text-3 batch-link" data-batch="{{item.batch_no}}" catchtap="onOpenBatch">批次 {{item.batch_no}} ›</view>
+          <view class="spacer" />
+          <button wx:if="{{item.canAccept}}" class="btn btn-primary small-btn {{receivingId === item.id ? 'disabled' : ''}}" data-id="{{item.id}}" catchtap="onAccept">全部接收</button>
+          <view wx:else class="text-3">查看详情 ›</view>
+        </view>
+      </view>
+      <view wx:if="{{loadingMore}}" class="state-inline text-3">加载更多…</view>
+      <view wx:elif="{{!hasMore && rows.length}}" class="state-inline text-3">已加载全部</view>
+    </block>
+  </block>
+</view>

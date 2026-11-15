@@ -1,0 +1,72 @@
+<view class="page">
+  <!-- 无权限防御态（warehouse.supplier；后端 403 兜底） -->
+  <view wx:if="{{denied}}" class="state">
+    <view class="text-3">暂无「供应商主档」权限，请联系管理员开通</view>
+  </view>
+
+  <block wx:else>
+    <view class="toolbar">
+      <view class="spacer"></view>
+      <view class="batch-btn" bindtap="onOpenCreate">＋ 新增供应商</view>
+    </view>
+
+    <view class="card filter-card">
+      <view class="row">
+        <input class="search grow" placeholder="编码/名称/联系人/电话"
+          value="{{keyword}}" bindinput="onKeyword" bindconfirm="onSearch"
+          confirm-type="search" />
+        <view class="search-btn" bindtap="onSearch">查询</view>
+      </view>
+    </view>
+
+    <view wx:if="{{loading && !rows.length}}" class="state text-3">加载中…</view>
+    <view wx:elif="{{error && !rows.length}}" class="state">
+      <view class="text-3">加载失败，请重试</view>
+      <button class="btn btn-ghost state-btn" bindtap="reload">重新加载</button>
+    </view>
+    <empty-state wx:elif="{{loaded && !rows.length}}" text="暂无供应商"
+      sub="点「新增供应商」建立主档" />
+
+    <view class="card sup-card" wx:for="{{rows}}" wx:key="id">
+      <view class="row">
+        <view class="item-main">
+          <view class="item-title">{{item.code}}</view>
+          <view class="text-3">{{item.name || '—'}}</view>
+        </view>
+        <view class="badge badge-gray" wx:if="{{item.settle_method}}">{{item.settle_method}}</view>
+      </view>
+      <view class="text-3 sup-meta" wx:if="{{item.contact_person || item.phone}}">
+        联系人：{{item.contact_person || '—'}}{{item.phone ? ' · ' + item.phone : ''}}</view>
+      <view class="text-3 sup-meta" wx:if="{{item.rating}}">评级：{{item.rating}}</view>
+      <view class="text-3 sup-meta" wx:if="{{item.remark}}">备注：{{item.remark}}</view>
+      <view class="row sup-actions">
+        <view class="spacer"></view>
+        <view class="op-btn" data-id="{{item.id}}" catchtap="onOpenEdit">编辑</view>
+        <view class="op-btn op-danger" data-id="{{item.id}}" catchtap="onDelete">删除</view>
+      </view>
+    </view>
+
+    <view wx:if="{{loading && rows.length}}" class="text-3 loading-more">加载中…</view>
+    <view wx:elif="{{loaded && !hasMore && rows.length}}" class="text-3 loading-more">没有更多了</view>
+  </block>
+
+  <!-- ============ 新建/编辑弹层 ============ -->
+  <view class="mask" wx:if="{{editVisible}}" bindtap="onCloseEdit">
+    <view class="sheet" catchtap="noop">
+      <view class="row sheet-head">
+        <view class="h2">{{editingId ? '编辑供应商' : '新增供应商'}}</view>
+        <view class="spacer"></view>
+        <view class="text-3" bindtap="onCloseEdit">关闭</view>
+      </view>
+      <view class="text-3 sheet-sub" wx:if="{{!editingId}}">编码必填且不可重复；后保存后可编辑。</view>
+      <input class="input" placeholder="编码（必填）" value="{{formCode}}" bindinput="onFormCode" />
+      <input class="input" placeholder="名称" value="{{formName}}" bindinput="onFormName" />
+      <input class="input" placeholder="联系人" value="{{formContact}}" bindinput="onFormContact" />
+      <input class="input" type="number" placeholder="电话" value="{{formPhone}}" bindinput="onFormPhone" />
+      <input class="input" placeholder="结算方式（现款/月结…）" value="{{formSettle}}" bindinput="onFormSettle" />
+      <input class="input" placeholder="评级" value="{{formRating}}" bindinput="onFormRating" />
+      <input class="input" placeholder="备注" value="{{formRemark}}" bindinput="onFormRemark" />
+      <button class="btn btn-primary" loading="{{editSaving}}" bindtap="onSaveEdit">保存</button>
+    </view>
+  </view>
+</view>

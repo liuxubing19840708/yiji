@@ -1,0 +1,183 @@
+/* 应收详情页样式（取 app.wxss 变量） */
+
+.state {
+  text-align: center;
+  padding: 100rpx 0;
+}
+
+.state-btn {
+  margin-top: 24rpx;
+  width: 240rpx;
+  font-size: 28rpx;
+  padding: 14rpx 0;
+}
+
+.card {
+  margin-bottom: 16rpx;
+}
+
+.item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-title {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.info-line {
+  margin-top: 12rpx;
+  line-height: 1.6;
+}
+
+.cols {
+  margin-top: 8rpx;
+}
+
+.col {
+  flex: 1;
+  text-align: center;
+  min-width: 0;
+}
+
+.col-num {
+  font-size: 30rpx;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-note {
+  margin-top: 12rpx;
+  line-height: 1.6;
+}
+
+/* 收款时间线（缺口 B 接入） */
+.timeline {
+  margin-top: 12rpx;
+}
+
+.tl-row {
+  display: flex;
+  align-items: flex-start;
+  padding: 12rpx 0;
+  border-bottom: 2rpx solid var(--color-border, #eee);
+}
+
+.tl-row:last-child {
+  border-bottom: none;
+}
+
+.tl-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: var(--color-primary, #FF7A00);
+  margin: 14rpx 16rpx 0 0;
+  flex-shrink: 0;
+}
+
+.tl-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.tl-line1 {
+  display: flex;
+  align-items: baseline;
+  gap: 16rpx;
+}
+
+.tl-amt {
+  font-weight: 600;
+}
+
+.tl-line2 {
+  margin-top: 4rpx;
+}
+
+.act-wrap {
+  flex-wrap: wrap;
+  margin-bottom: 12rpx;
+}
+
+.act {
+  padding: 12rpx 32rpx;
+  border-radius: 999rpx;
+  border: 2rpx solid var(--color-border);
+  font-size: 26rpx;
+  color: var(--color-text-2);
+  margin-right: 16rpx;
+  margin-top: 8rpx;
+}
+
+.act-primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.act-lost {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.act-note {
+  line-height: 1.6;
+}
+
+/* ---- 核销弹层 ---- */
+.mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+}
+
+.sheet {
+  width: 100%;
+  background: var(--color-card);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.sheet-head {
+  margin-bottom: 16rpx;
+}
+
+.sheet-sub {
+  margin-bottom: 20rpx;
+  line-height: 1.6;
+}
+
+.input {
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  padding: 18rpx 24rpx;
+  font-size: 28rpx;
+  margin-bottom: 20rpx;
+}
+
+.picker-box {
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  padding: 18rpx 24rpx;
+  font-size: 28rpx;
+  margin-bottom: 20rpx;
+}
+
+/* 就地报错（超收预校验不发请求） */
+.err-line {
+  color: var(--color-danger);
+  font-size: 24rpx;
+  line-height: 1.6;
+  margin-bottom: 16rpx;
+}

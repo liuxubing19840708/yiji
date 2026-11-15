@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "按床领料",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index"
+  }
+}

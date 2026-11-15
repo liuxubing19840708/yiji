@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "产前工作台",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index"
+  }
+}

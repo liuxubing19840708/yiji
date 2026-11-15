@@ -19,7 +19,7 @@ function unwrapList<T>(res: T[] | Paginated<T>): T[] {
 
 Page({
   data: {
-    tab: 'groups' as 'groups' | 'customers',
+    tab: 'customers' as 'groups' | 'customers',
     // ---- 分组 ----
     groups: [] as CustomerGroup[],
     groupView: [] as CustomerGroup[],

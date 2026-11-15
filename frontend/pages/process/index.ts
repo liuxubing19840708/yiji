@@ -1,5 +1,5 @@
 /**
- * 工序 Tab（规格 §9.1）：
+ * 工序页（规格 §9.1；2026-10-26 撤出 tabBar，入口在首页工作台宫格）：
  * - 固定工序：全部工序列表 + is_fixed 开关（updateProcess），固定工序 ∪ 指定工序 = 扫菲可选
  * - 指定工序：本人 assigned_processes 展示（来自 /process-selector 中非固定项），修改入口指向员工管理
  * - 工序模板（F1/B1 契约，管理员可见）：GET/POST /process-templates + PUT/DELETE，
@@ -50,6 +50,11 @@ Page({
     loadError: false,
     /** 全部工序（带开关） */
     list: [] as ProcRow[],
+    listView: [] as ProcRow[],
+    keyword: '',
+    fixedFilter: 'all' as 'all' | 'fixed' | 'free',
+    fixedFilterIndex: 0,
+    fixedFilterNames: ['全部工序', '固定工序', '非固定工序'],
     /** 本人指定工序（/process-selector 中的非固定项） */
     assigned: [] as Array<{ id: number; name: string; price: string }>,
     savingId: 0,
@@ -59,6 +64,11 @@ Page({
     addSaving: false,
     addName: '',
     addPrice: '',
+    addSort: '0',
+    addFixed: false,
+    addKey: false,
+    addHidePrice: false,
+    addEditingId: 0,
 
     // ================= 工序模板（管理员可见） =================
     canManage: false,
@@ -82,8 +92,7 @@ Page({
 
   onShow() {
     if (!requireLogin()) return;
-    const tabBar = (this as unknown as { getTabBar?: () => { setSelected: (n: number) => void } }).getTabBar?.();
-    if (tabBar) tabBar.setSelected(1);
+    // 2026-10-26 撤出 tabBar：入口改在首页工作台宫格（navigateTo，系统导航自带返回）
     const isAdmin = !!getApp<IAppOption>().globalData.isAdmin;
     // 模板门控：is_admin 或「款式管理」权限点（与「＋新建工序」同族口径）
     this.setData({ isAdmin, canManage: isAdmin || hasPerm('styles.manage') });
@@ -139,9 +148,35 @@ Page({
         assigned: sel.filter((s) => !s.is_fixed),
         loading: false
       });
+      this.applyProcessFilter();
     } catch (e) {
       this.setData({ loading: false, loadError: true });
     }
+  },
+
+  applyProcessFilter() {
+    const keyword = this.data.keyword.trim().toLowerCase();
+    const listView = this.data.list.filter((p) => {
+      if (keyword && !p.name.toLowerCase().includes(keyword)) return false;
+      if (this.data.fixedFilter === 'fixed') return p.is_fixed;
+      if (this.data.fixedFilter === 'free') return !p.is_fixed;
+      return true;
+    });
+    this.setData({ listView });
+  },
+
+  onKeyword(e: WechatMiniprogram.Input) {
+    this.setData({ keyword: e.detail.value });
+    this.applyProcessFilter();
+  },
+
+  onFixedFilter(e: WechatMiniprogram.PickerChange) {
+    const index = Number(e.detail.value);
+    this.setData({
+      fixedFilterIndex: index,
+      fixedFilter: (['all', 'fixed', 'free'] as const)[index] || 'all'
+    });
+    this.applyProcessFilter();
   },
 
   onRetry() {
@@ -349,6 +384,30 @@ Page({
     }
   },
 
+  /** 关键工序/隐藏工价开关（竞品对齐 GAP-6/8，2026-11-04）：
+   *  同 is_fixed 口径乐观更新，失败回滚；PUT 全量提交补齐原字段 */
+  async onToggleField(e: WechatMiniprogram.TouchEvent) {
+    if (this.data.savingId) return;
+    const id = Number(e.currentTarget.dataset.id);
+    const field = String(e.currentTarget.dataset.field || '');
+    if (field !== 'is_key' && field !== 'hide_price') return;
+    const row = this.data.list.find((p) => p.id === id) as ProcRow | undefined;
+    if (!row) return;
+    const next = !(row as unknown as Record<string, boolean>)[field];
+    const idx = this.data.list.indexOf(row);
+    this.setData({ savingId: id, [`list[${idx}].${field}`]: next });
+    try {
+      await updateProcess(id, {
+        ...(row as unknown as Record<string, unknown>),
+        [field]: next
+      } as Partial<Process>);
+    } catch (err) {
+      this.setData({ [`list[${idx}].${field}`]: !next });
+    } finally {
+      this.setData({ savingId: 0 });
+    }
+  },
+
   /** 指定工序的配置入口：跳指定工序页（员工维度多选管理） */
   goAssign() {
     wx.navigateTo({
@@ -383,7 +442,19 @@ Page({
 
   // ---- 管理员新建工序（POST /processes，后端需「款式管理」权限点） ----
   onOpenAdd() {
-    this.setData({ showAdd: true, addName: '', addPrice: '' });
+    this.setData({
+      showAdd: true, addEditingId: 0, addName: '', addPrice: '', addSort: String(this.data.list.length + 1),
+      addFixed: false, addKey: false, addHidePrice: false
+    });
+  },
+  onOpenEdit(e: WechatMiniprogram.TouchEvent) {
+    const row = this.data.list.find((p) => p.id === Number(e.currentTarget.dataset.id));
+    if (!row) return;
+    this.setData({
+      showAdd: true, addEditingId: row.id, addName: row.name,
+      addPrice: String(row.default_price ?? '0'), addSort: String(row.sort || 0),
+      addFixed: Boolean(row.is_fixed), addKey: Boolean(row.is_key), addHidePrice: Boolean(row.hide_price)
+    });
   },
   onCloseAdd() {
     if (this.data.addSaving) return;
@@ -395,6 +466,10 @@ Page({
   onAddPrice(e: WechatMiniprogram.Input) {
     this.setData({ addPrice: e.detail.value });
   },
+  onAddSort(e: WechatMiniprogram.Input) { this.setData({ addSort: e.detail.value }); },
+  onAddFixed(e: WechatMiniprogram.SwitchChange) { this.setData({ addFixed: e.detail.value }); },
+  onAddKey(e: WechatMiniprogram.SwitchChange) { this.setData({ addKey: e.detail.value }); },
+  onAddHidePrice(e: WechatMiniprogram.SwitchChange) { this.setData({ addHidePrice: e.detail.value }); },
   async onConfirmAdd() {
     if (this.data.addSaving) return;
     const name = this.data.addName.trim();
@@ -403,20 +478,29 @@ Page({
       return;
     }
     const price = this.data.addPrice.trim();
-    if (price && isNaN(Number(price))) {
-      wx.showToast({ title: '默认单价须为数字', icon: 'none' });
+    if (price && (isNaN(Number(price)) || Number(price) < 0)) {
+      wx.showToast({ title: '默认单价须为非负数字', icon: 'none' });
+      return;
+    }
+    const sort = Number(this.data.addSort);
+    if (!Number.isInteger(sort)) {
+      wx.showToast({ title: '排序须为整数', icon: 'none' });
       return;
     }
     this.setData({ addSaving: true });
     try {
-      await createProcess({
+      const payload = {
         name,
         default_price: price ? Number(price).toFixed(3) : '0.000',
-        is_fixed: false,
-        sort: this.data.list.length + 1
-      } as Partial<Process>);
+        is_fixed: this.data.addFixed,
+        is_key: this.data.addKey,
+        hide_price: this.data.addHidePrice,
+        sort
+      } as Partial<Process>;
+      if (this.data.addEditingId) await updateProcess(this.data.addEditingId, payload);
+      else await createProcess(payload);
       this.setData({ showAdd: false });
-      wx.showToast({ title: '工序已创建', icon: 'success' });
+      wx.showToast({ title: this.data.addEditingId ? '工序已更新' : '工序已创建', icon: 'success' });
       this.load();
     } catch (err) {
       // 400（重名等）由 http 层 toast 具体原因

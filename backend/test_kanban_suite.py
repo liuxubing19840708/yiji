@@ -139,7 +139,8 @@ PostM.all_objects.filter(company=company, is_admin=False).delete()
 worker = ensure_user(WORKER, 'KBST员工')
 UserCompany.objects.create(
     user=worker, company=company,
-    post=PostM.objects.create(company=company, name='KBST普工', permissions=[]),
+    post=PostM.objects.create(
+        company=company, name='KBST普工', permissions=['records.create']),
     status=UserCompany.Status.ACTIVE)
 
 TA = login(owner.phone)
@@ -155,7 +156,8 @@ for bed_no, color in [('KBST-A', '黑'), ('KBST-B', '白')]:
                                   total_qty=100, plan_qty=100)
     Ticket.objects.create(company=company, production=p, bed_no=bed_no,
                           bundle_no='1', color=color, size='M', qty=100,
-                          qr_code=f'KBST|{bed_no}|1|{color}|M|100')
+                          qr_code=(f'{company.company_no}|{bed_no}|{style.style_no}'
+                                   f'|1|{color}|M|100'))
 
 _name_seq = [0]
 
@@ -740,18 +742,25 @@ check('smoke.py 路径存在', os.path.exists(smoke_path), smoke_path)
 old_stdout = sys.stdout
 sid = None
 try:
-    guard = Client()
-    rt = guard.post('/api/auth/login',
-                    {'phone': '13800000001', 'password': 'yisao1234'},
-                    content_type='application/json')
-    target_cid = None
-    if rt.status_code == 200:
-        mine = guard.get('/api/companies/mine',
-                         HTTP_AUTHORIZATION=f"Bearer {rt.json()['access']}")
-        # 真机验证后 demo 账号可能被拉入真实厂 86（companies/mine 排序不定），
-        # 从其公司列表中挑第一个非 86 的公司作 smoke 目标，绝不触碰真实厂
-        target_cid = next((c.get('id') for c in (mine.json() or [])
-                           if c.get('id') != 86), None)
+    isolated = globals().get('ISOLATED_TEST_RUN', False)
+    smoke_owner_phone = owner.phone if isolated else '13800000001'
+    smoke_worker_phone = worker.phone if isolated else '13800000003'
+    if isolated:
+        # 空白测试库使用本套件刚创建的厂和账号，不依赖演示种子数据。
+        target_cid = company.id
+    else:
+        guard = Client()
+        rt = guard.post('/api/auth/login',
+                        {'phone': smoke_owner_phone, 'password': 'yisao1234'},
+                        content_type='application/json')
+        target_cid = None
+        if rt.status_code == 200:
+            mine = guard.get('/api/companies/mine',
+                             HTTP_AUTHORIZATION=f"Bearer {rt.json()['access']}")
+            # 真机验证后 demo 账号可能被拉入真实厂 86（companies/mine 排序不定），
+            # 从其公司列表中挑第一个非 86 的公司作 smoke 目标，绝不触碰真实厂
+            target_cid = next((c.get('id') for c in (mine.json() or [])
+                               if c.get('id') != 86), None)
     if target_cid is None:
         smoke_err = '跳过：smoke 无可用非 86 公司'
     elif target_cid == 86:
@@ -769,14 +778,19 @@ try:
                                             name='SMOKE临时工序', is_fixed=False)
                 StyleProcess.objects.create(style=_style, process=_p,
                                             price='1.000', sort=1)
-        _wu = User.objects.filter(phone='13800000003').first()
+        _wu = worker if isolated else User.objects.filter(phone=smoke_worker_phone).first()
         if _wu is not None and not UserCompany.objects.filter(
                 user=_wu, company_id=target_cid, is_deleted=False).exists():
             _post = PostM.objects.create(company_id=target_cid, name='SMOKE临时岗',
                                          permissions=['*'])
             UserCompany.objects.create(user=_wu, company_id=target_cid, post=_post,
                                        status=UserCompany.Status.ACTIVE)
-        g = {'__name__': '__smoke__', '__file__': smoke_path}
+        g = {
+            '__name__': '__smoke__', '__file__': smoke_path,
+            'SMOKE_OWNER_PHONE': smoke_owner_phone,
+            'SMOKE_WORKER_PHONE': smoke_worker_phone,
+            'SMOKE_COMPANY_ID': target_cid,
+        }
         src = compile(open(smoke_path, encoding='utf-8').read(), 'smoke.py', 'exec')
         exec(src, g)  # smoke 内部会替换 sys.stdout（下方 finally 还原）
         smoke_ran = True

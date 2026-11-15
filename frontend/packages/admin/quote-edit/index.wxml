@@ -1,0 +1,113 @@
+<view class="page">
+  <view wx:if="{{denied}}" class="state">
+    <view class="text-3">暂无「报价维护」权限，请联系管理员开通</view>
+  </view>
+
+  <block wx:else>
+    <!-- 基础信息 -->
+    <view class="card">
+      <view class="h2 form-head">基础信息</view>
+      <view class="form-row">
+        <view class="form-label">款式 <text class="req">*</text></view>
+        <picker class="grow" mode="selector" range="{{styleNames}}" value="{{styleIndex}}" bindchange="onStyleChange">
+          <view class="picker-box">{{styleNames[styleIndex]}} ▾</view>
+        </picker>
+      </view>
+      <view class="form-row">
+        <view class="form-label">客户</view>
+        <picker class="grow" mode="selector" range="{{customerNames}}" value="{{customerIndex}}" bindchange="onCustomerChange">
+          <view class="picker-box">{{customerNames[customerIndex]}} ▾</view>
+        </picker>
+      </view>
+      <view class="form-row">
+        <view class="form-label">报价数量 <text class="req">*</text></view>
+        <input class="input grow" type="number" placeholder="数量（<300 自动加小单溢价）"
+          value="{{qty}}" bindinput="onQty" />
+      </view>
+      <view class="form-row">
+        <view class="form-label">报价日期</view>
+        <picker class="grow" mode="date" value="{{date}}" bindchange="onDateChange">
+          <view class="picker-box">{{date}} ▾</view>
+        </picker>
+      </view>
+      <view class="form-row">
+        <view class="form-label">备注</view>
+        <input class="input grow" placeholder="选填" value="{{remark}}" bindinput="onRemark" />
+      </view>
+      <view class="text-3 hint">单号 Q+日期+3 位流水自动生成；合计由服务端重算，前端不累加。</view>
+    </view>
+
+    <!-- 用料行（两级用量） -->
+    <view class="card">
+      <view class="row form-head">
+        <view class="h2">用料明细</view>
+        <view class="spacer"></view>
+        <view class="mini-btn" bindtap="onPullFromBom">从BOM带出</view>
+        <view class="mini-btn mini-primary" bindtap="onOpenPick">手选物料</view>
+      </view>
+      <empty-state wx:if="{{!rows.length}}" text="无用料行"
+        sub="从BOM带出（含定额行参照单耗）或手选物料" />
+      <view class="mat-row" wx:for="{{rows}}" wx:key="index">
+        <view class="row">
+          <view class="item-main">
+            <view class="mat-name">{{item.title}}</view>
+            <view class="text-3">{{item.bomItemId ? 'BOM定额行' : '手选物料'}}{{item.unit ? ' · ' + item.unit : ''}}</view>
+          </view>
+          <view class="text-3 del-btn" data-index="{{index}}" catchtap="onRemoveRow">删除</view>
+        </view>
+        <view class="row inline-inputs">
+          <view class="text-3">单耗</view>
+          <input class="input tiny" type="digit" value="{{item.usage}}"
+            data-index="{{index}}" bindinput="onRowUsage" />
+          <view class="text-3">单价</view>
+          <input class="input tiny" type="digit" value="{{item.price}}"
+            data-index="{{index}}" bindinput="onRowPrice" />
+        </view>
+      </view>
+    </view>
+
+    <!-- 人工行 -->
+    <view class="card">
+      <view class="h2 form-head">人工行</view>
+      <view class="form-row">
+        <view class="form-label">工价快照</view>
+        <input class="input grow" type="digit" placeholder="留空=款式工序工价合计带出"
+          value="{{laborBase}}" bindinput="onLaborBase" />
+      </view>
+      <view class="form-row">
+        <view class="form-label">倍率</view>
+        <input class="input grow" type="digit" placeholder="默认 2.3"
+          value="{{rate}}" bindinput="onRate" />
+      </view>
+      <view class="rate-warn" wx:if="{{rateWarning}}">⚠ {{rateWarning}}</view>
+      <view class="form-row">
+        <view class="form-label">小单溢价%</view>
+        <input class="input grow" type="digit" placeholder="留空=按数量规则（<300 加 30%）"
+          value="{{smallLotAddon}}" bindinput="onSmallLotAddon" />
+      </view>
+      <view class="form-row">
+        <view class="form-label">附加费</view>
+        <input class="input grow" type="digit" placeholder="上机费/制版费等，默认 0"
+          value="{{addonAmount}}" bindinput="onAddonAmount" />
+      </view>
+      <view class="text-3 hint">人工合计 = 工价快照 × 倍率 × (1+小单溢价%) + 附加费（服务端重算）。</view>
+    </view>
+
+    <button class="btn btn-primary save-btn" loading="{{saving}}" bindtap="onSave">保存报价</button>
+  </block>
+
+  <!-- ============ 手选物料弹层 ============ -->
+  <view class="mask" wx:if="{{pickVisible}}" bindtap="onClosePick">
+    <view class="sheet" catchtap="noop">
+      <view class="row sheet-head">
+        <view class="h2">选择物料</view>
+        <view class="spacer"></view>
+        <view class="text-3" bindtap="onClosePick">关闭</view>
+      </view>
+      <picker mode="selector" range="{{materialNames}}" value="{{materialIndex}}" bindchange="onMaterialChange">
+        <view class="picker-box">{{materialNames[materialIndex] || '请选择'}} ▾</view>
+      </picker>
+      <button class="btn btn-primary" bindtap="onConfirmPick">加入一行</button>
+    </view>
+  </view>
+</view>

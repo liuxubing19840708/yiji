@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "交接批次汇总",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index"
+  }
+}

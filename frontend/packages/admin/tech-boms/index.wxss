@@ -1,0 +1,259 @@
+/* BOM 管理页样式（颜色/圆角/阴影一律取自 app.wxss 变量） */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+
+.style-picker {
+  flex: 1;
+  background: var(--color-card);
+  border-radius: 999rpx;
+  padding: 16rpx 28rpx;
+  font-size: 28rpx;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.add-btn {
+  margin-left: 16rpx;
+  background: var(--color-primary);
+  color: #ffffff;
+  font-size: 26rpx;
+  padding: 16rpx 24rpx;
+  border-radius: 999rpx;
+  white-space: nowrap;
+}
+
+.note {
+  font-size: 24rpx;
+  color: var(--color-text-2);
+  line-height: 1.6;
+}
+
+.item-title {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.badge {
+  margin-left: 12rpx;
+  font-size: 20rpx;
+  padding: 2rpx 14rpx;
+  border-radius: 999rpx;
+  line-height: 1.6;
+}
+
+.badge-active {
+  color: var(--color-success);
+  background: rgba(0, 180, 42, 0.12);
+}
+
+.badge-draft {
+  color: var(--color-info);
+  background: rgba(22, 119, 255, 0.08);
+}
+
+.badge-gray {
+  color: var(--color-text-3);
+  background: var(--color-bg);
+}
+
+.bom-remark {
+  margin-top: 6rpx;
+}
+
+.bom-actions {
+  margin-top: 20rpx;
+  flex-wrap: wrap;
+}
+
+.act {
+  padding: 10rpx 26rpx;
+  border-radius: 999rpx;
+  border: 2rpx solid var(--color-border);
+  font-size: 24rpx;
+  color: var(--color-text-2);
+  margin-right: 16rpx;
+  margin-top: 8rpx;
+}
+
+.act-main {
+  color: var(--color-info);
+  border-color: var(--color-info);
+}
+
+.act-danger {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.act-disabled {
+  color: var(--color-text-3);
+  background: var(--color-bg);
+  border-color: var(--color-border);
+}
+
+.state {
+  text-align: center;
+  padding: 120rpx 0;
+}
+
+.state-btn {
+  margin-top: 24rpx;
+  width: 240rpx;
+  font-size: 28rpx;
+  padding: 14rpx 0;
+}
+
+/* ---- 编辑弹层 ---- */
+.mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+}
+
+/* 物料选择器压在明细编辑弹层之上 */
+.mask-top {
+  z-index: 120;
+}
+
+.sheet {
+  width: 100%;
+  background: var(--color-card);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.sheet-head {
+  margin-bottom: 16rpx;
+}
+
+.editor-sub {
+  margin-bottom: 8rpx;
+}
+
+.sheet-body {
+  max-height: 60vh;
+}
+
+.editor-empty {
+  text-align: center;
+  padding: 48rpx 0;
+}
+
+.editor-tip {
+  margin-top: 16rpx;
+  line-height: 1.6;
+}
+
+.item-row {
+  border: 2rpx solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 16rpx 20rpx;
+  margin-bottom: 16rpx;
+}
+
+.item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-code {
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.tag {
+  flex-shrink: 0;
+  font-size: 22rpx;
+  color: var(--color-info);
+  background: rgba(22, 119, 255, 0.08);
+  padding: 2rpx 14rpx;
+  border-radius: 999rpx;
+}
+
+.item-del {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  background: var(--color-bg);
+  color: var(--color-text-3);
+  font-size: 32rpx;
+  text-align: center;
+  line-height: 44rpx;
+}
+
+.item-fields {
+  margin-top: 12rpx;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.mini-input {
+  width: 152rpx;
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  padding: 10rpx 16rpx;
+  font-size: 24rpx;
+  box-sizing: border-box;
+}
+
+.mini-gross {
+  color: var(--color-primary);
+  width: 200rpx;
+}
+
+.add-item {
+  border: 2rpx dashed var(--color-border);
+  border-radius: var(--radius);
+  color: var(--color-text-3);
+  text-align: center;
+  padding: 20rpx 0;
+  margin-bottom: 8rpx;
+}
+
+.sheet-save {
+  margin-top: 24rpx;
+}
+
+/* ---- 物料选择器 ---- */
+.mat-search {
+  margin-bottom: 16rpx;
+}
+
+.mat-list {
+  max-height: 50vh;
+}
+
+.mat-state {
+  text-align: center;
+  padding: 48rpx 0;
+}
+
+.mat-opt {
+  border-bottom: 2rpx solid var(--color-border);
+  padding: 18rpx 4rpx;
+}
+
+.mat-opt-line {
+  margin-top: 4rpx;
+}
+
+.mat-opt-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

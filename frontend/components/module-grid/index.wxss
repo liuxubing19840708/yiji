@@ -57,3 +57,12 @@
 .cell-icon-trace { background: #EDE7F6; }
 .cell-icon-warehouse { background: #E0F2F1; }
 .cell-icon-orders { background: #FFF0E0; }
+.cell-icon-tech-materials { background: #E8F7F0; }
+.cell-icon-tech-boms { background: #F0EAFE; }
+.cell-icon-material-issue { background: #E0F7FA; }
+.cell-icon-cost { background: #FFF8E1; }
+.cell-icon-quotation { background: #E8F5E9; }
+.cell-icon-receivable { background: #F1F8E9; }
+.cell-icon-suppliers { background: #FFF3E0; }
+.cell-icon-receipts { background: #E3F2FD; }
+.cell-icon-shipment { background: #E8F5E9; }

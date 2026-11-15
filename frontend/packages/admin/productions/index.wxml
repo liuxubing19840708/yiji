@@ -21,7 +21,7 @@
     <view class="text-3">加载失败，请重试</view>
     <button class="btn btn-ghost state-btn" bindtap="reload">重新加载</button>
   </view>
-  <empty-state wx:elif="{{!productions.length}}" text="暂无床次订单" sub="点击首页 FAB 扫菲，或在款式卡片中发起编菲" />
+  <empty-state wx:elif="{{!productions.length}}" text="暂无床次订单" sub="点底部「扫菲」开扫，或在款式卡片中发起编菲" />
   <view wx:else>
     <view class="card prod-card" wx:for="{{productions}}" wx:key="id">
       <view class="row" data-index="{{index}}" bindtap="onOpenDetail">
@@ -59,3 +59,6 @@
 
 <!-- 打印预览：按当前模板渲染标签，确认后发蓝牙 -->
 <label-preview show="{{previewShow}}" tickets="{{previewTickets}}" company="{{previewCompany}}" bind:confirm="onPreviewConfirm" bind:cancel="onPreviewCancel" />
+
+<!-- 打印进度（可取消，utils/print-flow 驱动） -->
+<print-progress show="{{printFlow.show}}" done="{{printFlow.done}}" total="{{printFlow.total}}" bind:cancel="onFlowCancel" />

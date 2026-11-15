@@ -2,10 +2,11 @@
  * 登记记录列表（管理员视角）：
  * 按员工/日期区间/工序筛选 + 触底分页；撤销规则与「工作中」一致
  * （本人当日、管理员当月内、未结算；已结算/超期由后端最终校验）。
+ * 竞品对齐（2026-11-04）：修改数量（原因必填，GAP-3）+ 计件明细导出 xlsx（GAP-7）。
  */
-import { requireLogin, getUser } from '../../../utils/auth';
+import { requireLogin, getToken, getCompanyId, getUser } from '../../../utils/auth';
 import { hasPerm } from '../../../utils/perm';
-import { fetchRecords, deleteRecord } from '../../../services/production';
+import { fetchRecords, deleteRecord, updateRecordQty, recordsExportUrl } from '../../../services/production';
 import { fetchProcesses } from '../../../services/catalog';
 import { fetchEmployees } from '../../../services/auth';
 import { RecordItem, Process, Employee } from '../../../services/types';
@@ -26,6 +27,7 @@ type RecordRow = RecordItem & {
   amountText?: string;
   timeText?: string;
   canRevoke?: boolean;
+  canEdit?: boolean;
 };
 
 const PAGE_SIZE = 20;
@@ -53,7 +55,11 @@ Page({
     /** 菲票预过滤（§2.9 P0 下钻第三级）：床次详情点菲票 → ?ticketId= 带参进入 */
     ticketId: 0,
     /** 撤销请求进行中的记录 id */
-    revokingId: 0
+    revokingId: 0,
+    /** 导出中（GAP-7，防重复点击） */
+    exporting: false,
+    /** 可导出：salary.view 点（后端最终校验） */
+    canExport: false
   },
 
   /**
@@ -76,7 +82,10 @@ Page({
   onShow() {
     if (!requireLogin()) return;
     const app = getApp<IAppOption>();
-    this.setData({ isAdmin: !!app.globalData.isAdmin });
+    this.setData({
+      isAdmin: !!app.globalData.isAdmin,
+      canExport: !!app.globalData.isAdmin || hasPerm('salary.view')
+    });
     this.loadFilters();
     this.reload();
   },
@@ -189,7 +198,9 @@ Page({
       ...r,
       amountText: money(r.amount || r.price),
       timeText: fmtDateTime(r.registered_at),
-      canRevoke: this.checkRevoke(r, uid)
+      canRevoke: this.checkRevoke(r, uid),
+      // 可改数：与撤销同门槛（未结算 + 本人当日/管理员 records.revoke），后端最终校验
+      canEdit: this.checkRevoke(r, uid)
     };
   },
 
@@ -242,5 +253,91 @@ Page({
     } finally {
       this.setData({ revokingId: 0 });
     }
+  },
+
+  // ============ 修改数量填原因（GAP-3，2026-11-04） ============
+
+  onEditQty(e: WechatMiniprogram.TouchEvent) {
+    const id = Number(e.currentTarget.dataset.id);
+    const row = this.data.list.find((r) => r.id === id);
+    if (!id || !row || this.data.revokingId) return;
+    wx.showModal({
+      title: `修改数量（当前 ${row.qty} 件）`,
+      editable: true,
+      placeholderText: '请输入新的数量',
+      success: (res) => {
+        if (!res.confirm) return;
+        const qty = Number((res.content || '').trim());
+        if (!Number.isInteger(qty) || qty <= 0) {
+          wx.showToast({ title: '数量须为正整数', icon: 'none' });
+          return;
+        }
+        if (qty === row.qty) return;
+        // 二级弹窗：原因必填（后端留痕字段，空原因直接拒绝提交）
+        wx.showModal({
+          title: '修改原因（必填）',
+          editable: true,
+          placeholderText: '如：员工报错数 / 多登了 5 件',
+          success: (r2) => {
+            if (!r2.confirm) return;
+            const reason = (r2.content || '').trim();
+            if (!reason) {
+              wx.showToast({ title: '必须填写修改原因', icon: 'none' });
+              return;
+            }
+            this.doEditQty(id, qty, reason);
+          }
+        });
+      }
+    });
+  },
+
+  async doEditQty(id: number, qty: number, reason: string) {
+    this.setData({ revokingId: id });
+    try {
+      await updateRecordQty(id, { qty, reason });
+      wx.showToast({ title: '已修改', icon: 'success' });
+      this.reload();
+    } catch (e) {
+      // 超限/已结算/门禁等原因：请求层已 toast
+    } finally {
+      this.setData({ revokingId: 0 });
+    }
+  },
+
+  // ============ 计件明细导出（GAP-7，2026-11-04） ============
+
+  onExport() {
+    if (this.data.exporting) return;
+    const uidFilter = this.selectedUserId();
+    const pidFilter = this.selectedProcessId();
+    const url = recordsExportUrl({
+      user_id: uidFilter || undefined,
+      process_id: pidFilter || undefined,
+      date_from: this.data.ticketId ? undefined : this.data.startDate,
+      date_to: this.data.ticketId ? undefined : this.data.endDate
+    });
+    this.setData({ exporting: true });
+    wx.downloadFile({
+      url,
+      header: {
+        Authorization: `Bearer ${getToken()}`,
+        'X-Company-Id': String(getCompanyId())
+      },
+      success: (res) => {
+        if (res.statusCode !== 200) {
+          wx.showToast({ title: '导出失败', icon: 'none' });
+          return;
+        }
+        wx.openDocument({
+          filePath: res.tempFilePath,
+          fileType: 'xlsx',
+          showMenu: true,
+          fail: () => wx.showToast({ title: '无法打开文件', icon: 'none' })
+        });
+      },
+      fail: () => wx.showToast({ title: '下载失败，请检查网络', icon: 'none' }),
+      complete: () => this.setData({ exporting: false })
+    });
   }
 });

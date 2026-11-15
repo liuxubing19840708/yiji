@@ -1,0 +1,125 @@
+/* 暂收单详情/编辑页样式（取 app.wxss 变量） */
+
+.state {
+  padding: 120rpx 40rpx;
+  text-align: center;
+}
+
+.state-btn {
+  margin-top: 24rpx;
+}
+
+.sheet-head {
+  margin-bottom: 8rpx;
+}
+
+.picker-box {
+  background: var(--color-bg);
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 26rpx;
+  margin-top: 16rpx;
+}
+
+.link-btn {
+  color: var(--color-info);
+  font-size: 26rpx;
+}
+
+.add-link {
+  margin-top: 16rpx;
+}
+
+.input {
+  background: var(--color-bg);
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 26rpx;
+  margin-top: 16rpx;
+}
+
+.item-card {
+  margin-top: 20rpx;
+}
+
+.h3-line {
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.row-2col {
+  gap: 16rpx;
+}
+
+.col-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.iqc-row {
+  margin-top: 16rpx;
+  gap: 16rpx;
+}
+
+.iqc-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.iqc-label {
+  margin-top: 6rpx;
+  text-align: center;
+}
+
+.iqc-hint {
+  margin-top: 10rpx;
+}
+
+.btn-bar {
+  display: flex;
+  gap: 20rpx;
+  margin: 30rpx 0 60rpx;
+}
+
+.btn-bar .btn {
+  flex: 1;
+}
+
+.confirm-btn {
+  background: var(--color-success, #07c160);
+}
+
+.info-line {
+  margin-top: 10rpx;
+}
+
+.item-title {
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.cols {
+  margin-top: 14rpx;
+}
+
+.col {
+  flex: 1;
+  text-align: center;
+}
+
+.col-num {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.op-btn {
+  font-size: 24rpx;
+  color: var(--color-info);
+  padding: 6rpx 20rpx;
+  border: 2rpx solid var(--color-border);
+  border-radius: 999rpx;
+}
+
+.op-danger {
+  color: var(--color-danger);
+}

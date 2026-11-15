@@ -9,7 +9,7 @@ import { money } from '../../../utils/format';
 import { chooseImage, uploadImage, chooseVideo, uploadVideo } from '../../../utils/upload';
 import {
   fetchStyles, createStyle, updateStyle, deleteStyle, copyStyle,
-  fetchCustomers
+  fetchCustomers, syncStyleProcessesToTickets
 } from '../../../services/catalog';
 import { fetchSettings } from '../../../services/ops';
 import { fetchProductionHints } from '../../../services/production';
@@ -69,6 +69,9 @@ function toVM(s: Style): StyleVM {
 Page({
   data: {
     keyword: '',
+    customerFilter: 0,
+    customerFilterIndex: 0,
+    customerFilterNames: ['全部客户'] as string[],
     styles: [] as StyleVM[],
     page: 1,
     hasMore: false,
@@ -167,7 +170,8 @@ Page({
         const customers = res.results || [];
         this.setData({
           customers,
-          customerNames: ['不关联客户'].concat(customers.map((c) => c.name))
+          customerNames: ['不关联客户'].concat(customers.map((c) => c.name)),
+          customerFilterNames: ['全部客户'].concat(customers.map((c) => c.name))
         });
       })
       .catch(() => { /* 客户下拉失败不阻塞款式列表 */ });
@@ -179,6 +183,7 @@ Page({
     const kw = this.data.keyword.trim();
     const params: Record<string, unknown> = { page: 1, page_size: PAGE_SIZE };
     if (kw) params.keyword = kw;
+    if (this.data.customerFilter) params.customer_id = this.data.customerFilter;
     this.setData({ loading: true, error: false, page: 1, styles: [] });
     fetchStyles(params as Parameters<typeof fetchStyles>[0])
       .then((res: Paginated<Style>) => {
@@ -197,6 +202,7 @@ Page({
     const kw = this.data.keyword.trim();
     const params: Record<string, unknown> = { page: nextPage, page_size: PAGE_SIZE };
     if (kw) params.keyword = kw;
+    if (this.data.customerFilter) params.customer_id = this.data.customerFilter;
     this.setData({ loading: true });
     fetchStyles(params as Parameters<typeof fetchStyles>[0])
       .then((res: Paginated<Style>) => {
@@ -222,6 +228,13 @@ Page({
     this.reload();
   },
 
+  onCustomerFilter(e: WechatMiniprogram.PickerChange) {
+    const index = Number(e.detail.value);
+    const customer = index > 0 ? this.data.customers[index - 1] : null;
+    this.setData({ customerFilterIndex: index, customerFilter: customer ? customer.id : 0 });
+    this.reload();
+  },
+
   // ============ 卡片操作 ============
 
   /** 卡片单击进款式详情页（2026-10-22 用户需求：单击即显详情）；⋮ 菜单为 catchtap 不受影响 */
@@ -241,6 +254,8 @@ Page({
     if (!s) return;
     const actions: Array<{ label: string; run: () => void }> = [
       { label: '编辑款式', run: () => this.openForm(s) },
+      { label: '编辑 / 工序', run: () => this.openProcessEditor(s) },
+      { label: '同步工序到菲票', run: () => this.onSyncProcesses(s) },
       { label: '复制款式', run: () => this.onCopy(s) }
     ];
     if (hasPerm('styles.delete')) {
@@ -253,6 +268,27 @@ Page({
         if (act) act.run();
       }
     });
+  },
+
+  openProcessEditor(s: StyleVM) {
+    wx.navigateTo({
+      url: `/packages/admin/style-process/index?styleId=${s.id}&styleNo=${encodeURIComponent(s.style_no)}`
+    });
+  },
+
+  async onSyncProcesses(s: StyleVM) {
+    try {
+      let result = await syncStyleProcessesToTickets(s.id);
+      if (result.need_confirm) {
+        const modal = await wx.showModal({
+          title: '同步工序到菲票',
+          content: `该款式有 ${result.ticket_count || 0} 张已登记菲票。确定同步最新工序配置并写入操作日志吗？`
+        });
+        if (!modal.confirm) return;
+        result = await syncStyleProcessesToTickets(s.id, true);
+      }
+      wx.showToast({ title: `已同步 ${result.ticket_count || 0} 张菲票`, icon: 'none' });
+    } catch (e) { /* 请求层展示后端原因 */ }
   },
 
   onCopy(s: StyleVM) {
@@ -329,7 +365,7 @@ Page({
 
   onFormNo(e: WechatMiniprogram.Input) { this.setData({ 'form.style_no': e.detail.value }); },
   onFormName(e: WechatMiniprogram.Input) { this.setData({ 'form.name': e.detail.value }); },
-  // 备注输入已按用户要求下架（2026-10-22）：form.remark 保留透传（编辑旧款式不丢已有备注）
+  onFormRemark(e: WechatMiniprogram.Input) { this.setData({ 'form.remark': e.detail.value }); },
   onFormCustomer(e: WechatMiniprogram.PickerChange) {
     const idx = Number(e.detail.value);
     const c = idx > 0 ? this.data.customers[idx - 1] : null;
@@ -500,6 +536,8 @@ Page({
   },
 
   onCloseForm() {
+    const f = this.data.form;
+    if (this.data.saving || f.uploading || f.craftUploading || f.videoUploading) return;
     this.setData({ formVisible: false });
   },
 
@@ -507,6 +545,10 @@ Page({
 
   onSave() {
     const f = this.data.form;
+    if (f.uploading || f.craftUploading || f.videoUploading) {
+      wx.showToast({ title: '请等待媒体上传完成', icon: 'none' });
+      return;
+    }
     if (!f.style_no.trim()) {
       wx.showToast({ title: '请输入款号', icon: 'none' });
       return;

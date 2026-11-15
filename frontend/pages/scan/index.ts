@@ -12,6 +12,8 @@
  * 满扎徽标（规格 §2.7.1 P0）：工序 chip 显示「累计/扎数」（selector registered_qty/cap），
  *   后端未升级（字段缺失）时隐藏徽标不报错；cap=null 只显示累计数。
  * 离线显式暂存（规格 §2.7.3 P3）：idle 态可查看离线队列条目摘要并手动重发（复用 utils/offline-queue）。
+ * 大字号+语音报数（评审 Top10 #7，2026-11-02）：件数确认页可切大字号（storage 持久化）/
+ *   开启语音报数（进确认页报读件数、登记成功播报；WechatSI 插件 TTS，缺省时静默降级）。
  */
 import { parseScan, createRecord, fetchRecordProcessSelector, lookupTickets } from '../../services/production';
 import { fetchStyle } from '../../services/catalog';
@@ -22,10 +24,15 @@ import { money, today } from '../../utils/format';
 import { requireLogin, getUser } from '../../utils/auth';
 import { hasPerm } from '../../utils/perm';
 import { offlineCount, offlineItems, flushOfflineQueue } from '../../utils/offline-queue';
+import { isTtsEnabled, setTtsEnabled, speak, stopSpeaking, ttsAvailable } from '../../utils/tts';
 import { logger } from '../../utils/logger';
 
 /** 协助目标员工在页面间的暂存键（switchTab 丢参，故走 storage） */
 const ASSIST_KEY = 'yisao_assist_target';
+
+/** 评审 Top10 #7：确认页大字号 + 语音报数 开关持久化键 */
+const BIG_FONT_KEY = 'yisao_scan_bigfont';
+const TTS_KEY = 'yisao_scan_tts';
 
 /** 后端 ScanParseView 实际返回（services/types.ScanParseResult 的后端子集，以后端为准） */
 interface ScanResp {
@@ -50,7 +57,8 @@ interface ScanResp {
 interface ProcessOption {
   id: number;
   name: string;
-  price: string;
+  /** price=null：工序 hide_price 且本人无价权（GAP-6），与未上价同型不展示单价 */
+  price: string | null;
   priceText: string;
   /** 未配置工价（痛点 #2 调研 §8.3）：chip 禁选 + 「未上价」角标 */
   unpriced: boolean;
@@ -88,6 +96,8 @@ interface LookupRowView {
   color: string;
   size: string;
   qty: number;
+  /** 床次 id（lookup 同构字段）：>0 时选中后可走补打入口 */
+  prodId: number;
   isLocked: boolean;
 }
 
@@ -134,7 +144,11 @@ Page({
     resending: false,
     /** 双击款号 → 款式信息弹层（style-craft：款式图/工艺说明/工艺图/视频点播） */
     styleSheet: false,
-    styleCraft: null as Record<string, unknown> | null
+    styleCraft: null as Record<string, unknown> | null,
+    /** 评审 Top10 #7：大字号模式（年长工人）/ 语音报数 开关（storage 持久化） */
+    bigFont: false,
+    ttsOn: false,
+    ttsReady: false
   },
 
   /** 相机打开期间标记，防止重入 */
@@ -147,12 +161,37 @@ Page({
     if (options.userId) {
       wx.setStorageSync(ASSIST_KEY, { userId: Number(options.userId), name: options.name || '' });
     }
+    // 大字号/语音报数开关（评审 Top10 #7）：storage 恢复；TTS 能力缺失时开关仍可显示但报数静默
+    const bigFont = !!wx.getStorageSync(BIG_FONT_KEY);
+    const ttsOn = !!wx.getStorageSync(TTS_KEY);
+    setTtsEnabled(ttsOn && ttsAvailable());
+    this.setData({ bigFont, ttsOn, ttsReady: ttsAvailable() });
+  },
+
+  onToggleBigFont() {
+    const bigFont = !this.data.bigFont;
+    wx.setStorageSync(BIG_FONT_KEY, bigFont);
+    this.setData({ bigFont });
+  },
+
+  onToggleTts() {
+    const ttsOn = !this.data.ttsOn;
+    wx.setStorageSync(TTS_KEY, ttsOn);
+    setTtsEnabled(ttsOn && ttsAvailable());
+    this.setData({ ttsOn });
+    if (ttsOn) {
+      if (!ttsAvailable()) {
+        wx.showToast({ title: '当前环境不支持语音播报', icon: 'none' });
+        return;
+      }
+      speak('语音报数已开启');
+    }
   },
 
   onShow() {
     if (!requireLogin()) return;
     const tabBar = (this as unknown as { getTabBar?: () => { setSelected: (n: number) => void } }).getTabBar?.();
-    if (tabBar) tabBar.setSelected(2);
+    if (tabBar) tabBar.setSelected(1);
 
     const stash = (wx.getStorageSync(ASSIST_KEY) || null) as { userId: number; name: string } | null;
     this.setData({
@@ -179,11 +218,13 @@ Page({
   onUnload() {
     this._scanning = false;
     this._cameraDone = false;
+    stopSpeaking();
   },
 
   /** 离开本页（switchTab/navigateTo 均会触发）：重置相机标记，下次进入恢复自动扫码 */
   onHide() {
     this._cameraDone = false;
+    stopSpeaking();
   },
 
   // ============ 扫码 ============
@@ -319,6 +360,7 @@ Page({
             fixedQty: true,
             state: 'qty'
           });
+          this.announceQty();
           return;
         }
         // 推导工序不在可选集/未上价：提示原因后仍进手选，不把工人锁死
@@ -355,6 +397,7 @@ Page({
           qtyEditing: false,
           state: 'qty'
         });
+        this.announceQty();
       } else {
         this.setData({ ticket, processes, selectedId: 0, selectedName: '', qtyValue: '', fixedQty: false, state: 'process' });
       }
@@ -370,9 +413,12 @@ Page({
   async loadProcesses(ticketId?: number): Promise<ProcessOption[]> {
     const hidePrice = this.data.hidePrice;
     try {
-      const res = await fetchRecordProcessSelector(ticketId ? { ticket_id: ticketId } : undefined) as unknown as
-        | Array<{ id: number; name: string; price: string; registered_qty?: number | null; cap?: number | null }>
-        | { results?: Array<{ id: number; name: string; price: string; registered_qty?: number | null; cap?: number | null }>;
+      const params: { ticket_id?: number; user_id?: number } = {};
+      if (ticketId) params.ticket_id = ticketId;
+      if (this.data.assistUserId) params.user_id = this.data.assistUserId;
+      const res = await fetchRecordProcessSelector(params) as unknown as
+        | Array<{ id: number; name: string; price: string | null; registered_qty?: number | null; cap?: number | null }>
+        | { results?: Array<{ id: number; name: string; price: string | null; registered_qty?: number | null; cap?: number | null }>;
             current_process?: { id: number; name: string; remaining: number } | null };
       const list = Array.isArray(res) ? res : (res.results || []);
       const current = (!Array.isArray(res) && res.current_process) || null;
@@ -381,12 +427,13 @@ Page({
         fixedQty: false
       });
       return list.map((p) => {
-        const unpriced = Number(p.price) <= 0;
+        // price=null（工序 hide_price 且本人无价权，GAP-6）与 0 价同型：不展示单价
+        const unpriced = p.price === null || p.price === undefined || Number(p.price) <= 0;
         return {
           id: p.id,
           name: p.name,
           price: p.price,
-          priceText: hidePrice ? '' : money(p.price),
+          priceText: hidePrice || unpriced ? '' : money(p.price),
           unpriced,
           registeredQty: typeof p.registered_qty === 'number' ? p.registered_qty : null,
           capQty: typeof p.cap === 'number' ? p.cap : null
@@ -448,12 +495,18 @@ Page({
       qtyEditing: false,
       state: 'qty'
     });
+    this.announceQty();
   },
 
   /** 「修改数量」：展开数字键盘（默认不弹，2026-10-22 用户需求） */
   onEditQty() {
     this.setData({ qtyEditing: true });
     wx.nextTick(() => this.syncKeypad());
+  },
+
+  /** 语音报数（评审 Top10 #7）：进入件数确认/改完件数时报读（未开启/不支持时静默） */
+  announceQty() {
+    if (this.data.qtyValue) speak(`本次登记${this.data.qtyValue}件`);
   },
 
   // ============ 件数录入与提交 ============
@@ -492,6 +545,7 @@ Page({
       }, { offline: true });
       // 成功 / 弱网入离线队列均视为完成（后者请求层已 toast「已存入本地待同步」）
       wx.showToast({ title: assist ? '协助登记成功' : '登记成功', icon: 'success' });
+      speak(`登记成功，${qty}件`); // 语音报数收尾（Top10 #7；未开启时静默）
       logger.info(assist ? '协助登记' : '扫菲登记',
         `ticket=${this.data.ticket.id} process=${this.data.selectedId} qty=${qty}`);
       if (!assist) {
@@ -499,11 +553,13 @@ Page({
         this.refreshToday(true);
       }
     } catch (e) {
-      // 业务拒绝（重复登记/锁定/裁完）：请求层已 toast 具体原因；静默回扫码态
-      // 弱网入离线队列（ApiError.status===0）：请求层已 toast「已存入本地待同步」
+      // 业务拒绝（重复登记/锁定/裁完）：请求层已 toast 具体原因；保留当前菲票、工序和件数供修正后重试。
+      // 弱网入离线队列（ApiError.status===0）会正常 resolve，仍按成功流程重置；只有真正失败才停留确认页。
+      this.setData({ state: 'qty' });
+      return;
     }
     this.resetToIdle();
-    // 连续扫码（规格 §21.1）：登记完成后自动回到扫码
+    // 连续扫码（规格 §21.1）：仅登记成功后自动回到扫码
     setTimeout(() => {
       if (this.data.state === 'idle') this.autoScan();
     }, 900);
@@ -672,6 +728,7 @@ Page({
         color: r.color || '',
         size: r.size || '',
         qty: r.qty,
+        prodId: (r as unknown as { production_id?: number }).production_id || 0,
         isLocked: !!r.is_locked || r.status === 'locked'  // SA3 按床次派生 status，与 is_locked 等价
       }));
       this.setData({
@@ -711,7 +768,7 @@ Page({
       size: row.size,
       qty: row.qty,
       registeredQty: null,
-      prodId: 0, // 手输候选行不带床次 id：不显示补打入口
+      prodId: row.prodId, // 2026-10-29 同构：lookup 带 production_id，与扫码一致可补打
       canPrint: hasPerm('print.manage') || hasPerm('production.manage')
     };
     wx.showLoading({ title: '解析中', mask: true });

@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "薪资条",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index"
+  }
+}

@@ -1,5 +1,5 @@
-<!-- 扫菲页：扫码态 / 菲票卡+工序选择 / 件数确认（规格 §9.2） -->
-<view class="page scan-page">
+<!-- 扫菲页：扫码态 / 菲票卡+工序选择 / 件数确认（规格 §9.2）；xl=大字号模式（评审 Top10 #7） -->
+<view class="page scan-page {{bigFont ? 'xl' : ''}}">
 
   <!-- 今日累计常驻条（即时反馈，调研 §8.3；协助模式下不显示） -->
   <view wx:if="{{todayQty !== null && !assistUserId}}" class="card today-bar">
@@ -113,6 +113,11 @@
         bind:input="onQtyInput"
         bind:confirm="onQtyConfirm"
       />
+      <!-- 大字号 / 语音报数（评审 Top10 #7）：小字开关行，storage 持久化 -->
+      <view class="scan-utility-row">
+        <view class="scan-utility {{bigFont ? 'on' : ''}}" bindtap="onToggleBigFont">Aa 大字号</view>
+        <view class="scan-utility {{ttsOn ? 'on' : ''}}" bindtap="onToggleTts">🔊 语音报数</view>
+      </view>
       <button
         class="btn btn-primary submit-btn {{state === 'submitting' ? 'disabled' : ''}}"
         disabled="{{state === 'submitting'}}"

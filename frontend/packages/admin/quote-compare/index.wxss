@@ -1,0 +1,89 @@
+/* 回填对比页样式（取 app.wxss 变量） */
+
+.state {
+  text-align: center;
+  padding: 100rpx 0;
+}
+
+.state-btn {
+  margin-top: 24rpx;
+  width: 240rpx;
+  font-size: 28rpx;
+  padding: 14rpx 0;
+}
+
+.card {
+  margin-bottom: 16rpx;
+}
+
+.item-title {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.head-line {
+  margin-top: 12rpx;
+  line-height: 1.6;
+}
+
+/* 软提醒横幅：只提醒不拦截（D3） */
+.soft-banner {
+  background: rgba(255, 136, 0, 0.12);
+  color: var(--color-warning, #FF8800);
+  border-radius: var(--radius, 12rpx);
+  padding: 16rpx 24rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  margin-bottom: 20rpx;
+}
+
+.sec-title {
+  margin: 20rpx 0 8rpx;
+}
+
+.cols {
+  margin-top: 8rpx;
+}
+
+.col {
+  flex: 1;
+  text-align: center;
+  min-width: 0;
+}
+
+.col-num {
+  font-size: 26rpx;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diff-head {
+  padding: 8rpx 0;
+  border-bottom: 2rpx solid var(--color-border);
+}
+
+.diff-row {
+  padding: 12rpx 0;
+  border-bottom: 2rpx solid var(--color-border);
+}
+
+.diff-row:last-of-type {
+  border-bottom: none;
+}
+
+.diff-cell {
+  flex: 1;
+  font-size: 24rpx;
+  text-align: center;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diff-cell:first-child {
+  flex: 1.4;
+  text-align: left;
+}

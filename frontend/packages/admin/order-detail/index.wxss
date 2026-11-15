@@ -112,6 +112,10 @@
 }
 
 /* ---- 完成度矩阵（表格格式与床次完成矩阵完全一致，仅内容不同：订单数/已登记/完成率） ---- */
+/* 订单内产前准备入口 */
+.preproduction-entry { display: flex; align-items: center; }
+.entry-desc { margin-top: 8rpx; }
+
 .legend {
   display: flex;
   align-items: center;
@@ -214,4 +218,11 @@
   height: 152rpx;
   border-radius: var(--radius);
   background: var(--color-bg);
+}
+
+/* 变更记录入口（差距 #3） */
+.audit-link {
+  margin-right: 16rpx;
+  font-size: 24rpx;
+  flex-shrink: 0;
 }

@@ -4,7 +4,7 @@
  */
 import { http } from '../utils/request';
 import {
-  BundleProgressItem, Customer, CustomerGroup, Process, ProcessSelectorItem, Style,
+  BundleProgressItem, Customer, CustomerGroup, Process, Style,
   StyleProcessItem, Ticket, Paginated
 } from './types';
 
@@ -72,8 +72,8 @@ export function deleteProcess(id: number): Promise<unknown> {
 }
 
 /** 扫菲工序选择器（catalog 版）：固定工序 ∪ 本人指定工序，返回 Process 数组 */
-export function fetchProcessSelector(): Promise<ProcessSelectorItem[]> {
-  return http.get<ProcessSelectorItem[]>('/process-selector');
+export function fetchProcessSelector(): Promise<Process[]> {
+  return http.get<Process[]>('/process-selector');
 }
 
 // ============ 款式 ============
@@ -118,7 +118,7 @@ export function updateStyleProcesses(id: number, processItems: Array<{ process_i
 
 /** 把款式工序配置同步到该款存量菲票（可能返回 {need_confirm, ticket_count} 需二次确认） */
 export function syncStyleProcessesToTickets(id: number, force = false): Promise<{ synced?: boolean; need_confirm?: boolean; ticket_count?: number }> {
-  return http.post(`/styles/${id}/sync-process`, force ? { force: 1 } : undefined);
+  return http.post(`/styles/${id}/sync-process`, { confirm: force });
 }
 
 // ============ 菲票 ============

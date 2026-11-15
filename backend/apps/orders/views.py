@@ -22,6 +22,7 @@ from apps.core.mixins import CompanyContextMixin
 from apps.core.pagination import DefaultPagination
 from apps.core.utils import q3
 from apps.ops.models import AuditLog
+from apps.ops.serializers import AuditLogSerializer
 from apps.ops.services import audit
 from apps.orders.models import Order, OrderItem
 from apps.orders.serializers import OrderSerializer
@@ -41,15 +42,10 @@ def _gen_order_no(company) -> str:
 
     seq = 当日本公司最大序号 + 1；扫描 all_objects（含软删行）防软删段复用混乱；
     并发撞唯一约束由调用方事务内重试一次（候选号 +1）。
+    生成逻辑收编 apps.core.numbering（2026-10-29），本函数保留域内命名。
     """
-    prefix = f'SO{timezone.localdate():%Y%m%d}'
-    max_seq = 0
-    for no in Order.all_objects.filter(company=company, order_no__startswith=prefix) \
-            .values_list('order_no', flat=True):
-        suffix = no[len(prefix):]
-        if suffix.isdigit():
-            max_seq = max(max_seq, int(suffix))
-    return f'{prefix}{max_seq + 1:03d}'
+    from apps.core.numbering import next_no
+    return next_no(company, Order, 'order_no', 'SO')
 
 
 def _validated_style(company, raw):
@@ -113,7 +109,10 @@ def _validated_order_process_items(company, raw):
 
 
 def _validated_item_rows(order, raw):
-    """建单/改单的 items 校验：非空列表、色码齐全、qty>0、同单同色码唯一。"""
+    """建单/改单的 items 校验：非空列表、色码齐全、qty>0、同单同色码唯一。
+
+    P1 成本域：price 色码单价可空（null/''=未定价，存量兼容）；传了须为非负数。
+    """
     if not isinstance(raw, list) or not raw:
         raise ValidationError({'items': '订单明细不能为空'})
     rows, seen = [], set()
@@ -126,6 +125,16 @@ def _validated_item_rows(order, raw):
             qty = int(it.get('qty'))
         except (TypeError, ValueError):
             qty = 0
+        price_raw = it.get('price', None)
+        if price_raw in (None, ''):
+            price = None
+        else:
+            try:
+                price = q3(price_raw)
+            except Exception:
+                raise ValidationError({'items': f'第{idx + 1}项单价不合法'})
+            if price < 0:
+                raise ValidationError({'items': f'第{idx + 1}项单价不能为负数'})
         if not color:
             raise ValidationError({'items': f'第{idx + 1}项缺少颜色'})
         if not size:
@@ -136,8 +145,32 @@ def _validated_item_rows(order, raw):
         if key in seen:
             raise ValidationError({'items': f'同单同色码重复：{color}/{size}'})
         seen.add(key)
-        rows.append(OrderItem(order=order, color=color, size=size, qty=qty))
+        rows.append(OrderItem(order=order, color=color, size=size, qty=qty,
+                              price=price))
     return rows
+
+
+def _validate_downstream_quantities(company, order, rows):
+    """改单不得小于已审核出货量，也不得删除/改名已出色码。
+
+    已裁/已报工后的生产改单与色码重排是既有合同，仍允许；已审核出货已生成
+    应收并占用未交量，若订单再减到该数量以下，出货与应收就会失去订单依据。
+    调用方必须已锁订单行，与出货审核的订单锁形成同一串行点。
+    """
+    from apps.shipment.models import Shipment, ShipmentItem
+
+    shipped_rows = (ShipmentItem.objects.filter(
+        shipment__company=company, shipment__order=order,
+        shipment__is_deleted=False).exclude(shipment__status=Shipment.Status.DRAFT)
+        .order_by().values('color', 'size').annotate(qty=Sum('qty')))
+    requested = {(r.color, r.size): r.qty for r in rows}
+    for row in shipped_rows:
+        key = (row['color'], row['size'])
+        shipped = int(row['qty'] or 0)
+        if requested.get(key, 0) < shipped:
+            raise ValidationError({'items': (
+                f'{key[0]}/{key[1]} 改单数量不能低于已出 {shipped} 件，'
+                f'当前提交 {requested.get(key, 0)} 件；请先处理历史出货与应收')})
 
 
 def _check_order_no_free(company, order_no, exclude_pk=None):
@@ -212,7 +245,9 @@ class OrderListCreateView(CompanyContextMixin, generics.ListCreateAPIView):
     pagination_class = DefaultPagination
 
     def get_queryset(self):
-        qs = Order.objects.filter(company=self.company).select_related('customer', 'style')
+        qs = (Order.objects.filter(company=self.company)
+              .select_related('customer', 'style')
+              .prefetch_related('items'))
         status = self.request.query_params.get('status')
         if status in Order.Status.values:  # producing/done/cancelled；其余（all/空）不过滤
             qs = qs.filter(status=status)
@@ -313,14 +348,44 @@ class OrderDetailView(CompanyContextMixin, generics.RetrieveUpdateDestroyAPIView
             extra['process_items'] = _validated_order_process_items(
                 self.company, self.request.data.get('process_items'))
         with transaction.atomic():
+            # 与出货审核共用订单行锁：不能在校验已出量后又被并发改小订单。
+            instance = Order.objects.select_for_update().get(
+                company=self.company, pk=instance.pk)
+            serializer.instance = instance
             updated = serializer.save(
                 order_no=order_no or instance.order_no, **extra)
             # items 全量替换：显式传 items 才动明细，缺省保持原明细
             if self.request.data.get('items') is not None:
+                # P1 成本域 stale 埋点③：OrderItem.price 修改 → 成本行翻 stale
+                # （替换前先取旧价对照；口径=任一色码 price 变化，qty 变化不算）
+                old_prices = {(c, s): p for c, s, p in
+                              OrderItem.all_objects.filter(order=updated)
+                              .values_list('color', 'size', 'price')}
                 rows = _validated_item_rows(updated, self.request.data.get('items'))
+                _validate_downstream_quantities(self.company, updated, rows)
+                price_changes = [
+                    {'color': r.color, 'size': r.size,
+                     'before': (str(old_prices.get((r.color, r.size)))
+                                if old_prices.get((r.color, r.size)) is not None else None),
+                     'after': str(r.price) if r.price is not None else None}
+                    for r in rows
+                    if (r.price is None) != (old_prices.get((r.color, r.size)) is None)
+                    or (r.price is not None and r.price != old_prices.get((r.color, r.size)))
+                ]
                 OrderItem.all_objects.filter(order=updated).delete()
                 if rows:
                     OrderItem.objects.bulk_create(rows)
+                if price_changes:
+                    from apps.cost.services import mark_orders_stale
+                    mark_orders_stale(self.company, [updated.pk])
+                    audit(self.company, AuditLog.Type.PRICE, operator=self.request.user,
+                          before={'order_no': updated.order_no},
+                          after={'prices': price_changes},
+                          message=(f'订单色码单价修改：【{updated.order_no}】'
+                                   f'{len(price_changes)} 项（{price_changes[0]["color"]}/'
+                                   f'{price_changes[0]["size"]} '
+                                   f'{price_changes[0]["before"]}→{price_changes[0]["after"]}'
+                                   f'{" 等" if len(price_changes) > 1 else ""}）'))
         audit(self.company, AuditLog.Type.OTHER, operator=self.request.user,
               message=f'修改订单：【{updated.order_no}】')
 
@@ -336,6 +401,23 @@ class OrderDetailView(CompanyContextMixin, generics.RetrieveUpdateDestroyAPIView
             instance.items.update(is_deleted=True)
             instance.is_deleted = True
             instance.save(update_fields=['is_deleted', 'updated_at'])
+
+
+class OrderAuditLogListView(CompanyContextMixin, generics.ListAPIView):
+    """GET /orders/<id>/audit-logs 订单变更留痕时间线（差距分析 #3，2026-11-03）。
+
+    AuditLog 无订单外键，订单域埋点文案统一「【订单号】」定界——按
+    message 含 【{order_no}】 过滤（单号=前缀+日期段+序号，【】定界防串号）。
+    挂 orders.view（只读）；倒序最近在前。
+    """
+    serializer_class = AuditLogSerializer
+    pagination_class = DefaultPagination
+
+    def get_queryset(self):
+        order = _get_order(self.company, self.kwargs['pk'])
+        return AuditLog.objects.filter(
+            company=self.company,
+            message__contains=f'【{order.order_no}】').order_by('-id')
 
 
 class OrderStatusView(CompanyContextMixin, APIView):

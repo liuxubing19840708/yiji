@@ -1,0 +1,161 @@
+/* 报价详情页样式（取 app.wxss 变量） */
+
+.state {
+  text-align: center;
+  padding: 100rpx 0;
+}
+
+.state-btn {
+  margin-top: 24rpx;
+  width: 240rpx;
+  font-size: 28rpx;
+  padding: 14rpx 0;
+}
+
+.card {
+  margin-bottom: 16rpx;
+}
+
+.item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-title {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.info-line {
+  margin-top: 12rpx;
+  line-height: 1.6;
+}
+
+.stat {
+  flex: 1;
+  text-align: center;
+  min-width: 0;
+}
+
+.stat-num {
+  font-size: 26rpx;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mat-row {
+  padding: 16rpx 0;
+  border-bottom: 2rpx solid var(--color-border);
+}
+
+.mat-row:last-of-type {
+  border-bottom: none;
+}
+
+.mat-name {
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.mat-amt {
+  font-size: 26rpx;
+  font-weight: 600;
+  flex-shrink: 0;
+  margin-left: 12rpx;
+}
+
+.sum-line {
+  margin-top: 12rpx;
+  padding-top: 12rpx;
+  border-top: 2rpx dashed var(--color-border);
+}
+
+.labor-line {
+  margin-top: 10rpx;
+  line-height: 1.6;
+}
+
+/* 倍率超界软提醒：直显不改值（D2） */
+.rate-warn {
+  margin-top: 12rpx;
+  padding: 12rpx 20rpx;
+  border-radius: var(--radius, 12rpx);
+  background: rgba(255, 136, 0, 0.1);
+  color: var(--color-warning, #FF8800);
+  font-size: 24rpx;
+  line-height: 1.6;
+}
+
+.act-wrap {
+  flex-wrap: wrap;
+  margin-bottom: 8rpx;
+}
+
+.act {
+  padding: 10rpx 30rpx;
+  border-radius: 999rpx;
+  border: 2rpx solid var(--color-border);
+  font-size: 24rpx;
+  color: var(--color-text-2);
+  margin-right: 16rpx;
+  margin-top: 8rpx;
+}
+
+.act-won {
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.act-lost {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.final-note {
+  margin-bottom: 12rpx;
+  line-height: 1.6;
+}
+
+/* ---- 成单弹层 ---- */
+.mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+}
+
+.sheet {
+  width: 100%;
+  background: var(--color-card);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.sheet-head {
+  margin-bottom: 16rpx;
+}
+
+.sheet-sub {
+  margin-bottom: 20rpx;
+  line-height: 1.6;
+}
+
+.picker-box {
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  padding: 18rpx 24rpx;
+  font-size: 28rpx;
+  margin-bottom: 24rpx;
+}
+
+.won-btn {
+  width: 100%;
+}

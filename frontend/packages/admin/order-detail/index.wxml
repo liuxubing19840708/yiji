@@ -13,6 +13,7 @@
       <view class="row">
         <view class="order-no num">{{orderNo}}</view>
         <view class="spacer"></view>
+        <view class="link audit-link" bindtap="onOpenAuditLogs">变更记录 ›</view>
         <view class="badge {{statusCls}}">{{statusDisplay}}</view>
       </view>
       <view class="row info-row">
@@ -81,6 +82,16 @@
           <style-craft styleInfo="{{styleInfo}}" />
         </view>
       </block>
+    </view>
+
+    <!-- 产前准备：本订单工艺、产前样、问题、交底与一次正式审批 -->
+    <view wx:if="{{canPreproductionView}}" class="card preproduction-entry" bindtap="onOpenPreproduction">
+      <view>
+        <view class="h2">产前准备</view>
+        <view class="text-3 entry-desc">工艺资料 · 产前样 · 问题处理 · 交底审批</view>
+      </view>
+      <view class="spacer"></view>
+      <view class="arrow text-3">›</view>
     </view>
 
     <!-- 完成度矩阵：表格格式与床次完成矩阵完全一致（仅内容不同：订单数/已登记/完成率，落后格红底） -->

@@ -4,6 +4,14 @@
   <block wx:elif="{{!error}}">
     <date-range-bar start="{{start}}" end="{{end}}" quick="{{quick}}" bind:change="onRangeChange" />
 
+    <!-- 视图切换（2026-10-29 合并看板「维度查看」）：款式钻取 / 维度汇总 -->
+    <view class="dim-tabs">
+      <view class="dim-tab {{view === 'style' ? 'on' : ''}}" data-key="style" bindtap="onViewTap">款式钻取</view>
+      <view class="dim-tab {{view === 'dim' ? 'on' : ''}}" data-key="dim" bindtap="onViewTap">维度汇总</view>
+    </view>
+
+    <!-- ============ 视图一：款式钻取（§13 三层） ============ -->
+    <block wx:if="{{view === 'style'}}">
     <!-- 汇总头 + 筛选（§13.1） -->
     <view class="card head-card">
       <view class="row">
@@ -101,6 +109,45 @@
             <view class="e-col num e-right text-primary">{{item.amountText}}</view>
           </view>
         </view>
+      </view>
+    </block>
+    </block><!-- /视图一：款式钻取 -->
+
+    <!-- ============ 视图二：维度汇总（/dashboard/dim 同源，订单/裁床行可下钻） ============ -->
+    <block wx:if="{{view === 'dim'}}">
+      <view class="card">
+        <view class="dim-tabs dim-sub-tabs">
+          <view wx:for="{{dimTabs}}" wx:key="key"
+                class="dim-tab {{dim === item.key ? 'on' : ''}}"
+                data-key="{{item.key}}" bindtap="onDimTab">{{item.label}}</view>
+          <view class="spacer"></view>
+          <view class="dim-tab" bindtap="onDimExport">导出</view>
+        </view>
+        <view wx:if="{{dimLoading && !dimCols.length}}" class="state text-3">加载中…</view>
+        <view wx:elif="{{dimError && !dimCols.length}}" class="state">
+          <view class="text-3">加载失败，请重试</view>
+          <button class="btn btn-ghost state-btn" bindtap="onDimRetry">重新加载</button>
+        </view>
+        <block wx:else>
+          <scroll-view scroll-x class="plan-scroll">
+            <view class="plan-table">
+              <view class="pt-row pt-head">
+                <view wx:for="{{dimCols}}" wx:key="key"
+                      class="pt-cell"
+                      style="width: {{item.width}}rpx; height: 72rpx;">{{item.title}}</view>
+              </view>
+              <view wx:for="{{dimRows}}" wx:key="key" wx:for-item="row"
+                    class="pt-row {{row.nav ? 'dim-click' : ''}}"
+                    data-index="{{index}}" bindtap="onDimRowTap">
+                <view wx:for="{{dimCols}}" wx:key="key" wx:for-item="col" wx:for-index="ci"
+                      class="pt-cell"
+                      style="width: {{col.width}}rpx; height: 88rpx;">{{row.cells[ci]}}</view>
+              </view>
+            </view>
+          </scroll-view>
+          <view wx:if="{{!dimRows.length}}" class="state text-3">该期间暂无登记数据</view>
+          <view wx:if="{{dimRows.length && (dim === 'order' || dim === 'bed')}}" class="state text-3">点行可下钻查看详情</view>
+        </block>
       </view>
     </block>
   </block>

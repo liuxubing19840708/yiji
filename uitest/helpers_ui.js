@@ -4,7 +4,7 @@
  *
  * 设计要点（对齐 docs/端到端测试设计方案.md §四 三层断言）：
  *   ① UI 动作成功 → ② API/DB 落库正确 → ③ 回 UI 回显一致。
- *   ② 层直接在本进程 fetch 后端 8000（真实库，管理员 token + X-Company-Id: 86）。
+ *   ② 层直接在本进程 fetch 隔离测试后端（管理员 token + 显式公司头）。
  *
  * 稳定性约束（automator ws://localhost:9420 连接不稳的教训）：
  *   - 连接重试 3 次（退避 2s/5s/10s）；
@@ -16,15 +16,33 @@
  * mock 教训（沿用 probe_scan2 / ui_scan.js）：mockWxMethod 自定义函数返回值必须带
  *   errMsg 字段（如 { errMsg: 'scanCode:fail xxx' }），否则小程序侧按成功处理。
  *
- * 真实库自清扫铁律：所有测试数据带专属前缀（UITEST-ORD- / UIWIZ- / UISCAN- / KDRILL-），
- *   cleanupByPrefix 只清自己前缀的数据，不动他人数据；清理顺序=撤销登记→删床次→删订单。
+ * 隔离铁律：必须由环境变量显式提供本机测试 API、测试公司和测试账号；
+ *   禁止真实厂公司 86，登录后还会核对公司名称前缀。禁止默认连接开发库/真实库。
+ *   测试数据带专属前缀（UITEST-ORD- / UIWIZ- / UISCAN- / KDRILL-），
+ *   cleanupByPrefix 只清自己前缀的数据；清理顺序=撤销登记→删床次→删订单。
  */
 const automator = require('miniprogram-automator');
 
-const API_BASE = 'http://127.0.0.1:8000/api';
-const WS_ENDPOINT = 'ws://localhost:9420';
-const COMPANY_ID = 86;
-const ADMIN = { phone: '13800000001', password: 'yisao1234' };
+const API_BASE = process.env.YISAO_E2E_API_BASE || '';
+const WS_ENDPOINT = process.env.YISAO_E2E_WS_ENDPOINT || 'ws://127.0.0.1:9420';
+const COMPANY_ID = Number(process.env.YISAO_E2E_COMPANY_ID || 0);
+const ADMIN = {
+  phone: process.env.YISAO_E2E_PHONE || '',
+  password: process.env.YISAO_E2E_PASSWORD || ''
+};
+const ISOLATED_COMPANY_PREFIX = 'UI自动化隔离厂-';
+
+// 在任何登录/清理/写请求之前 fail fast；旧脚本曾默认写真实厂 86，不能保留默认回退。
+if (!API_BASE || !Number.isInteger(COMPANY_ID) || COMPANY_ID <= 0 || !ADMIN.phone || !ADMIN.password) {
+  throw new Error('缺少隔离测试环境：请通过 run_ui_gate.py 启动，或显式设置 YISAO_E2E_* 环境变量');
+}
+const apiUrl = new URL(API_BASE);
+if (!['127.0.0.1', 'localhost', '::1'].includes(apiUrl.hostname)) {
+  throw new Error(`UI 自动化只允许本机隔离后端，当前为 ${apiUrl.hostname}`);
+}
+if (COMPANY_ID === 86) {
+  throw new Error('安全保护：真实厂汉川旭东服饰（company_id=86）禁止用于 UI 自动化');
+}
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ============================================================
@@ -153,6 +171,10 @@ async function restartIde(logger = console.log) {
 /** 健康探针：reLaunch 首页（主包页）能在超时内完成 → 会话可用 */
 async function homeProbe(mp) {
   try {
+    // 开发者工具默认已打开首页时，重复 reLaunch 同页可能使自动化桥接失效。
+    // 先确认当前页；只有不在首页时才执行导航，探针仍要求真实页面可读取。
+    const current = await withTimeout(mp.currentPage(), 8000, 'homeProbe currentPage');
+    if (current && current.path === 'pages/index/index') return true;
     await withTimeout(mp.reLaunch('/pages/index/index'), 18000, 'homeProbe reLaunch');
     return true;
   } catch (e) {
@@ -240,7 +262,7 @@ async function waitPageData(page, loader, { timeout = 16000, label = '条件' } 
   }
 }
 
-/** 注入登录态（管理员 + 公司 86；注入 globalData 同款 storage 键，requireLogin 即通过）。
+/** 注入隔离测试管理员登录态（globalData 同款 storage 键，requireLogin 即通过）。
  *  返回已登录的 ApiClient（套件②层断言复用同一 token）。 */
 async function injectLogin(mp) {
   const api = new ApiClient();
@@ -308,6 +330,16 @@ class ApiClient {
     }
     this.token = res.data.access;
     this.refresh = res.data.refresh || '';
+    // 仅登录成功还不够：环境变量填错公司时必须在任何业务写入前阻断。
+    const mine = await this.raw('/companies/mine');
+    const company = (Array.isArray(mine.data) ? mine.data : [])
+      .find((c) => Number(c.id) === this.cid);
+    if (!company || !String(company.name || '').startsWith(ISOLATED_COMPANY_PREFIX)) {
+      this.token = '';
+      this.refresh = '';
+      throw new Error(`安全保护：company_id=${this.cid} 不是 ${ISOLATED_COMPANY_PREFIX}* 隔离测试公司`);
+    }
+    this.companyName = company.name;
     return res.data;
   }
 
@@ -339,7 +371,7 @@ class ApiClient {
 }
 
 // ============================================================
-// 测试数据构造 / 清理（真实库，自清扫）
+// 测试数据构造 / 清理（仅隔离测试公司，自清扫）
 // ============================================================
 
 /** 撤销一张菲票下的全部登记记录（GET /records?ticket_id= → 逐条 DELETE） */

@@ -1,0 +1,115 @@
+/* 供应商管理页样式（取 app.wxss 变量） */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.batch-btn {
+  background: var(--color-primary);
+  color: #ffffff;
+  font-size: 26rpx;
+  padding: 12rpx 28rpx;
+  border-radius: 999rpx;
+}
+
+.filter-card {
+  margin-bottom: 20rpx;
+}
+
+.search {
+  font-size: 26rpx;
+}
+
+.grow {
+  flex: 1;
+}
+
+.search-btn {
+  color: var(--color-primary);
+  font-size: 26rpx;
+  padding-left: 20rpx;
+}
+
+.sup-card {
+  margin-bottom: 20rpx;
+}
+
+.item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-title {
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.sup-meta {
+  margin-top: 8rpx;
+}
+
+.sup-actions {
+  margin-top: 12rpx;
+}
+
+.op-btn {
+  font-size: 24rpx;
+  color: var(--color-info);
+  padding: 6rpx 20rpx;
+  border: 2rpx solid var(--color-border);
+  border-radius: 999rpx;
+  margin-left: 12rpx;
+}
+
+.op-danger {
+  color: var(--color-danger);
+}
+
+.state {
+  padding: 120rpx 40rpx;
+  text-align: center;
+}
+
+.state-btn {
+  margin-top: 24rpx;
+}
+
+.loading-more {
+  text-align: center;
+  padding: 20rpx 0 40rpx;
+}
+
+.mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+}
+
+.sheet {
+  width: 100%;
+  background: var(--color-card, #ffffff);
+  border-radius: 24rpx 24rpx 0 0;
+  padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.sheet-head {
+  margin-bottom: 8rpx;
+}
+
+.sheet-sub {
+  margin-bottom: 16rpx;
+}
+
+.input {
+  background: var(--color-bg);
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 26rpx;
+  margin-top: 16rpx;
+}

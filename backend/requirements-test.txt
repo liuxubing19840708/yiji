@@ -1,0 +1,3 @@
+-r requirements.txt
+# 一次性 PostgreSQL 16 测试实例；不进入生产依赖。
+pgserver==0.1.4

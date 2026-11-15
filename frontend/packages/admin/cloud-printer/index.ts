@@ -11,15 +11,18 @@ import { requireLogin } from '../../../utils/auth';
 import { hasPerm } from '../../../utils/perm';
 import {
   getPrinter, unbindPrinter, bindPrinter,
-  getQueue, removeQueueItem, clearQueue, printQueueItems,
-  printTickets, queueCount, flushReportPending,
+  getQueue, removeQueueItem, clearQueue, printTickets, printQueueItems, removeQueueItems,
+  queueCount, flushReportPending,
   getLabelStyle, setLabelStyle, sendRaw,
   getPrinterOffsets, setPrinterOffset, mergePrinterOffsets, printerOffset,
+  getPrinters, removePrinterFromList,
+  getSkipPreview, setSkipPreview,
   BoundPrinter, PrintQueueItem
 } from '../../../services/printer';
+import { startPrintFlow, cancelPrintFlow } from '../../../utils/print-flow';
 import * as bt from '../../../utils/bluetooth/adapter';
 import {
-  PrintTicketData, LabelStyle, PRINT_FIELDS, FieldKey, buildDiagCommand
+  PrintTicketData, LabelStyle, PRINT_FIELDS, FieldKey, buildDiagCommand, resolveFontMult
 } from '../../../utils/bluetooth/templates';
 import { fetchSettings, saveSettings } from '../../../services/ops';
 import { fetchTickets } from '../../../services/catalog';
@@ -65,6 +68,7 @@ function errText(err: unknown): string {
 
 const PAPERS = [
   { label: '40×30mm', widthMm: 40, heightMm: 30 },
+  { label: '40×90mm', widthMm: 40, heightMm: 90 },
   { label: '60×40mm', widthMm: 60, heightMm: 40 },
   { label: '50×80mm', widthMm: 50, heightMm: 80 }
 ];
@@ -89,10 +93,16 @@ Page({
     connected: false,
     scanning: false,
     devices: [] as DeviceRow[],
+    /** 历史绑定档案（多机快速切换：裁床一台/后道一台） */
+    printers: [] as BoundPrinter[],
     queue: [] as PrintQueueItem[],
     printing: false,
+    /** 批量打印前是否先出预览确认（本机开关，熟手可关） */
+    previewConfirm: !getSkipPreview(),
     /** 打印/补打按钮门槛（H4）：print.manage 或 production.manage */
     canPrint: false,
+    /** 打印流程状态（print-progress 组件，utils/print-flow 驱动） */
+    printFlow: { show: false, done: 0, total: 0 },
     // ---- 打印历史（已出票菲票，按最后打印时间倒序；按需加载） ----
     historyShow: false,
     historyLoading: false,
@@ -110,6 +120,8 @@ Page({
     offsetMm: 0,
     paperLabel: '',
     qrUnitLabel: '',
+    qrPosLabel: '',
+    fontMm: '4.5',
     fieldChips: fieldChips(getLabelStyle().fields)
   },
 
@@ -119,7 +131,9 @@ Page({
   onShow() {
     if (!requireLogin()) return;
     this.setData({
-      canPrint: hasPerm('print.manage') || hasPerm('production.manage')
+      canPrint: hasPerm('print.manage') || hasPerm('production.manage'),
+      printers: getPrinters(),
+      previewConfirm: !getSkipPreview()
     });
     this.refresh();
     this.applyStyle(getLabelStyle());
@@ -174,7 +188,29 @@ Page({
       offsetMm: printer ? printerOffset(printer.name, style.offsetMm) : style.offsetMm,
       paperLabel: `${style.widthMm}×${style.heightMm}mm`,
       qrUnitLabel: unit ? unit.label : '中',
+      qrPosLabel: style.qrPosition === 'bottom' ? '码在下·两列' : '码在上',
+      // 字号显示=字高 mm（24 点基础字高 3mm × 倍率），四舍五入去尾零
+      fontMm: String(parseFloat((resolveFontMult(style) * 3).toFixed(2))),
       fieldChips: fieldChips(style.fields)
+    });
+  },
+
+  /** 字号步进（±0.25mm 字高 → 倍率 ±1/12，合法域 3~7.5mm）；公司级同步 */
+  onFontStep(e: WechatMiniprogram.TouchEvent) {
+    const delta = Number((e.currentTarget.dataset as { delta: string }).delta) || 0;
+    const next = Math.min(2.5, Math.max(1, Math.round((resolveFontMult(this.data.style) + delta / 3) * 12) / 12));
+    this.persistStyle({ ...clone(this.data.style), preset: 'custom', fontMult: next });
+  },
+
+  /** 二维码位置：孔先出纸（孔区在纸头）选「码在下」，其余信息两列排上方；
+   *  仅竖版纸张生效，横版固定码左文右 */
+  onPickQrPos() {
+    wx.showActionSheet({
+      itemList: ['码在上（文字在下方）', '码在下（文字两列在上方）'],
+      success: (res) => {
+        const qrPosition: LabelStyle['qrPosition'] = res.tapIndex === 1 ? 'bottom' : 'top';
+        this.persistStyle({ ...clone(this.data.style), preset: 'custom', qrPosition });
+      }
     });
   },
 
@@ -183,8 +219,62 @@ Page({
     this.setData({
       printer,
       connected: printer ? bt.isConnected(printer.deviceId) : false,
-      queue: getQueue()
+      queue: getQueue(),
+      printers: getPrinters()
     });
+  },
+
+  /** 切换到历史绑定的某台机器（立即连接并设为当前） */
+  onPickSavedPrinter(e: WechatMiniprogram.TouchEvent) {
+    const target = this.data.printers[Number(e.currentTarget.dataset.index)];
+    if (!target) return;
+    if (this.data.printer && this.data.printer.deviceId === target.deviceId) return;
+    wx.showLoading({ title: '连接中…', mask: true });
+    bindPrinter({ deviceId: target.deviceId, name: target.name })
+      .then(() => {
+        wx.hideLoading();
+        wx.showToast({ title: '已切换', icon: 'success' });
+        this.refresh();
+        this.applyStyle(getLabelStyle());
+      })
+      .catch((err) => {
+        wx.hideLoading();
+        wx.showToast({ title: errText(err), icon: 'none' });
+      });
+  },
+
+  /** 删除档案（当前机器会一并断开解绑；对位偏移记录保留，重绑自动生效） */
+  onRemoveSavedPrinter(e: WechatMiniprogram.TouchEvent) {
+    const target = this.data.printers[Number(e.currentTarget.dataset.index)];
+    if (!target) return;
+    const isActive = !!(this.data.printer && this.data.printer.deviceId === target.deviceId);
+    wx.showModal({
+      title: '删除打印机档案',
+      content: `删除「${target.name}」？${isActive ? '当前连接将一并断开。' : ''}`,
+      success: (r) => {
+        if (!r.confirm) return;
+        const done = () => {
+          removePrinterFromList(target.deviceId);
+          this.refresh();
+        };
+        if (isActive) {
+          unbindPrinter().then(done).catch(done);
+        } else {
+          done();
+        }
+      }
+    });
+  },
+
+  /** 批量打印前预览确认开关（关=熟手直接打，勾过「不再预览」时在此恢复） */
+  onTogglePreviewConfirm(e: WechatMiniprogram.SwitchChange) {
+    setSkipPreview(!e.detail.value);
+    this.setData({ previewConfirm: e.detail.value });
+  },
+
+  /** 打印进度弹层「取消打印」回调（print-flow 统一转发） */
+  onFlowCancel() {
+    cancelPrintFlow();
   },
 
   // ============ 扫描绑定 ============
@@ -420,19 +510,21 @@ Page({
       success: (res) => {
         if (!res.confirm) return;
         this.setData({ printing: true });
-        wx.showLoading({ title: '补打中…', mask: true });
-        printQueueItems(queue, currentCompany())
-          .then((result) => {
-            wx.hideLoading();
-            const ok = result.printed.length;
-            const fail = result.failed.length;
-            wx.showToast({ title: `成功 ${ok} 张${fail ? `，失败 ${fail} 张` : ''}`, icon: 'none' });
-          })
-          .catch((err) => wx.showToast({ title: errText(err), icon: 'none' }))
-          .finally(() => {
+        // 统一打印流程：进度弹窗可取消；queue:false 防再次失败重复入队，
+        // 成功项补打完成后从队列移除
+        startPrintFlow(this, queue, {
+          company: currentCompany(),
+          queue: false,
+          onFinished: (result) => {
+            if (result.printed.length) removeQueueItems(result.printed);
             this.setData({ printing: false });
             this.refresh();
-          });
+          },
+          onError: () => {
+            this.setData({ printing: false });
+            this.refresh();
+          }
+        });
       }
     });
   },

@@ -65,6 +65,11 @@ class Process(BaseModel):
     name = models.CharField('工序名称', max_length=64)
     default_price = models.DecimalField('默认单价', max_digits=10, decimal_places=3, default=0)
     is_fixed = models.BooleanField('固定工序', default=False)
+    # 竞品对齐（2026-11-04 差距分析 GAP-8/GAP-6）：关键工序用于看板工序维度
+    # 「关键工序」聚焦过滤；隐藏工价控制扫菲页是否对无 styles.price/salary.view
+    # 权限者下发该工序单价（登记本身不受影响，登记走 _resolve_price 现价）。
+    is_key = models.BooleanField('关键工序', default=False)
+    hide_price = models.BooleanField('对工人隐藏工价', default=False)
     sort = models.PositiveIntegerField('排序', default=0)
 
     class Meta:

@@ -3,8 +3,11 @@ import json
 import urllib.request
 import urllib.error
 import uuid
+from urllib.parse import urlencode
 
+from django.conf import settings
 from django.contrib.auth import update_session_auth_hash
+from django.core import signing
 from django.db.models import Count
 from django.utils import timezone
 from rest_framework import viewsets, status
@@ -81,15 +84,139 @@ class WechatLoginView(APIView):
         try:
             with urllib.request.urlopen(url, timeout=10) as resp:
                 data = json.loads(resp.read().decode('utf-8'))
+            if not isinstance(data, dict):
+                raise ValueError('微信登录响应不是 JSON 对象')
         except (urllib.error.URLError, TimeoutError) as exc:
             raise ValidationError(f'微信登录失败：网络错误 {exc}') from exc
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+            raise ValidationError('微信登录失败：响应格式异常') from exc
         openid = data.get('openid')
-        if not openid:
+        if not isinstance(openid, str) or not openid:
             raise ValidationError(f"微信登录失败：{data.get('errmsg', 'code 无效')}")
-        user = User.objects.filter(openid=openid).first()
+        unionid = data.get('unionid')
+        if not isinstance(unionid, str) or not unionid:
+            unionid = None
+        # unionid 才能跨微信应用关联同一微信主体；不同应用的 openid 绝不互查。
+        user = User.objects.filter(unionid=unionid).first() if unionid else None
         if user is None:
-            user = User.objects.create_user(username=f'wx_{openid[:20]}', openid=openid)
+            user = User.objects.filter(openid=openid).first()
+        if user is None:
+            user = User.objects.create_user(
+                username=f'wx_{openid[:20]}', openid=openid, unionid=unionid)
+        if not user.is_active:
+            raise ValidationError('该账号已注销，不能继续登录')
+        if user.openid != openid or user.unionid != unionid:
+            user.openid = openid
+            if unionid:
+                user.unionid = unionid
+            user.save(update_fields=['openid', 'unionid'])
         return Response(issue_tokens(user))
+
+
+def _wechat_get_json(url, action):
+    """读取微信 JSON；传输、编码和业务错误都转为明确的客户端可见错误。"""
+    try:
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+        if not isinstance(data, dict):
+            raise ValueError('微信响应不是 JSON 对象')
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise ValidationError(f'{action}：网络错误 {exc}') from exc
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise ValidationError(f'{action}：响应格式异常') from exc
+    if data.get('errcode'):
+        raise ValidationError(f"{action}：{data.get('errmsg') or '微信返回未知错误'}")
+    return data
+
+
+class WechatWebAuthView(APIView):
+    """GET auth/wechat-web：返回网站应用配置状态及真实微信授权 URL。"""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        if not settings.WECHAT_OPEN_APPID or not settings.WECHAT_OPEN_SECRET:
+            return Response({
+                'enabled': False,
+                'authorization_url': None,
+                'message': '部署方需配置微信开放平台网站应用 WECHAT_OPEN_APPID/WECHAT_OPEN_SECRET',
+            })
+        # 不接受前端 redirect_uri：回调始终是当前后端的同源 /web/。
+        redirect_uri = request.build_absolute_uri('/web/')
+        state = signing.TimestampSigner(salt='accounts.wechat-web').sign_object({
+            'purpose': 'wechat-web-login', 'nonce': uuid.uuid4().hex,
+        })
+        query = urlencode({
+            'appid': settings.WECHAT_OPEN_APPID,
+            'redirect_uri': redirect_uri,
+            'response_type': 'code', 'scope': 'snsapi_login', 'state': state,
+        })
+        response = Response({
+            'enabled': True,
+            'authorization_url': f'https://open.weixin.qq.com/connect/qrconnect?{query}#wechat_redirect',
+            'redirect_uri': redirect_uri,
+        })
+        response.set_cookie(
+            'wechat_oauth_state', state, max_age=settings.WECHAT_WEB_STATE_MAX_AGE,
+            secure=request.is_secure(), httponly=True, samesite='Lax',
+        )
+        return response
+
+
+class WechatWebLoginView(APIView):
+    """POST auth/wechat-web/login {code,state}：code 换 token/userinfo 后签发 JWT。"""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        code = str(request.data.get('code', '')).strip()
+        state = str(request.data.get('state', '')).strip()
+        if not code or not state:
+            raise ValidationError('缺少 code 或 state')
+        if not settings.WECHAT_OPEN_APPID or not settings.WECHAT_OPEN_SECRET:
+            raise ValidationError('未配置微信开放平台网站应用（WECHAT_OPEN_APPID/WECHAT_OPEN_SECRET）')
+        try:
+            state_data = signing.TimestampSigner(salt='accounts.wechat-web').unsign_object(
+                state, max_age=settings.WECHAT_WEB_STATE_MAX_AGE)
+        except (signing.BadSignature, signing.SignatureExpired) as exc:
+            raise ValidationError('微信登录 state 无效或已过期，请重新发起登录') from exc
+        if not isinstance(state_data, dict) or state_data.get('purpose') != 'wechat-web-login':
+            raise ValidationError('微信登录 state 无效或已过期，请重新发起登录')
+        if request.COOKIES.get('wechat_oauth_state') != state:
+            raise ValidationError('微信登录状态与发起浏览器不一致，请重新发起登录')
+
+        token_url = 'https://api.weixin.qq.com/sns/oauth2/access_token?' + urlencode({
+            'appid': settings.WECHAT_OPEN_APPID, 'secret': settings.WECHAT_OPEN_SECRET,
+            'code': code, 'grant_type': 'authorization_code',
+        })
+        token = _wechat_get_json(token_url, '微信网页登录换取凭证失败')
+        access_token, openid = token.get('access_token'), token.get('openid')
+        if not isinstance(access_token, str) or not access_token or not isinstance(openid, str) or not openid:
+            raise ValidationError('微信网页登录换取凭证失败：响应缺少 access_token 或 openid')
+        userinfo_url = 'https://api.weixin.qq.com/sns/userinfo?' + urlencode({
+            'access_token': access_token, 'openid': openid, 'lang': 'zh_CN',
+        })
+        info = _wechat_get_json(userinfo_url, '微信网页登录获取用户信息失败')
+        if info.get('openid') != openid:
+            raise ValidationError('微信网页登录获取用户信息失败：openid 与授权凭证不一致')
+        unionid = info.get('unionid') or token.get('unionid')
+        if not isinstance(unionid, str) or not unionid:
+            unionid = None
+
+        user = User.objects.filter(unionid=unionid).first() if unionid else None
+        if user is None:
+            user = User.objects.filter(web_openid=openid).first()
+        if user is None:
+            user = User.objects.create_user(
+                username=f'wxweb_{openid[:20]}', web_openid=openid, unionid=unionid)
+        if not user.is_active:
+            raise ValidationError('该账号已注销，不能继续登录')
+        if user.web_openid != openid or (unionid and user.unionid != unionid):
+            user.web_openid = openid
+            if unionid:
+                user.unionid = unionid
+            user.save(update_fields=['web_openid', 'unionid'])
+        response = Response(issue_tokens(user))
+        response.delete_cookie('wechat_oauth_state')
+        return response
 
 
 class MeView(APIView):
@@ -151,9 +278,15 @@ class DeactivateView(APIView):
         user.real_name = '已注销用户'
         user.phone = f'del_{suffix}'
         user.username = f'del_{suffix}'
+        user.openid = None
+        user.web_openid = None
+        user.unionid = None
         user.set_unusable_password()
         user.is_active = False
-        user.save(update_fields=['real_name', 'phone', 'username', 'password', 'is_active'])
+        user.save(update_fields=[
+            'real_name', 'phone', 'username', 'openid', 'web_openid', 'unionid',
+            'password', 'is_active',
+        ])
         # 审计（规则⑪）：在各在职公司各落一条，message 已插值
         from apps.ops.models import AuditLog
         from apps.ops.services import audit

@@ -34,7 +34,11 @@
     />
   </view>
 
-  <view class="text-3 list-count">共 {{count}} 条登记</view>
+  <view class="text-3 list-count">
+    共 {{count}} 条登记
+    <view class="spacer"></view>
+    <view wx:if="{{canExport}}" class="export-btn {{exporting ? 'disabled' : ''}}" bindtap="onExport">导出 Excel</view>
+  </view>
 
   <!-- 加载中 -->
   <view wx:if="{{loading}}" class="card">
@@ -72,6 +76,12 @@
       <view class="row rec-footer">
         <view class="text-3">{{item.timeText}}<text wx:if="{{item.operator_name}}"> · 代登：{{item.operator_name}}</text></view>
         <view class="spacer"></view>
+        <view
+          wx:if="{{item.canEdit}}"
+          class="revoke-btn {{revokingId === item.id ? 'disabled' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="onEditQty"
+        >改数</view>
         <view
           wx:if="{{item.canRevoke}}"
           class="revoke-btn {{revokingId === item.id ? 'disabled' : ''}}"

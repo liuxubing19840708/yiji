@@ -5,6 +5,7 @@
  *   P2 手输码兜底动线：idle 入口 → 双输入弹层 → 404「未找到菲票」提示
  *   P3 候选列表：床次/款号/色码/扎号/数量渲染 → 选中进既有登记流程（等价扫码成功态）
  *   P4 离线显式暂存：列表摘要 → 手动重发清空队列
+ *   P5 离线暂存恢复（差距 #1 X-OFFLINE-01，2026-11-03）：storage 重置 → onShow 复原计数 → 条目可查看
  *
  * mock 说明（沿用 ui_scan.js 教训：mock 自定义函数返回 errMsg 对象触发 fail 分支）：
  *   wx.request 用「对象 mock」：返回值直接进 success 回调（{statusCode,data}），
@@ -41,7 +42,10 @@ async function waitData(page, fn, timeout = 8000, label = 'cond') {
 }
 
 async function loginIfNeeded(mp) {
-  let page = await mp.reLaunch('/pages/login/index');
+  // automator reLaunch 到「当前已在」的页面会抛 pageNotFound 内部错——先看再说
+  const cur = await mp.currentPage().catch(() => null);
+  let page = cur && cur.path === 'pages/login/index'
+    ? cur : await mp.reLaunch('/pages/login/index');
   await page.waitFor(1500);
   page = await mp.currentPage();
   if (page.path === 'pages/index/index') return page; // 已登录
@@ -198,6 +202,29 @@ async function loginIfNeeded(mp) {
       check('P4d 页面离线计数归零', (dEnd.offlineCount || 0) === 0, 'offlineCount=' + dEnd.offlineCount);
       await mp.restoreWxMethod('request');
     }
+
+    // ===== P5 离线暂存恢复（差距 #1，X-OFFLINE-01）：storage 重置后 onShow 从本地复原计数 =====
+    // （弱网登记入队 → 杀进程/重进页面后不丢：onShow offlineCount() 回读 storage）
+    await page.setData({ offlineCount: 0, state: 'idle' });
+    await mp.evaluate(() => {
+      wx.setStorageSync('yisao_offline_queue', [
+        { url: '/records', method: 'POST', data: { ticket_id: 9003, process_id: 1, qty: 5 }, header: {}, ts: Date.now() }
+      ]);
+    });
+    // scanCode 对象 mock 走 fail-cancel 分支：onShow 尾部 autoScan 不真调相机；
+    // cancel 分支的 switchTab(回首页) 在断言读数之后才发生，无碍
+    await mp.mockWxMethod('scanCode', { errMsg: 'scanCode:fail cancel' });
+    await page.callMethod('onShow');
+    const dRec = await page.data();
+    check('P5a onShow 从 storage 恢复离线计数', (dRec.offlineCount || 0) === 1,
+      'offlineCount=' + dRec.offlineCount);
+    await page.callMethod('onTapOfflineOpen');
+    await waitData(page, (d) => d.offlineShow === true && (d.offlineRows || []).length === 1, 3000, '恢复后列表');
+    const dRec2 = await page.data();
+    check('P5b 恢复后条目可查看(件数 5)', dRec2.offlineRows[0].qty === 5,
+      JSON.stringify(dRec2.offlineRows));
+    await mp.evaluate(() => wx.removeStorageSync('yisao_offline_queue'));
+    await shot(mp, path.join(SHOTS, 'probe_scan2_06_offline_recover.png'));
     await shot(mp, path.join(SHOTS, 'probe_scan2_05_done.png'));
   } finally {
     try { await mp.restoreWxMethod('scanCode'); } catch (e) { /* ignore */ }

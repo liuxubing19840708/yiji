@@ -1,0 +1,65 @@
+<view class="page create-page">
+  <view wx:if="{{denied}}" class="state text-3">暂无交接发起权限，请联系管理员</view>
+  <block wx:elif="{{batchNo}}">
+    <view class="card success-card">
+      <view class="success-icon">✓</view>
+      <view class="h2">交接已发起</view>
+      <view class="text-3">批次 {{batchNo}}</view>
+      <view class="text-2 result-count">生成 {{createdCount}} 张独立交接单</view>
+      <button class="btn btn-primary" bindtap="onViewBatch">查看批次汇总</button>
+      <button class="btn btn-plain back-btn" bindtap="onBack">返回</button>
+    </view>
+  </block>
+  <block wx:else>
+    <view wx:if="{{invalidReason}}" class="card state">
+      <view class="text-danger">{{invalidReason}}</view>
+      <view class="text-3 param-tip">请从裁床等业务页选择菲票、节点和接收目标后进入</view>
+      <button class="btn btn-plain back-btn" bindtap="onBack">返回</button>
+    </view>
+    <view wx:elif="{{!ready}}" class="state text-3">等待业务页传入交接参数…</view>
+    <block wx:else>
+      <view class="card route-card">
+        <view class="route-node">
+          <view class="text-3">交出节点</view>
+          <view class="node-name">{{sourceNodeName || '节点 ' + sourceNode}}</view>
+        </view>
+        <view class="route-arrow">→</view>
+        <view class="route-node">
+          <view class="text-3">接收节点</view>
+          <view class="node-name">{{targetNodeName || '节点 ' + targetNode}}</view>
+        </view>
+      </view>
+
+      <view class="summary card">
+        <view><text class="summary-num num">{{targets.length}}</text><text class="text-3"> 个接收目标</text></view>
+        <view><text class="summary-num num">{{totalTickets}}</text><text class="text-3"> 张菲票</text></view>
+        <view><text class="summary-num num">{{totalQuantity}}</text><text class="text-3"> 应交数量</text></view>
+      </view>
+
+      <view wx:for="{{targets}}" wx:key="index" wx:for-item="target" class="card target-card">
+        <view class="row">
+          <view class="h2 target-title">{{target.targetText}}</view>
+          <view class="spacer" />
+          <view class="text-3">{{target.items.length}} 张 · {{target.totalQuantity}} 件</view>
+        </view>
+        <view class="target-id text-3">
+          <text wx:if="{{target.receiver !== null}}">接收人 ID {{target.receiver}}</text>
+          <text wx:if="{{target.receiver !== null && target.target_group_no !== null}}"> · </text>
+          <text wx:if="{{target.target_group_no !== null}}">目标组 {{target.target_group_no}}</text>
+        </view>
+        <view class="ticket-head text-3"><text>菲票</text><text>数量</text></view>
+        <view wx:for="{{target.items}}" wx:for-item="ticket" wx:key="ticket" class="ticket-row">
+          <text class="ticket-label">{{ticket.ticket_label}}</text>
+          <text class="num">{{ticket.quantity}}</text>
+        </view>
+      </view>
+
+      <view class="card">
+        <view class="h2 field-title">交接备注（选填）</view>
+        <textarea class="remark-input" value="{{remark}}" maxlength="500" placeholder="填写交接说明" bindinput="onRemarkInput" />
+      </view>
+      <button class="btn btn-primary submit-btn {{submitting ? 'disabled' : ''}}" bindtap="onSubmit">{{submitting ? '提交中…' : '确认批量发起'}}</button>
+      <view class="text-3 submit-tip">每个接收目标生成一张独立交接单，请以实际清点结果接收</view>
+    </block>
+  </block>
+</view>

@@ -1,6 +1,7 @@
 """基础档案序列化器（款式 / 工序 / 客户 / 菲票）。"""
 from rest_framework import serializers
 
+from apps.core.serializers import validate_same_company
 from apps.catalog.models import (
     Customer,
     CustomerGroup,
@@ -30,11 +31,15 @@ class CustomerSerializer(serializers.ModelSerializer):
         fields = ['id', 'customer_no', 'group', 'group_name', 'name', 'phone',
                   'remark', 'created_at']
 
+    def validate_group(self, value):
+        return validate_same_company(self, value, '客户分组')
+
 
 class ProcessSerializer(serializers.ModelSerializer):
     class Meta:
         model = Process
-        fields = ['id', 'name', 'default_price', 'is_fixed', 'sort', 'created_at']
+        fields = ['id', 'name', 'default_price', 'is_fixed', 'is_key', 'hide_price',
+                  'sort', 'created_at']
 
 
 class StyleProcessSerializer(serializers.ModelSerializer):
@@ -91,6 +96,9 @@ class StyleSerializer(serializers.ModelSerializer):
     def _sync_image(self, instance):
         """image 恒同步 images 首张（旧读方只认 image 字段，多图无感）。"""
         instance.image = (instance.images or [''])[0] if isinstance(instance.images, list) else ''
+
+    def validate_customer(self, value):
+        return validate_same_company(self, value, '客户')
 
     def create(self, validated_data):
         instance = super().create(validated_data)

@@ -1,0 +1,92 @@
+<view class="page">
+  <!-- 床次头卡 -->
+  <view class="card head-card">
+    <view class="row">
+      <view class="h2">床次 {{bedNo}}</view>
+      <view class="spacer" />
+      <view class="text-3 num">{{count}} 扎</view>
+    </view>
+    <view class="text-3">款号：{{styleNo || '—'}} · 配置工序 {{processCount}} 道</view>
+  </view>
+
+  <!-- 扎号搜索 + 状态筛选 -->
+  <view class="toolbar">
+    <input class="search" placeholder="搜索扎号" value="{{keyword}}" bindinput="onKeyword" bindconfirm="onSearch" confirm-type="search" />
+  </view>
+  <view class="filters">
+    <view class="filter {{filterIndex === index ? 'active' : ''}}"
+          wx:for="{{stateTabs}}" wx:key="key"
+          data-index="{{index}}" bindtap="onStateTab">{{item.label}}</view>
+  </view>
+
+  <view wx:if="{{loading && !cards.length}}" class="state text-3">加载中…</view>
+  <view wx:elif="{{error && !cards.length}}" class="state">
+    <view class="text-3">加载失败，请重试</view>
+    <button class="btn btn-ghost state-btn" bindtap="reload">重新加载</button>
+  </view>
+  <empty-state wx:elif="{{!cards.length}}" text="没有符合条件的菲票扎" />
+  <view wx:else>
+    <view class="card b-card" wx:for="{{cards}}" wx:key="id" wx:for-index="ci" wx:for-item="card">
+      <!-- 扎头行：扎号 + 状态徽标 + 颜色/尺码/数量 -->
+      <view class="row" data-ci="{{ci}}" bindtap="onToggleCard">
+        <view class="bundle-no">{{card.bundleNo}}</view>
+        <view class="badge {{card.stateClass}}">{{card.stateDisplay}}</view>
+        <view class="spacer" />
+        <view class="text-3">{{card.color}} / {{card.size}} · {{card.qty}} 件</view>
+        <view class="caret text-3">{{card.expanded ? '∧' : '∨'}}</view>
+      </view>
+      <view class="text-3 b-sub" bindtap="onToggleCard" data-ci="{{ci}}">
+        工序进度 {{card.progressText}} 道· 点开看工序价目与登记明细
+      </view>
+
+      <!-- 工序行：价目 + 已登量 + 明细（竞品 f_035 扎卡对齐） -->
+      <view wx:if="{{card.expanded}}" class="proc-list">
+        <view wx:if="{{!card.procs.length}}" class="text-3 proc-empty">该床次未配置工序</view>
+        <view class="proc-row" wx:for="{{card.procs}}" wx:key="process_id" wx:for-index="pi" wx:for-item="p">
+          <view class="dot {{p.done ? 'dot-done' : (p.hasReg ? 'dot-part' : 'dot-none')}}" />
+          <view class="proc-name">{{p.name}}</view>
+          <view class="proc-price num">¥{{p.priceText}}</view>
+          <view class="spacer" />
+          <view class="text-3 num proc-count">{{p.regQty}}/{{card.qty}}{{p.done ? ' ✓' : ''}}</view>
+        </view>
+        <!-- 登记明细（仅 salary.view / records.revoke 可见，点行改数/撤销） -->
+        <block wx:if="{{canSeeRecords}}">
+          <view wx:for="{{card.procs}}" wx:key="process_id" wx:for-item="p" wx:for-index="pi">
+            <view wx:if="{{p.records.length}}" class="rec-block">
+              <view class="rec-row" wx:for="{{p.records}}" wx:key="id" wx:for-item="r" wx:for-index="ri"
+                    data-ci="{{ci}}" data-pi="{{pi}}" data-ri="{{ri}}" bindtap="onRecordTap">
+                <view class="rec-dot {{r.canAct ? 'rec-act' : 'rec-locked'}}" />
+                <view class="rec-name">{{r.user_name}}</view>
+                <view class="text-3 num">{{r.qty}} 件</view>
+                <view class="spacer" />
+                <view class="text-3">{{r.registered_at}}{{r.settled ? ' · 已结算' : (r.canAct ? ' · 点此改/撤' : '')}}</view>
+              </view>
+            </view>
+          </view>
+        </block>
+        <view wx:if="{{!canSeeRecords}}" class="text-3 rec-tip">登记明细仅薪酬查看权限可见</view>
+      </view>
+    </view>
+  </view>
+</view>
+
+<!-- 改数弹层（原因必填，GAP-3 同口径） -->
+<view wx:if="{{modifyShow}}" class="mask" bindtap="onCancelModify">
+  <view class="modal card" catchtap="">
+    <view class="h2">修改登记数量</view>
+    <view class="text-3 mod-title">{{modify.title}}</view>
+    <view class="row mod-field">
+      <view class="mod-label">调整后数量</view>
+      <input class="mod-input" type="number" value="{{modify.qty}}" bindinput="onModifyQty" />
+    </view>
+    <view class="text-3">原数量 {{modify.beforeQty}} 件</view>
+    <view class="row mod-field">
+      <view class="mod-label">修改原因</view>
+      <input class="mod-input" placeholder="必填，将留痕备查" value="{{modify.reason}}" bindinput="onModifyReason" />
+    </view>
+    <view class="row mod-actions">
+      <button class="btn btn-plain mod-btn" bindtap="onCancelModify">取消</button>
+      <button class="btn btn-primary mod-btn {{modifySubmitting ? 'disabled' : ''}}" bindtap="onConfirmModify">确认修改</button>
+    </view>
+  </view>
+</view>

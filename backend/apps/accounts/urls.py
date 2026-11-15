@@ -9,6 +9,8 @@ urlpatterns = [
     path('auth/sms-code', views.SendSMSCodeView.as_view()),
     path('auth/login-sms', views.SMSLoginView.as_view()),
     path('auth/wechat-login', views.WechatLoginView.as_view()),
+    path('auth/wechat-web', views.WechatWebAuthView.as_view()),
+    path('auth/wechat-web/login', views.WechatWebLoginView.as_view()),
 
     # 我的信息
     path('auth/me', views.MeView.as_view()),

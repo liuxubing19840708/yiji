@@ -279,3 +279,69 @@
   border-color: var(--color-primary);
   font-weight: 600;
 }
+
+/* ---- 设置工序 ---- */
+.process-panel {
+  max-height: 86vh;
+}
+
+.process-search-field {
+  margin-bottom: 4rpx;
+}
+
+.process-search-clear {
+  padding: 0 12rpx;
+  color: var(--color-text-3);
+  font-size: 36rpx;
+}
+
+.process-state {
+  padding: 64rpx 0;
+  text-align: center;
+}
+
+.process-options {
+  max-height: 48vh;
+  margin-top: 12rpx;
+}
+
+.process-option {
+  display: flex;
+  align-items: center;
+  min-height: 76rpx;
+  padding: 12rpx 4rpx;
+  border-bottom: 2rpx solid var(--color-border);
+}
+
+.process-check {
+  box-sizing: border-box;
+  width: 36rpx;
+  height: 36rpx;
+  margin-right: 18rpx;
+  border: 2rpx solid var(--color-border);
+  border-radius: 8rpx;
+  color: #fff;
+  font-size: 25rpx;
+  line-height: 32rpx;
+  text-align: center;
+}
+
+.process-option.on .process-check {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+
+.process-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 28rpx;
+}
+
+.process-save-row {
+  margin-top: 20rpx;
+}
+
+.process-save {
+  width: 200rpx;
+  margin: 0;
+}

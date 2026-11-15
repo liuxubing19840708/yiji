@@ -105,6 +105,65 @@ export function chooseImage(): Promise<string> {
   });
 }
 
+// ==================== 产前附件（文档与图片） ====================
+
+export interface UploadedDocument {
+  url: string;
+  name: string;
+}
+
+const DOCUMENT_ALLOWED = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'gif', 'webp'];
+
+export function uploadDocument(filePath: string, originalName = ''): Promise<UploadedDocument> {
+  const ext = (filePath.split('?')[0].split('.').pop() || '').toLowerCase();
+  if (DOCUMENT_ALLOWED.indexOf(ext) < 0) {
+    return Promise.reject(new Error('仅支持 pdf/doc/docx/xls/xlsx 或图片附件'));
+  }
+  return new Promise<UploadedDocument>((resolve, reject) => {
+    wx.uploadFile({
+      url: `${BASE_URL}/uploads/files`,
+      filePath,
+      name: 'file',
+      header: { Authorization: `Bearer ${getToken()}` },
+      timeout: 60000,
+      success(res) {
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          logger.warn('附件上传', `POST /uploads/files ${res.statusCode} ${String(res.data || '').slice(0, 200)}`);
+          reject(new Error(`附件上传失败（${res.statusCode}）`));
+          return;
+        }
+        try {
+          const data = JSON.parse(res.data) as { url?: string; name?: string };
+          if (!data.url) throw new Error('missing url');
+          resolve({ url: data.url, name: originalName || data.name || filePath.split('/').pop() || '附件' });
+        } catch (e) {
+          reject(new Error('附件上传响应解析失败'));
+        }
+      },
+      fail(err) {
+        logger.warn('附件上传', `网络失败：${(err && err.errMsg) || 'unknown'}`);
+        reject(new Error('网络异常，附件上传失败'));
+      }
+    });
+  });
+}
+
+export function chooseDocument(): Promise<{ filePath: string; name: string }> {
+  return new Promise((resolve, reject) => {
+    wx.chooseMessageFile({
+      count: 1,
+      type: 'file',
+      success(res) {
+        const file = res.tempFiles && res.tempFiles[0];
+        if (!file) { reject(new Error('未选择附件')); return; }
+        if (file.size > 20 * 1024 * 1024) { reject(new Error('附件不能超过 20MB')); return; }
+        resolve({ filePath: file.path, name: file.name });
+      },
+      fail() { reject(new Error('未选择附件')); }
+    });
+  });
+}
+
 // ==================== 视频（款式产品视频，F1/B1 契约：POST /uploads/video，上限 100MB） ====================
 
 const VIDEO_MAX = 100 * 1024 * 1024;

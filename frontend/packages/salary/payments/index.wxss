@@ -1,0 +1,50 @@
+/* 工资实付 */
+.filter-card { padding: 12rpx 20rpx; }
+.filter-picker { max-width: 62%; }
+.filter-picker-text { padding: 10rpx 0; color: var(--color-text-2); font-size: 26rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.self-label { color: var(--color-text-3); }
+.create-bar .btn { margin-bottom: 16rpx; }
+.immutable-tip { margin: 0 4rpx 20rpx; }
+.state-tip { padding: 36rpx 0; text-align: center; }
+.payment-card { margin-bottom: 16rpx; }
+.payment-head { margin-bottom: 12rpx; }
+.amount { color: var(--color-primary); font-size: 38rpx; font-weight: 600; }
+.definition-row { padding: 10rpx 0; border-bottom: 1rpx solid var(--color-border); }
+.ref { max-width: 65%; text-align: right; word-break: break-all; }
+.payment-actions { gap: 16rpx; margin-top: 16rpx; }
+.action-btn { flex: 1; padding-top: 12rpx; padding-bottom: 12rpx; font-size: 26rpx; }
+.danger { color: var(--color-danger); }
+.disabled { opacity: .5; }
+.modal-mask { position: fixed; z-index: 1000; inset: 0; display: flex; align-items: flex-end; background: rgba(0, 0, 0, .5); }
+.modal-sheet { width: 100%; max-height: 92vh; padding: 24rpx; box-sizing: border-box; background: var(--color-card); border-radius: 24rpx 24rpx 0 0; }
+.modal-title { margin-bottom: 16rpx; }
+.modal-close { padding: 0 12rpx; color: var(--color-text-3); font-size: 52rpx; line-height: 1; }
+.modal-scroll { max-height: 80vh; box-sizing: border-box; }
+.form-label { margin: 20rpx 0 10rpx; color: var(--color-text-2); font-size: 26rpx; }
+.required::before { content: '* '; color: var(--color-danger); }
+.input { width: 100%; min-height: 76rpx; padding: 16rpx 20rpx; box-sizing: border-box; background: var(--color-bg); border: 1rpx solid var(--color-border); border-radius: 12rpx; font-size: 28rpx; }
+.picker-input { display: flex; align-items: center; }
+.placeholder { color: var(--color-text-3); }
+.textarea { min-height: 140rpx; }
+.section-title { margin: 28rpx 0 16rpx; padding-top: 20rpx; border-top: 1rpx solid var(--color-border); font-size: 30rpx; font-weight: 600; }
+.choice { display: flex; align-items: center; margin: 14rpx 0; color: var(--color-text-2); font-size: 26rpx; }
+.allocation-box { margin-top: 16rpx; }
+.add-btn { margin-top: 12rpx; padding-top: 12rpx; padding-bottom: 12rpx; font-size: 26rpx; }
+.source-note { margin-top: 12rpx; }
+.allocation-row { margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx solid var(--color-border); }
+.strong { font-weight: 600; }
+.remove { color: var(--color-danger); font-size: 26rpx; }
+.allocation-input { margin-top: 12rpx; }
+.empty-inline { padding: 24rpx 0; text-align: center; }
+.allocation-total { margin-top: 16rpx; padding: 16rpx; background: #E8FFEA; border-radius: 12rpx; color: var(--color-success); font-size: 26rpx; }
+.allocation-total.mismatch { background: var(--color-primary-light); color: var(--color-primary); }
+.error-text { margin-top: 16rpx; padding: 14rpx; background: #FFECE8; border-radius: 10rpx; color: var(--color-danger); font-size: 26rpx; }
+.modal-actions { gap: 16rpx; margin-top: 24rpx; padding-bottom: env(safe-area-inset-bottom); }
+.modal-btn { flex: 1; padding-top: 16rpx; padding-bottom: 16rpx; font-size: 28rpx; }
+.detail-amount { margin: 16rpx 0; color: var(--color-primary); font-size: 44rpx; font-weight: 600; }
+.detail-note { padding: 16rpx 0; word-break: break-all; }
+.void-info { padding: 16rpx; background: #FFECE8; border-radius: 12rpx; }
+.void-reason { margin: 8rpx 0; word-break: break-all; }
+.detail-allocation { padding: 16rpx 0; border-bottom: 1rpx solid var(--color-border); }
+.void-dialog { width: 84%; margin: auto; padding: 28rpx; background: var(--color-card); border-radius: 20rpx; }
+.void-warning { margin-top: 16rpx; font-size: 26rpx; }

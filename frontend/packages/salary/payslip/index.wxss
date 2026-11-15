@@ -1,0 +1,32 @@
+/* 薪资条（GAP-4，2026-11-04） */
+.head-card .export-btn {
+  margin-top: 20rpx;
+  background: var(--color-primary, #2f6fed);
+  color: #fff;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+}
+.head-card .export-btn.disabled {
+  opacity: 0.6;
+}
+.state-tip {
+  padding: 60rpx 0;
+  text-align: center;
+  color: var(--color-text-3, #86909c);
+  font-size: 26rpx;
+}
+.slip-card .snap-tag {
+  margin: 4rpx 0 8rpx;
+}
+.it-row {
+  padding: 10rpx 0;
+  border-bottom: 1rpx solid var(--color-border, #f0f0f0);
+}
+.it-row:last-of-type {
+  border-bottom: none;
+}
+.it-amount {
+  margin-left: 20rpx;
+  min-width: 140rpx;
+  text-align: right;
+}

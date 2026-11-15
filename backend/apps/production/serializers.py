@@ -1,6 +1,7 @@
 """生产管理序列化器（床次订单 / 订单工序）。"""
 from rest_framework import serializers
 
+from apps.core.serializers import validate_same_company
 from apps.production.models import Production, ProductionProcess
 
 
@@ -49,3 +50,12 @@ class ProductionSerializer(serializers.ModelSerializer):
         # 由视图 perform_create 校验兜底（无单挂且无款式 400）
         extra_kwargs = {'style': {'required': False,
                                   'error_messages': {'invalid': '款式不存在'}}}
+
+    def validate_style(self, value):
+        return validate_same_company(self, value, '款式')
+
+    def validate_customer(self, value):
+        return validate_same_company(self, value, '客户')
+
+    def validate_order(self, value):
+        return validate_same_company(self, value, '订单')

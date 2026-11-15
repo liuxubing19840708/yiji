@@ -1,0 +1,93 @@
+<!-- 质检管理（竞品对齐 GAP-1，2026-11-04） -->
+<view class="page">
+
+  <!-- 状态 tab + 导出 -->
+  <view class="top-bar">
+    <view class="tabs">
+      <view wx:for="{{tabs}}" wx:key="key"
+            class="tab {{statusIndex === index ? 'on' : ''}}"
+            data-index="{{index}}" bindtap="onStatusTap">{{item.label}}</view>
+    </view>
+    <view wx:if="{{canExport}}" class="export-btn {{exporting ? 'disabled' : ''}}" bindtap="onExport">导出</view>
+  </view>
+
+  <!-- 登记返修入口 -->
+  <view wx:if="{{canManage}}" class="card">
+    <button class="open-form-btn" bindtap="onOpenForm">+ 登记返修</button>
+  </view>
+
+  <!-- 登记表单（内联卡片） -->
+  <view class="card form-card" wx:if="{{formOpen}}">
+    <view class="form-title">登记返修</view>
+    <view class="form-row">
+      <input class="form-input" placeholder="床次号" value="{{bedNo}}"
+             bindinput="onBedInput" />
+      <input class="form-input" placeholder="扎号" value="{{bundleNo}}"
+             bindinput="onBundleInput" />
+      <view class="lookup-btn" bindtap="onLookupTicket">查票</view>
+    </view>
+    <picker range="{{ticketLabels}}" value="{{ticketIndex}}" bindchange="onTicketChange">
+      <view class="picker-field {{ticketIndex > 0 ? '' : 'placeholder'}}">
+        <text>{{ticketLabels[ticketIndex]}}</text>
+        <text class="caret">▾</text>
+      </view>
+    </picker>
+    <view class="form-row">
+      <input class="form-input" type="number" placeholder="返修数量" value="{{defectQty}}"
+             bindinput="onQtyInput" />
+      <picker class="form-picker" range="{{processNames}}" value="{{processIndex}}" bindchange="onProcessChange">
+        <view class="picker-field {{processIndex > 0 ? '' : 'placeholder'}}">
+          <text>{{processNames[processIndex]}}</text>
+          <text class="caret">▾</text>
+        </view>
+      </picker>
+    </view>
+    <picker range="{{producerNames}}" value="{{producerIndex}}" bindchange="onProducerChange">
+      <view class="picker-field {{producerIndex > 0 ? '' : 'placeholder'}}">
+        <text>{{producerNames[producerIndex]}}</text>
+        <text class="caret">▾</text>
+      </view>
+    </picker>
+    <input class="form-input reason" placeholder="返修原因（必填）" value="{{reason}}"
+           bindinput="onReasonInput" />
+    <view class="form-actions">
+      <button class="btn ghost" bindtap="onCloseForm">取消</button>
+      <button class="btn primary {{formSaving ? 'disabled' : ''}}" bindtap="onSubmitForm">提交</button>
+    </view>
+  </view>
+
+  <!-- 列表 -->
+  <view wx:if="{{loading}}" class="state-tip">加载中…</view>
+  <empty-state wx:elif="{{!list.length}}" text="暂无质检记录" sub="点「登记返修」开始质检" />
+
+  <block wx:else>
+    <view wx:for="{{list}}" wx:key="id" class="card q-card">
+      <view class="q-head">
+        <text class="q-bed">{{item.ticket_bed_no}} 第{{item.ticket_bundle_no}}扎</text>
+        <text class="q-status st-{{item.status}}">{{item.status_display}}</text>
+      </view>
+      <view class="q-info">
+        <text>{{item.style_no}}</text>
+        <text class="dim"> {{item.ticket_color}}/{{item.ticket_size}}</text>
+        <text wx:if="{{item.process_name}}" class="dim"> · {{item.process_name}}</text>
+      </view>
+      <view class="q-qty">返修 <text class="num bad">{{item.defect_qty}}</text> 件
+        <block wx:if="{{item.received_qty}}"> · 已收回 <text class="num">{{item.received_qty}}</text> 件</block>
+        <text class="dim">（扎数 {{item.ticket_qty}}）</text>
+      </view>
+      <view class="q-reason">原因：{{item.reason}}</view>
+      <view class="q-meta dim">
+        质检人 {{item.inspector_name || '—'}} · {{item.inspected_at}}
+        <block wx:if="{{item.producer_name}}"> · 返修 {{item.producer_name}}</block>
+      </view>
+      <view class="q-actions" wx:if="{{canManage && item.status !== 'done'}}">
+        <view wx:if="{{item.status === 'rework'}}" class="act primary"
+              data-id="{{item.id}}" bindtap="onReceive">收货</view>
+        <view wx:if="{{item.status === 'received'}}" class="act primary"
+              data-id="{{item.id}}" bindtap="onFinish">完成</view>
+        <view class="act danger" data-id="{{item.id}}" bindtap="onDelete">删除</view>
+      </view>
+    </view>
+  </block>
+
+</view>

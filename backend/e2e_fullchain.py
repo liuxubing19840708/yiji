@@ -80,11 +80,18 @@ def preclean():
             UserCompany.all_objects.filter(user=u)._raw_delete(UserCompany.all_objects.db)
             u.delete()
     Record.all_objects.filter(ticket__production__bed_no=E2E_BED)._raw_delete(Record.all_objects.db)
+    # TicketPrintLog→Ticket CASCADE：SQLite 无库级级联，_raw_delete 前须先清打印日志（SA3 wave2 同款修复）
+    from apps.catalog.models import TicketPrintLog
+    TicketPrintLog.all_objects.filter(ticket__production__bed_no=E2E_BED)._raw_delete(TicketPrintLog.all_objects.db)
     Ticket.all_objects.filter(production__bed_no=E2E_BED)._raw_delete(Ticket.all_objects.db)
     # SQLite 库 FK 为 NO ACTION（无库级 CASCADE），必须先删子表
     from apps.production.models import ProductionProcess
     ProductionProcess.all_objects.filter(production__bed_no=E2E_BED)._raw_delete(ProductionProcess.all_objects.db)
     Production.all_objects.filter(bed_no=E2E_BED)._raw_delete(Production.all_objects.db)
+    # 中断残留：tech_bom 挂款 FK 会拦住删款，须先清 BOM（P2.5 起各套件大量建 BOM，幂等清理必含）
+    from apps.tech.models import Bom as TechBom
+    TechBom.all_objects.filter(style__style_no__in=['E2E001', 'E2E002'], company_id=2)._raw_delete(TechBom.all_objects.db)
+    TechBom.all_objects.filter(style__name__contains=MARK_U, company_id=2)._raw_delete(TechBom.all_objects.db)
     StyleProcess.all_objects.filter(style__style_no__in=['E2E001', 'E2E002'])._raw_delete(StyleProcess.all_objects.db)
     # 中断残留：款式副本（copy 的 style_no 不可预知），按名称标记清
     StyleProcess.all_objects.filter(process__name__contains=MARK_U)._raw_delete(StyleProcess.all_objects.db)
@@ -95,10 +102,13 @@ def preclean():
     CustomerGroup.all_objects.filter(name__contains=MARK_U)._raw_delete(CustomerGroup.all_objects.db)
     Process.all_objects.filter(name__contains=MARK_U)._raw_delete(Process.all_objects.db)
     # 只清无成员引用的岗位：跳过其他测试流（如 E2ETR 追溯流）仍在引用的岗位，防 FK 撞库
+    # 子查询须排 post_id IS NULL 行：NOT IN 遇 NULL 恒为 UNKNOWN，残留岗位将撞 UNIQUE（SA1 诊断）
     PostM.all_objects.filter(name__contains='E2E').exclude(
-        pk__in=UserCompany.all_objects.values('post_id'))._raw_delete(PostM.all_objects.db)
+        pk__in=UserCompany.all_objects.exclude(post_id__isnull=True).values('post_id')
+    )._raw_delete(PostM.all_objects.db)
     PostM.all_objects.filter(name__in=['非法岗位', '越权岗']).exclude(
-        pk__in=UserCompany.all_objects.values('post_id'))._raw_delete(PostM.all_objects.db)
+        pk__in=UserCompany.all_objects.exclude(post_id__isnull=True).values('post_id')
+    )._raw_delete(PostM.all_objects.db)
     # 上次中断残留的测试公司（建公司会自动生成管理员岗位，需先删）
     for cid in Company.all_objects.filter(name__contains=MARK_U).values_list('id', flat=True):
         UserCompany.all_objects.filter(company_id=cid)._raw_delete(UserCompany.all_objects.db)
@@ -312,6 +322,11 @@ code, st = req('post', '/styles', AT, 2, {'style_no': 'E2E001', 'name': f'{MARK_
                                           'process_items': [{'process_id': PROC, 'price': '5.500', 'sort': 1}]})
 STYLE = st.get('id')
 check('5.4a 新建款式(带工序价5.5)', code in (200, 201) and STYLE, f'{code} {str(st)[:100]}')
+# P4 开裁缺 BOM 拦截（2026-10-24）：建床需款式有 active BOM，测试款补齐
+from apps.tech.models import Bom  # noqa: E402
+if not Bom.all_objects.filter(style_id=STYLE).exists():
+    Bom.objects.create(company_id=2, style_id=STYLE, version=1, status=Bom.Status.ACTIVE)
+
 code, d = req('get', f'/styles/{STYLE}', AT, 2)
 st_items = d.get('process_items') or d.get('processes') or []
 check('5.4b 款式详情含工序价', code == 200 and any(
@@ -384,7 +399,7 @@ d = d.get('results') if isinstance(d, dict) else d
 check('6.11 未打印筛选', code == 200 and all(not t.get('is_printed') for t in (d or [])), f'{code}')
 
 code, d = req('post', '/tickets/print', AT, 2, {'ticket_ids': [TK['id'], TK['id'], TK_LAST['id']]})
-check('6.12 打印上报去重(printed=2)', code == 200 and d.get('printed') == 2, f'{code} {str(d)[:60]}')
+check('6.12 打印上报去重(reported=2)', code == 200 and d.get('reported') == 2, f'{code} {str(d)[:60]}')
 code, d = req('get', f'/tickets?production_id={PROD}&is_printed=1', AT, 2)
 d = d.get('results') if isinstance(d, dict) else d
 check('6.13 已打印筛选含计数', code == 200 and len(d or []) == 2 and all(t.get('print_count') == 1 for t in d), f'{code}')
@@ -532,9 +547,11 @@ paid_st = Settlement.objects.filter(company_id=2, user_id=EMP_UID,
 if paid_st:
     code, d = req('post', f'/salary/settlements/{paid_st.id}/revoke', AT, 2, {})
     check('8.14b 已发放期间不可撤销(400)', code == 400, f'{code} {str(d)[:60]}')
-code, d = req('post', '/salary/settle-applies', ET, 2, {'period_start': MONTH_START, 'period_end': TODAY})
+# 8.15 改用 FUTURE 期间：MONTH_START..TODAY 的未结工资已被 8.11 发放清零，
+# 2026-10-23 起「未结工资为 0 拦截申请」生效（400），原断言为旧口径
+code, d = req('post', '/salary/settle-applies', ET, 2, {'period_start': FUTURE, 'period_end': FUTURE})
 VOID_ID = d.get('id')
-code, d = req('put', f'/salary/settle-applies/{VOID_ID}/void', AT, 2, {'void_reason': '误发起'})
+code, d = req('put', f'/salary/settle-applies/{VOID_ID}/void', AT, 2, {'reason': '误发起'})
 check('8.15 作废申请', code == 200 and d.get('status') == SettleApply.Status.VOIDED, f'{code} {str(d)[:60]}')
 
 # 完成汇总三级钻取
@@ -590,6 +607,8 @@ print('\n---- cleanup ----')
 try:
     Record.all_objects.filter(ticket__production__bed_no=E2E_BED)._raw_delete(Record.all_objects.db)
     Record.all_objects.filter(user_id=EMP_UID)._raw_delete(Record.all_objects.db)
+    from apps.catalog.models import TicketPrintLog
+    TicketPrintLog.all_objects.filter(ticket__production__bed_no=E2E_BED)._raw_delete(TicketPrintLog.all_objects.db)
     Ticket.all_objects.filter(production__bed_no=E2E_BED)._raw_delete(Ticket.all_objects.db)
     from apps.production.models import ProductionProcess
     ProductionProcess.all_objects.filter(production__bed_no=E2E_BED)._raw_delete(ProductionProcess.all_objects.db)
@@ -597,6 +616,11 @@ try:
     StyleProcess.all_objects.filter(style__style_no__in=['E2E001', 'E2E002'])._raw_delete(StyleProcess.all_objects.db)
     # 复制款式(5.4d)的 style_no 不可预知：按名称标记清
     StyleProcess.all_objects.filter(style__name__contains=MARK_U)._raw_delete(StyleProcess.all_objects.db)
+    # BOM 挂款：先明细后主表（P1 起开裁须生效 BOM，测试中建的 BOM 会拦住删款）
+    from apps.tech.models import BomItem as TechBomItem
+    from apps.tech.models import Bom as TechBom
+    TechBomItem.all_objects.filter(bom__style_id__in=[sid for sid in (STYLE,) if sid])._raw_delete(TechBomItem.all_objects.db)
+    TechBom.all_objects.filter(style_id__in=[sid for sid in (STYLE,) if sid])._raw_delete(TechBom.all_objects.db)
     if STYLE:
         Style.all_objects.filter(pk=STYLE)._raw_delete(Style.all_objects.db)
     Style.all_objects.filter(name__contains=MARK_U)._raw_delete(Style.all_objects.db)
@@ -622,6 +646,8 @@ try:
     if NEW_CID:
         UserCompany.all_objects.filter(company_id=NEW_CID)._raw_delete(UserCompany.all_objects.db)
         PostM.all_objects.filter(company_id=NEW_CID)._raw_delete(PostM.all_objects.db)
+        # 建厂时自动播种的默认工序有 company FK，Company._raw_delete 前必须先清
+        Process.all_objects.filter(company_id=NEW_CID)._raw_delete(Process.all_objects.db)
         CompanySetting.objects.filter(company_id=NEW_CID).delete()
         from apps.ops.models import Notification
         Notification.all_objects.filter(company_id=NEW_CID).delete()
@@ -631,7 +657,12 @@ try:
     SMSCode.objects.filter(phone__in=[EMP_PHONE, '13855557777', '13800000001']).delete()
     print('cleanup done')
 except Exception as e:
-    print('cleanup error:', type(e).__name__, e)
+    import traceback
+    frames = [f for f in traceback.extract_tb(__import__('sys').exc_info()[2])
+              if 'e2e_fullchain' in f.filename]
+    tb = frames[-1] if frames else None
+    print('cleanup error:', type(e).__name__, e,
+          f'@{tb.lineno}: {tb.line}' if tb else '')
 
 print(f'\n===== E2E RESULT: {len(PASS)} passed, {len(FAIL)} failed =====')
 if FAIL:

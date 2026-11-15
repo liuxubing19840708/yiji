@@ -42,7 +42,8 @@ const DIM_TABS = [
   { key: 'bed', label: '裁床' },
   { key: 'post', label: '部门' },
   { key: 'group', label: '组' },
-  { key: 'user', label: '人' }
+  { key: 'user', label: '人' },
+  { key: 'process', label: '工序' }
 ] as Array<{ key: DashboardDim; label: string }>;
 
 /** 表格行高（rpx，固定值保证跨列段对齐；床次两行内可完整显示） */
@@ -343,6 +344,8 @@ Page({
     // ---- 维度切换（2026-10-23）：style=模板计划表；其余走 /dashboard/dim 扁平表 ----
     dim: 'style' as DashboardDim,
     dimTabs: DIM_TABS,
+    // GAP-8 关键工序聚焦（2026-11-04）：仅 dim=process 生效
+    dimKeyOnly: false,
     dimCols: [] as DashboardDimColumn[],
     dimRows: [] as DashboardDimRow[],
     dimLoading: false,
@@ -606,9 +609,16 @@ Page({
   onDimTap(e: WechatMiniprogram.TouchEvent) {
     const key = String(e.currentTarget.dataset.key || 'style') as DashboardDim;
     if (!DIM_TABS.some((t) => t.key === key) || key === this.data.dim) return;
-    this.setData({ dim: key });
+    this.setData({ dim: key, dimKeyOnly: false });
     this.rememberFilter();
     if (key !== 'style') this.loadDim();
+  },
+
+  /** 关键工序聚焦开关（仅 dim=process 显示；GAP-8，2026-11-04） */
+  onDimKeyToggle() {
+    if (this.data.dim !== 'process') return;
+    this.setData({ dimKeyOnly: !this.data.dimKeyOnly });
+    this.loadDim();
   },
 
   /** 维度聚合表（随 range/自定义区间刷新；失败切重试态，保留旧数据防闪白） */
@@ -617,7 +627,8 @@ Page({
     this.setData({ dimLoading: true, dimError: false });
     return fetchDashboardDim(this.data.dim, this.data.range, {
       start: this.data.customStart,
-      end: this.data.customEnd
+      end: this.data.customEnd,
+      keyOnly: this.data.dimKeyOnly
     })
       .then((res) => {
         this.setData({

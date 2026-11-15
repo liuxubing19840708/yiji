@@ -1,0 +1,187 @@
+/* 成本管理页样式（颜色/圆角/阴影一律取自 app.wxss 变量） */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+
+.link-btn {
+  color: var(--color-info);
+  font-size: 26rpx;
+}
+
+.batch-btn {
+  background: var(--color-primary);
+  color: #ffffff;
+  font-size: 26rpx;
+  padding: 12rpx 28rpx;
+  border-radius: 999rpx;
+}
+
+.batch-btn.disabled {
+  opacity: 0.5;
+}
+
+.filter-card {
+  margin-bottom: 24rpx;
+}
+
+.grow {
+  flex: 1;
+}
+
+.search {
+  background: var(--color-bg);
+  border-radius: 999rpx;
+  padding: 14rpx 28rpx;
+  font-size: 26rpx;
+}
+
+.search-btn {
+  background: var(--color-primary);
+  color: #ffffff;
+  font-size: 26rpx;
+  padding: 12rpx 32rpx;
+  border-radius: 999rpx;
+  margin-left: 16rpx;
+  flex-shrink: 0;
+}
+
+.no-order {
+  margin-top: 16rpx;
+  line-height: 1.6;
+  color: var(--color-warning, #FF8800);
+}
+
+.cost-card {
+  margin-bottom: 16rpx;
+}
+
+.item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-title {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.badge {
+  margin-left: 12rpx;
+  font-size: 20rpx;
+  padding: 2rpx 14rpx;
+  border-radius: 999rpx;
+  flex-shrink: 0;
+}
+
+/* is_stale：数据待更新（软提醒，D3 不拦截发货） */
+.badge-stale {
+  color: var(--color-warning, #FF8800);
+  background: rgba(255, 136, 0, 0.12);
+}
+
+/* 缺价 N 行（可点看口径说明） */
+.badge-missing {
+  color: var(--color-danger);
+  background: rgba(245, 63, 63, 0.1);
+}
+
+/* 金额四列 */
+.cols {
+  margin-top: 16rpx;
+}
+
+.col {
+  flex: 1;
+  text-align: center;
+  min-width: 0;
+}
+
+.col-num {
+  font-size: 26rpx;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta-line {
+  margin-top: 14rpx;
+}
+
+.act-row {
+  margin-top: 16rpx;
+  flex-wrap: wrap;
+}
+
+.act {
+  padding: 10rpx 30rpx;
+  border-radius: 999rpx;
+  border: 2rpx solid var(--color-border);
+  font-size: 24rpx;
+  color: var(--color-text-2);
+  margin-right: 16rpx;
+  margin-top: 8rpx;
+}
+
+.loading-more {
+  text-align: center;
+  padding: 16rpx 0;
+}
+
+.rev-note {
+  line-height: 1.6;
+  padding: 8rpx 4rpx calc(24rpx + env(safe-area-inset-bottom));
+}
+
+.state {
+  text-align: center;
+  padding: 100rpx 0;
+}
+
+.state-btn {
+  margin-top: 24rpx;
+  width: 240rpx;
+  font-size: 28rpx;
+  padding: 14rpx 0;
+}
+
+/* ---- 制费弹层 ---- */
+.mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+}
+
+.sheet {
+  width: 100%;
+  background: var(--color-card);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.sheet-head {
+  margin-bottom: 16rpx;
+}
+
+.sheet-sub {
+  margin-bottom: 20rpx;
+  line-height: 1.6;
+}
+
+.oh-input {
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  padding: 18rpx 24rpx;
+  font-size: 28rpx;
+  margin-bottom: 24rpx;
+}

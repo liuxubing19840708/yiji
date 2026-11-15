@@ -107,7 +107,9 @@ class StyleListCreateView(CompanyContextMixin, generics.ListCreateAPIView):
     pagination_class = DefaultPagination
 
     def get_queryset(self):
-        queryset = Style.objects.filter(company=self.company)
+        queryset = (Style.objects.filter(company=self.company)
+                    .select_related('customer')
+                    .prefetch_related('processes__process'))
         keyword = self.request.query_params.get('keyword', '').strip()
         if keyword:
             queryset = queryset.filter(
@@ -613,6 +615,8 @@ class TicketBatchView(CompanyContextMixin, APIView):
     def _create_tickets(self, production, prepared):
         """批量入库 + 重算总数 + 「默认裁完」置位（编菲主链路，重试时复用）。"""
         with transaction.atomic():
+            from apps.core.workflow_gates import enforce_preproduction_gate
+            enforce_preproduction_gate(self.company, production, self.request.user)
             created = Ticket.objects.bulk_create(prepared)
             self._recalc_total(production)
             # 「默认裁完」auto_cut_done（2026-10-18 新语义）：编菲成功后自动置裁完。

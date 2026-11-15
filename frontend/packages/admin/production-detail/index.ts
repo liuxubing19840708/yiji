@@ -16,7 +16,7 @@ import {
 import { fetchLots, fetchProductionLotLinks, updateProductionLotLinks } from '../../../services/warehouse';
 import { Lot } from '../../../services/warehouse';
 import { fetchProcesses, fetchBundleProgress } from '../../../services/catalog';
-import { printTickets } from '../../../services/printer';
+import { startPrintFlow, cancelPrintFlow } from '../../../utils/print-flow';
 import { PrintTicketData } from '../../../utils/bluetooth/templates';
 import { Production, ProductionProcessItem, Process, Paginated, BundleProgressItem } from '../../../services/types';
 import { buildBedMatrix } from '../../../utils/completion-matrix';
@@ -89,6 +89,8 @@ Page({
     previewShow: false,
     previewTickets: [] as PrintTicketData[],
     previewCompany: { name: '' } as { name: string },
+    /** 打印流程状态（print-progress 组件，utils/print-flow 驱动） */
+    printFlow: { show: false, done: 0, total: 0 },
     // 质量追溯（P0 2026-10-18）：来源单号 + 床次×批次血缘（可补填改）
     sourceOrderNo: '',
     lotLinks: [] as Array<{ lot: number; lot_no: string; color: string; qty: string }>,
@@ -414,36 +416,18 @@ Page({
     const tickets = this.data.previewTickets;
     this.setData({ previewShow: false });
     if (!tickets.length) return;
-    wx.showLoading({ title: `打印中 0/${tickets.length}…`, mask: true });
-    printTickets(tickets, {
+    startPrintFlow(this, tickets, {
       company: this.data.previewCompany,
-      onProgress: (done, total) => wx.showLoading({ title: `打印中 ${done}/${total}…`, mask: true })
-    })
-      .then((result) => {
-        wx.hideLoading();
-        const failed = result.failed.length;
-        if (!failed) {
-          wx.showToast({ title: `已打印 ${result.printed.length} 张`, icon: 'success' });
-          // 打印成功即刷新打印状态徽标（后端 printTickets 已上报 is_printed）
-          this.loadBundles();
-        } else {
-          wx.showModal({
-            title: '部分未打印',
-            content: `成功 ${result.printed.length} 张，${failed} 张失败已入重试队列，可到「打印管理」补打`,
-            showCancel: false
-          });
-        }
-      })
-      .catch((err: Error) => {
-        wx.hideLoading();
-        wx.showModal({
-          title: '未能打印',
-          content: (err && err.message === '请先连接打印机')
-            ? '先到「打印管理」页扫描绑定蓝牙打印机，再回来打印；也可跳过稍后补打'
-            : (err && err.message) || '打印失败，可稍后到「打印管理」补打',
-          showCancel: false
-        });
-      });
+      onSuccess: () => {
+        // 打印成功即刷新打印状态徽标（printTickets 已上报 is_printed）
+        this.loadBundles();
+      }
+    });
+  },
+
+  /** 打印进度弹层「取消打印」回调（print-flow 统一转发） */
+  onFlowCancel() {
+    cancelPrintFlow();
   },
 
   loadBundles() {

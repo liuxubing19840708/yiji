@@ -54,7 +54,9 @@ export function buildDiagCommand(style: LabelStyle): string {
   const H = style.heightMm * 8;
   const lines: string[] = [
     `SIZE ${style.widthMm} mm,${style.heightMm} mm`,
-    'DIRECTION 1',
+    // DIRECTION 0 正打（2026-10-26 真机定案）：1 是镜像打印，是把文字打倒、
+    // 内容跨签分裂的根源——孔先出纸的挂签纸物理坐标=打印坐标，无需镜像
+    'DIRECTION 0',
     'REFERENCE 0,0',
     'CODEPAGE 936',
     'CLS',
@@ -108,13 +110,18 @@ export interface LabelStyle {
   bigQty: boolean;
   /** 上下微调（毫米，正=内容向下移）：打印机间隙传感器有固定偏差时人工对冲（跟打印机走） */
   offsetMm: number;
+  /** 二维码位置（仅竖版纸张生效）：top=码上字下（默认）；
+   *  bottom=码沉底+文字两列在上（孔先出纸用：孔区在纸头，码压底永不入孔区/边界） */
+  qrPosition: 'top' | 'bottom';
+  /** 字号倍率（位图打印）：1=3mm 字高起步，1.5=4.5mm（默认）；TSPL 指令路径不受影响 */
+  fontMult?: number;
 }
 
 /** 默认样式 = 50×80 挂签（竖版码上字下）；已存过样式的公司不受影响 */
 export const DEFAULT_LABEL_STYLE: LabelStyle = {
   preset: 'custom', widthMm: 50, heightMm: 80, gapMm: 2, qrUnit: 6,
   fields: ['styleNo', 'bedNo', 'bundleNo', 'color', 'size', 'qty', 'company'],
-  bigQty: true, offsetMm: 0
+  bigQty: true, offsetMm: 0, qrPosition: 'top'
 };
 
 /** 二维码模块数估算（字节模式 v3~v5：内容 20~40 字节常见落在 29~37 模块） */
@@ -128,16 +135,17 @@ function qrModules(qr: string): number {
   return 37;
 }
 
-/** 字段渲染文本（无值字段跳过） */
-function fieldText(key: FieldKey, ticket: PrintTicketData, company?: PrintCompanyInfo): string {
+/** 字段渲染文本（无值字段跳过；labeled=两列模式下补字段名前缀，
+ *  裸值「红色」「M」各自占一格时分不清归属） */
+function fieldText(key: FieldKey, ticket: PrintTicketData, company?: PrintCompanyInfo, labeled = false): string {
   switch (key) {
     case 'styleNo': return ticket.style_no ? `款号:${ticket.style_no}` : '';
     case 'styleName': return ticket.style_name || '';
     case 'bedNo': return ticket.bed_no ? `床次:${ticket.bed_no}` : '';
     case 'bundleNo': return ticket.bundle_no ? `扎:${ticket.bundle_no}` : '';
-    case 'color': return ticket.color || '';
-    case 'size': return ticket.size || '';
-    case 'qty': return `x${ticket.qty}`;
+    case 'color': return ticket.color ? (labeled ? `颜色:${ticket.color}` : ticket.color) : '';
+    case 'size': return ticket.size ? (labeled ? `尺码:${ticket.size}` : ticket.size) : '';
+    case 'qty': return labeled ? `数量:${ticket.qty}` : `x${ticket.qty}`;
     case 'sourceOrderNo': return ticket.source_order_no ? `单号:${ticket.source_order_no}` : '';
     case 'lotNo': return ticket.lot_no ? `批:${ticket.lot_no}` : '';
     case 'company': return (company && company.name) || '';
@@ -170,6 +178,8 @@ export interface LabelElement {
   /** TSPL 横/纵向放大（emit 用） */
   xmul?: number;
   ymul?: number;
+  /** TSPL 旋转角度（0/180）：码下模式文字整体倒排（持票方向），x/y 为文字框左上角 */
+  rot?: number;
   /** type=qr 的单元点数 */
   qrUnit?: number;
 }
@@ -190,16 +200,146 @@ export function textDotWidth(text: string, xmul = 1): number {
   return w;
 }
 
+/** 字号倍率：位图打印默认 1.5（24→36 点=4.5mm 字高，比 2x=6mm 小一号）；
+ *  TSPL TEXT 指令放大只支持整数倍，指令路径恒 1 */
+export const LABEL_FONT_MULT = 1.5;
+
+/** 样式里的字号倍率取值（旧样式无此字段/坏值回落默认；合法域 [1, 3]） */
+export function resolveFontMult(style: LabelStyle): number {
+  const m = style.fontMult;
+  return typeof m === 'number' && m >= 1 && m <= 3 ? m : LABEL_FONT_MULT;
+}
+
 /**
  * 布局计算（打印与预览的唯一坐标来源）：
  * 竖长标签二维码居中置顶、文字逐行居中；横条标签码左文右；截断、超高停止渲染。
+ * fontMult：字号倍率（1=TSPL 指令路径，整数倍放大；1.5=位图路径，字号任意）。
  */
-export function computeLabelLayout(style: LabelStyle, ticket: PrintTicketData, company?: PrintCompanyInfo): LabelLayout {
+export function computeLabelLayout(
+  style: LabelStyle, ticket: PrintTicketData, company?: PrintCompanyInfo, fontMult = 1
+): LabelLayout {
   const W = style.widthMm * 8;   // 8 点/mm
   const H = style.heightMm * 8;
   const modules = qrModules(ticket.qr_code || '');
   const qrBox = modules * style.qrUnit;
-  // 二维码位置固定，不对用户开放（2026-10-17 拍板）：
+  // 上下微调（毫米→点）：直接平移全部内容坐标，不依赖打印机 obey SHIFT/校准
+  const off = Math.max(-Math.round(H * 0.9), Math.min(Math.round(H * 0.9), Math.round((style.offsetMm || 0) * 8)));
+  const els: LabelElement[] = [];
+
+  // 逐字符截断到 maxW（半角 12 / 全角 24 dot，与打印机 TSS24 同口径）
+  const trunc = (text: string, maxW: number, xmul: number): string => {
+    let out = '';
+    let w = 0;
+    for (const ch of text) {
+      const cw = (ch.charCodeAt(0) > 255 ? 24 : 12) * xmul;
+      if (w + cw > maxW) break;
+      out += ch;
+      w += cw;
+    }
+    return out;
+  };
+
+  if (style.heightMm > style.widthMm && style.qrPosition === 'bottom') {
+    // ===== 竖版·码下模式（孔先出纸：孔区在纸头，码沉底永不入孔区/边界）=====
+    // 文字两列排上方（两端对齐：a 靠左 b 靠右，装不下配对独占整行居中），二维码
+    // 居中压底；厂名/日期不进两列流：各自整行居中、紧贴码上方（2026-10-26 需求）。
+    // 字号 = 24×fontMult 点。TSPL 指令路径（fontMult=1）内置字体只支持整数倍：
+    // 先试 2x（大两号）放不下回退 1x；位图路径字号任意（1.5x），一次排成。
+    // 二维码：压底（距底边 1mm）+ offsetMm 随动——打印机出纸原点有固有偏移
+    // 时（2026-10-26 真机：DIRECTION 0 下约 +10mm），码必须和文字一起平移
+    // 才能补偿，压死不动会跨到下一签被孔打穿；极端配置兜底 ≥4
+    const qrY = Math.max(4, H - 8 - qrBox + off);
+    type Row = { text: string; xmul: number; ymul: number };
+    const mainKeys = style.fields.filter(k => k !== 'company' && k !== 'date');
+    // 在 maxW 宽度内截断后，于 [x, x+maxW] 区间内水平居中放置
+    const putText = (out: LabelElement[], row: Row, x: number, y: number, maxW: number) => {
+      const t = trunc(row.text, maxW, row.xmul);
+      if (!t) return;
+      const w = textDotWidth(t, row.xmul);
+      out.push({
+        type: 'text', x: Math.max(4, x + Math.round((maxW - w) / 2)), y,
+        w, h: 24 * row.ymul, text: t, xmul: row.xmul, ymul: row.ymul
+      });
+    };
+    // 主字段排版：absMult=字号绝对倍率，rowGap=行距，bottom=主字段区底界。
+    // 返回是否丢字段（TSPL 路径 2x 放不下据此回退 1x）。
+    const layoutMain = (absMult: number, rowGap: number, bottom: number):
+      { out: LabelElement[]; dropped: boolean } => {
+      const out: LabelElement[] = [];
+      const items: Row[] = [];
+      for (const key of mainKeys) {
+        const text = fieldText(key, ticket, company, true);
+        if (!text) continue;
+        // bigQty 数量强调只在指令路径 1x 时翻倍（2x/位图再翻倍装不下）
+        const big = key === 'qty' && style.bigQty && absMult < 2;
+        const m = big ? absMult * 2 : absMult;
+        items.push({ text, xmul: m, ymul: m });
+      }
+      const maxW = W - 24;
+      // 文字从孔区下方起排（挂签孔压纸头 ~8-17mm，DIRECTION 0 后物理=打印坐标）
+      let y = Math.max(16, 144 + off);
+      let i = 0;
+      while (i < items.length) {
+        const a = items[i];
+        // 宽度按未截断全文估：截断后再测永远 ≤ 上限，宽字段分支会失效
+        const aw = textDotWidth(a.text, a.xmul);
+        const b = items[i + 1];
+        const bw = b ? textDotWidth(b.text, b.xmul) : 0;
+        const rowH = Math.max(24 * a.ymul, b ? 24 * b.ymul : 0);
+        if (y + rowH > bottom) return { out, dropped: true };
+        if (b && aw + bw + 16 <= maxW) {
+          // 两端对齐一行：a 靠左、b 靠右（比定宽两列多装约 1/3 宽度）
+          out.push({ type: 'text', x: 12, y, w: aw, h: 24 * a.ymul, text: a.text, xmul: a.xmul, ymul: a.ymul });
+          out.push({ type: 'text', x: W - 12 - bw, y, w: bw, h: 24 * b.ymul, text: b.text, xmul: b.xmul, ymul: b.ymul });
+          y += rowH + rowGap;
+          i += 2;
+        } else {
+          // 装不下配对（或最后一个）：独占整行居中
+          putText(out, a, 12, y, maxW);
+          y += 24 * a.ymul + rowGap;
+          i++;
+        }
+      }
+      return { out, dropped: false };
+    };
+    // 主字段区底界按脚注（厂名/日期）字号推算：日期贴码、厂名再上一行、再让 4 点
+    const footBottom = (footMult: number) => qrY - 2 - 24 * footMult - 4 - 24 * footMult - 4;
+    // TSPL 路径：先试全 2x，丢字段则全回 1x；位图路径按 fontMult 排，
+    // 用户调太大装不下时回默认 1.5——宁可字小不静默丢字段
+    const try2x = fontMult === 1 ? layoutMain(2, 4, footBottom(2)) : null;
+    let mainMult: number;
+    let mainOut: LabelElement[];
+    if (try2x) {
+      mainMult = try2x.dropped ? 1 : 2;
+      mainOut = try2x.dropped ? layoutMain(mainMult, 8, footBottom(mainMult)).out : try2x.out;
+    } else {
+      const t = layoutMain(fontMult, 4, footBottom(fontMult));
+      if (t.dropped && fontMult !== LABEL_FONT_MULT && fontMult > LABEL_FONT_MULT) {
+        mainMult = LABEL_FONT_MULT;
+        mainOut = layoutMain(mainMult, 4, footBottom(mainMult)).out;
+      } else {
+        mainMult = fontMult;
+        mainOut = t.out;
+      }
+    }
+    els.push(...mainOut);
+    // 厂名/日期：各自整行居中、挨着码（坐标随 off 平移，与码同进退）
+    const footH = 24 * mainMult;
+    const dateY = Math.max(4, qrY - 2 - footH);
+    const compY = Math.max(4, dateY - 4 - footH);
+    const putFoot = (text: string, y: number) => {
+      if (text) putText(els, { text, xmul: mainMult, ymul: mainMult }, 12, y, W - 24);
+    };
+    putFoot(fieldText('company', ticket, company, true), compY);
+    putFoot(fieldText('date', ticket, company, true), dateY);
+    els.push({
+      type: 'qr', x: Math.max(8, Math.round((W - qrBox) / 2)), y: qrY,
+      w: qrBox, h: qrBox, qrUnit: style.qrUnit
+    });
+    return { widthMm: style.widthMm, heightMm: style.heightMm, elements: els };
+  }
+
+  // ===== 原有布局：竖版码上字下 / 横版码左文右 =====
   // 竖长标签（如 50×80 挂签）居中置顶、文字逐行居中排下方、行距加大；
   // 横条标签（高≤宽）居中放不下，固定码左文右的紧凑布局
   const portrait = style.heightMm > style.widthMm;
@@ -207,12 +347,8 @@ export function computeLabelLayout(style: LabelStyle, ticket: PrintTicketData, c
   const textX = portrait ? 12 : Math.min(W - 60, 8 + qrBox + 12);
   const textMaxW = portrait ? W - 24 : W - 8 - textX;
   const lineGap = portrait ? 20 : 8;
-  // 上下微调（毫米→点）：直接平移全部内容坐标，不依赖打印机 obey SHIFT/校准
-  const off = Math.max(-Math.round(H * 0.9), Math.min(Math.round(H * 0.9), Math.round((style.offsetMm || 0) * 8)));
 
-  const els: LabelElement[] = [{
-    type: 'qr', x: qrX, y: Math.max(0, 14 + off), w: qrBox, h: qrBox, qrUnit: style.qrUnit
-  }];
+  els.push({ type: 'qr', x: qrX, y: Math.max(0, 14 + off), w: qrBox, h: qrBox, qrUnit: style.qrUnit });
   let y = (portrait ? 14 + qrBox + 16 : 12) + off;
   for (const key of style.fields) {
     const text = fieldText(key, ticket, company);
@@ -220,16 +356,9 @@ export function computeLabelLayout(style: LabelStyle, ticket: PrintTicketData, c
     const big = key === 'qty' && style.bigQty;
     const xmul = big ? 2 : 1;
     const ymul = big ? 2 : 1;
-    // 截断到可用宽度
-    let out = '';
-    let w = 0;
-    for (const ch of text) {
-      const cw = (ch.charCodeAt(0) > 255 ? 24 : 12) * xmul;
-      if (w + cw > textMaxW) break;
-      out += ch;
-      w += cw;
-    }
+    const out = trunc(text, textMaxW, xmul);
     if (!out) continue;
+    const w = textDotWidth(out, xmul);
     // 竖长标签逐行水平居中；横条按固定列对齐
     const x = portrait ? Math.max(12, Math.round((W - w) / 2)) : textX;
     els.push({ type: 'text', x, y, w, h: 24 * ymul, text: out, xmul, ymul });
@@ -246,7 +375,10 @@ function layoutToTspl(style: LabelStyle, layout: LabelLayout, qrContent: string)
   // 信任机器自身的纸张校准结果，残余偏差用 offsetMm 软件平移兜底。
   const lines: string[] = [
     `SIZE ${layout.widthMm} mm,${layout.heightMm} mm`,
-    'DIRECTION 1',
+    // DIRECTION 0 正打（与对位诊断签一致）：孔先出纸的挂签纸，物理上=打印坐标
+    // 正读；此前 DIRECTION 1 镜像是文字倒向+内容跨签分裂（文字压到下一张签、
+    // 被孔打穿）的根源。残余整体偏移用 offsetMm 补。
+    'DIRECTION 0',
     'REFERENCE 0,0', // 仅坐标原点，不影响走纸
     'CODEPAGE 936',
     'CLS'
@@ -255,7 +387,12 @@ function layoutToTspl(style: LabelStyle, layout: LabelLayout, qrContent: string)
     if (el.type === 'qr') {
       lines.push(`QRCODE ${el.x},${el.y},M,${el.qrUnit},A,0,"${tsplEscape(qrContent || '')}"`);
     } else {
-      lines.push(`TEXT ${el.x},${el.y},"TSS24.BF2",0,${el.xmul || 1},${el.ymul || 1},"${tsplEscape(el.text || '')}"`);
+      // TSPL 旋转以首字符锚点为基准：180° 时文字从锚点向左上延伸，
+      // 故锚点取文字框右下角（x+w, y+h），渲染结果与预览框一致
+      const rot = el.rot || 0;
+      const tx = rot === 180 ? el.x + el.w : el.x;
+      const ty = rot === 180 ? el.y + el.h : el.y;
+      lines.push(`TEXT ${tx},${ty},"TSS24.BF2",${rot},${el.xmul || 1},${el.ymul || 1},"${tsplEscape(el.text || '')}"`);
     }
   }
   lines.push('PRINT 1');

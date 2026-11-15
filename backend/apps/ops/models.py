@@ -7,7 +7,7 @@ from apps.core.models import BaseModel
 
 
 class CompanySetting(BaseModel):
-    """公司系统设置（KV 存储，见文档 §十五 的 13 项开关）。"""
+    """公司系统设置（KV 存储，含基础开关与分阶段业务门禁）。"""
 
     company = models.ForeignKey(
         Company, on_delete=models.CASCADE, related_name='settings', verbose_name='公司', db_index=True)
@@ -23,7 +23,7 @@ class CompanySetting(BaseModel):
                                     name='uq_company_setting_company_key'),
         ]
 
-    # 13 项设置及默认值（开关项 '1' 开 / '0' 关）
+    # 设置及默认值（开关项 '1' 开 / '0' 关；门禁项 off / warn / strict）
     DEFAULTS = {
         'auto_cut_done': '0',               # 默认裁完：编菲后自动置裁完
         'revoke_current_month_only': '1',   # 只能撤销当月登记
@@ -38,7 +38,10 @@ class CompanySetting(BaseModel):
         'default_print_mode': 'cloud',      # 默认打印方式：cloud 云打印 / bluetooth 蓝牙
         'cloud_printer': '',                # 云打印机信息（JSON：sn/key 等）
         'print_label_style': '{}',          # 菲票标签模板（JSON：LabelStyle，'{}' 用默认经典款）
+        'print_label_offsets': '{}',        # 每台打印机对位偏移（JSON：打印名→mm，公司级同步）
         'personalized_notify': '1',         # 个性化通知
+        'preproduction_gate_mode': 'off',   # 产前大货门禁：off 兼容 / warn 警告 / strict 拦截
+        'manufacturing_gate_mode': 'off',   # 节点数量门禁：off 影子 / warn 警告 / strict 拦截
     }
 
     @classmethod

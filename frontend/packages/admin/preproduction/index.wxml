@@ -1,0 +1,154 @@
+<view class="page">
+  <view wx:if="{{loading && !status}}" class="state text-3">加载中…</view>
+  <view wx:elif="{{error}}" class="state">
+    <view class="text-3">{{error}}</view>
+    <button class="btn btn-ghost retry" bindtap="reload">重新加载</button>
+  </view>
+
+  <block wx:else>
+    <view class="card summary">
+      <view class="row">
+        <view class="summary-main">
+          <view class="h1">产前准备</view>
+          <view class="text-3">订单 {{orderNo}}<text wx:if="{{pack}}"> · 工艺 V{{pack.version_no}}</text></view>
+        </view>
+        <view class="badge {{statusClass}}">{{status.status_display}}</view>
+      </view>
+      <view wx:if="{{status.missing_items.length}}" class="missing">
+        <view class="missing-title">还需完成</view>
+        <view wx:for="{{status.missing_items}}" wx:key="*this" class="missing-item">· {{item}}</view>
+      </view>
+      <view wx:elif="{{status.status === 'pending_approval'}}" class="ready">资料已齐，等待产前审批。</view>
+      <view wx:elif="{{status.status === 'approved'}}" class="ready">当前订单和工艺版本已有有效审批。</view>
+    </view>
+
+    <view class="step-tabs">
+      <view class="step-tab {{activeTab === 'craft' ? 'active' : ''}}" data-tab="craft" bindtap="onSwitchTab"><text>1</text>工艺资料</view>
+      <view class="step-tab {{activeTab === 'sample' ? 'active' : ''}}" data-tab="sample" bindtap="onSwitchTab"><text>2</text>产前样</view>
+      <view class="step-tab {{activeTab === 'issues' ? 'active' : ''}}" data-tab="issues" bindtap="onSwitchTab"><text>3</text>问题处理</view>
+      <view class="step-tab {{activeTab === 'approval' ? 'active' : ''}}" data-tab="approval" bindtap="onSwitchTab"><text>4</text>交底审批</view>
+    </view>
+
+    <!-- 一、工艺资料 -->
+    <view wx:if="{{activeTab === 'craft'}}" class="card section-card">
+      <view class="row section-head">
+        <view><view class="h2">工艺资料</view><view class="section-tip">选择模板后可按本单调整，保存后生效</view></view>
+        <view class="spacer"></view>
+        <button wx:if="{{canManage && pack && !newVersion}}" class="text-btn" bindtap="onNewVersion">新建版本</button>
+        <button wx:if="{{newVersion}}" class="text-btn" bindtap="onCancelNewVersion">取消新版本</button>
+      </view>
+      <view wx:if="{{newVersion}}" class="version-tip">将复制当前资料创建新版本；旧审批保留但不会自动恢复。</view>
+      <view class="field" wx:if="{{newVersion}}">
+        <view class="label">版本号（留空自动递增）</view>
+        <input class="input" type="number" value="{{versionNo}}" data-field="versionNo" bindinput="onInput" placeholder="例如 2" />
+      </view>
+
+      <view class="form-section">
+        <view class="form-title">纸样与附件</view>
+        <view class="field compact-field">
+          <view class="label">纸样编号</view>
+          <view class="readonly-value">{{newVersion || !pack ? '保存后自动生成' : patternNo}}</view>
+        </view>
+        <view class="attachment-block">
+          <view class="row"><view class="label">纸样附件</view><view class="spacer"></view><button wx:if="{{canManage}}" class="text-btn" data-target="patternFiles" bindtap="onAddAttachment">{{uploadingTarget === 'patternFiles' ? '上传中…' : '＋ 上传'}}</button></view>
+          <view wx:for="{{patternFiles}}" wx:key="path" class="file-row"><view class="file-name" data-path="{{item.path}}" bindtap="onOpenAttachment">📎 {{item.name}}</view><view wx:if="{{canManage}}" class="remove" data-target="patternFiles" data-index="{{index}}" bindtap="onRemoveAttachment">×</view></view>
+        </view>
+        <view class="attachment-block">
+          <view class="row"><view class="label">工艺单附件</view><view class="spacer"></view><button wx:if="{{canManage}}" class="text-btn" data-target="techFiles" bindtap="onAddAttachment">{{uploadingTarget === 'techFiles' ? '上传中…' : '＋ 上传'}}</button></view>
+          <view wx:for="{{techFiles}}" wx:key="path" class="file-row"><view class="file-name" data-path="{{item.path}}" bindtap="onOpenAttachment">📎 {{item.name}}</view><view wx:if="{{canManage}}" class="remove" data-target="techFiles" data-index="{{index}}" bindtap="onRemoveAttachment">×</view></view>
+        </view>
+      </view>
+
+      <view class="form-section">
+        <view class="row form-title-row"><view class="form-title">结构化尺寸表 *</view><view class="spacer"></view><button wx:if="{{canManage}}" class="text-btn" data-kind="measurements" bindtap="onSaveTemplate">存为模板</button></view>
+        <view class="template-bar" wx:if="{{canManage && measurementTemplates.length}}">
+          <picker range="{{measurementTemplates}}" range-key="name" data-kind="measurements" bindchange="onApplyTemplate"><view class="template-picker">选择尺寸模板 ▾</view></picker>
+        </view>
+        <view class="measure-hint text-3">全部通过选择填写；数值步长 0.5，公差步长 0.1。</view>
+        <view wx:for="{{measurements}}" wx:key="index" class="measure-card">
+          <view class="row measure-card-head"><view>尺寸行 {{index + 1}}</view><view wx:if="{{canManage && measurements.length > 1}}" class="remove" data-index="{{index}}" bindtap="onRemoveMeasurement">删除</view></view>
+          <view class="measure-grid">
+            <picker range="{{sizeOptions}}" data-index="{{index}}" data-field="size" bindchange="onMeasurementSelect" disabled="{{!canManage}}"><view class="select-cell"><text>尺码</text><view>{{item.size}} ▾</view></view></picker>
+            <picker range="{{pointOptions}}" data-index="{{index}}" data-field="point" bindchange="onMeasurementSelect" disabled="{{!canManage}}"><view class="select-cell"><text>部位</text><view>{{item.point}} ▾</view></view></picker>
+            <picker range="{{valueOptions}}" data-index="{{index}}" data-field="value" bindchange="onMeasurementSelect" disabled="{{!canManage}}"><view class="select-cell {{!item.value ? 'select-empty' : ''}}"><text>尺寸值</text><view>{{item.value || '请选择'}} ▾</view></view></picker>
+            <picker range="{{unitOptions}}" data-index="{{index}}" data-field="unit" bindchange="onMeasurementSelect" disabled="{{!canManage}}"><view class="select-cell"><text>单位</text><view>{{item.unit}} ▾</view></view></picker>
+            <picker range="{{toleranceOptions}}" data-index="{{index}}" data-field="tolerancePlus" bindchange="onMeasurementSelect" disabled="{{!canManage}}"><view class="select-cell"><text>正公差</text><view>＋{{item.tolerancePlus}} ▾</view></view></picker>
+            <picker range="{{toleranceOptions}}" data-index="{{index}}" data-field="toleranceMinus" bindchange="onMeasurementSelect" disabled="{{!canManage}}"><view class="select-cell"><text>负公差</text><view>－{{item.toleranceMinus}} ▾</view></view></picker>
+          </view>
+        </view>
+        <button wx:if="{{canManage}}" class="btn btn-plain small-btn" bindtap="onAddMeasurement">＋ 添加尺寸行</button>
+      </view>
+
+      <view class="form-section">
+        <view class="row form-title-row"><view class="form-title">工艺要求 *</view><view class="spacer"></view><button wx:if="{{canManage}}" class="text-btn" data-kind="requirements" bindtap="onSaveTemplate">存为模板</button></view>
+        <picker wx:if="{{canManage && requirementsTemplates.length}}" range="{{requirementsTemplates}}" range-key="name" data-kind="requirements" bindchange="onApplyTemplate"><view class="template-picker">选择标准或公司模板 ▾</view></picker>
+        <textarea class="textarea" value="{{requirements}}" disabled="{{!canManage}}" data-field="requirements" bindinput="onInput" placeholder="选择模板后可微调，也可直接填写" />
+      </view>
+      <view class="form-section">
+        <view class="row form-title-row"><view class="form-title">工艺难点</view><view class="spacer"></view><button wx:if="{{canManage}}" class="text-btn" data-kind="challenges" bindtap="onSaveTemplate">存为模板</button></view>
+        <picker wx:if="{{canManage && challengesTemplates.length}}" range="{{challengesTemplates}}" range-key="name" data-kind="challenges" bindchange="onApplyTemplate"><view class="template-picker">选择标准或公司模板 ▾</view></picker>
+        <textarea class="textarea short" value="{{challenges}}" disabled="{{!canManage}}" data-field="challenges" bindinput="onInput" placeholder="选择模板或填写需要重点控制的难点" />
+      </view>
+      <view class="form-section">
+        <view class="row form-title-row"><view class="form-title">易错点</view><view class="spacer"></view><button wx:if="{{canManage}}" class="text-btn" data-kind="common_mistakes" bindtap="onSaveTemplate">存为模板</button></view>
+        <picker wx:if="{{canManage && commonMistakesTemplates.length}}" range="{{commonMistakesTemplates}}" range-key="name" data-kind="common_mistakes" bindchange="onApplyTemplate"><view class="template-picker">选择标准或公司模板 ▾</view></picker>
+        <textarea class="textarea short" value="{{commonMistakes}}" disabled="{{!canManage}}" data-field="common_mistakes" bindinput="onInput" placeholder="选择模板或填写班组容易出错的地方" />
+      </view>
+      <view class="form-section">
+        <view class="row form-title-row"><view class="form-title">品质标准</view><view class="spacer"></view><button wx:if="{{canManage}}" class="text-btn" data-kind="quality_standards" bindtap="onSaveTemplate">存为模板</button></view>
+        <picker wx:if="{{canManage && qualityStandardsTemplates.length}}" range="{{qualityStandardsTemplates}}" range-key="name" data-kind="quality_standards" bindchange="onApplyTemplate"><view class="template-picker">选择标准或公司模板 ▾</view></picker>
+        <textarea class="textarea short" value="{{qualityStandards}}" disabled="{{!canManage}}" data-field="quality_standards" bindinput="onInput" placeholder="选择模板或填写尺寸、公差和外观标准" />
+      </view>
+      <button wx:if="{{canManage}}" class="btn btn-info save-btn {{saving ? 'disabled' : ''}}" loading="{{saving}}" bindtap="onSavePack">{{newVersion ? '创建新工艺版本' : '保存工艺资料'}}</button>
+      <view wx:else class="empty text-3">当前账号仅可查看，工艺资料由工艺负责人维护</view>
+    </view>
+
+    <!-- 二、产前样 -->
+    <view wx:if="{{activeTab === 'sample'}}" class="card section-card">
+      <view class="section-head"><view class="h2">产前样</view><view class="section-tip">每次检验追加记录，不覆盖历史</view></view>
+      <view wx:if="{{status.current_sample}}" class="current-result">
+        当前结果：<text class="{{status.current_sample.result === 'passed' ? 'ok-text' : 'bad-text'}}">{{status.current_sample.result === 'passed' ? '合格' : (status.current_sample.result === 'failed' ? '不合格' : '重做中')}}</text>
+        <view class="text-3">{{status.current_sample.operator_name}} · {{status.current_sample.occurred_at}}</view>
+      </view>
+      <view wx:else class="empty text-3">尚未记录产前样检验结果</view>
+      <block wx:if="{{canManage && pack}}">
+        <view class="field"><view class="label">追加检验结果</view><picker range="{{sampleResults}}" value="{{sampleResultIndex}}" bindchange="onSampleResultChange"><view class="picker">{{sampleResults[sampleResultIndex]}} ▾</view></picker></view>
+        <textarea class="textarea" value="{{sampleNote}}" data-field="sampleNote" bindinput="onInput" placeholder="检验说明（必填）" />
+        <view class="attachment-block"><view class="row"><view class="label">样衣图片或附件</view><view class="spacer"></view><button class="text-btn" data-target="sampleFiles" bindtap="onAddAttachment">{{uploadingTarget === 'sampleFiles' ? '上传中…' : '＋ 上传'}}</button></view>
+          <view wx:for="{{sampleFiles}}" wx:key="path" class="file-row"><view class="file-name" data-path="{{item.path}}" bindtap="onOpenAttachment">📎 {{item.name}}</view><view class="remove" data-target="sampleFiles" data-index="{{index}}" bindtap="onRemoveAttachment">×</view></view>
+        </view>
+        <button class="btn btn-primary {{saving ? 'disabled' : ''}}" bindtap="onSubmitSample">追加产前样结果</button>
+      </block>
+      <view wx:elif="{{!pack}}" class="empty text-3">请先在“工艺资料”页保存当前工艺</view>
+      <view wx:else class="empty text-3">当前账号仅可查看，产前样由工艺负责人登记</view>
+      <view wx:if="{{sampleHistory.length}}" class="history"><view class="subhead">检验历史（{{sampleHistory.length}}）</view>
+        <view wx:for="{{sampleHistory}}" wx:key="id" class="history-item"><view class="row"><text class="{{item.result === 'passed' ? 'ok-text' : 'bad-text'}}">{{item.result === 'passed' ? '合格' : (item.result === 'failed' ? '不合格' : '重做')}}</text><view class="spacer"></view><text class="text-3">{{item.occurred_at}}</text></view><view>{{item.note}}</view><view class="text-3">确认人：{{item.operator_name}}</view>
+          <view wx:for="{{item.attachments}}" wx:for-item="path" wx:key="*this" class="attachment-link" data-path="{{path}}" bindtap="onOpenAttachment">查看附件</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 三、工艺问题与处理 -->
+    <view wx:if="{{activeTab === 'issues'}}" class="card section-card">
+      <view class="row section-head"><view><view class="h2">工艺问题与处理</view><view class="section-tip">问题全部解决后才可审批</view></view><view class="spacer"></view><view wx:if="{{status.unresolved_issue_count}}" class="badge badge-red">未解决 {{status.unresolved_issue_count}}</view></view>
+      <block wx:if="{{canManage && pack}}"><textarea class="textarea" value="{{issueDetail}}" data-field="issueDetail" bindinput="onInput" placeholder="问题说明" /><button class="btn btn-plain small-btn" bindtap="onCreateIssue">登记问题</button></block>
+      <view wx:if="{{!pack.review_issues.length}}" class="empty text-3">暂无工艺问题</view>
+      <view wx:for="{{pack.review_issues}}" wx:key="id" class="issue-item"><view class="row"><view class="issue-title">{{item.detail || item.title}}</view><view class="badge {{item.status === 'closed' ? 'badge-green' : 'badge-red'}}">{{item.status === 'closed' ? '已解决' : '未解决'}}</view></view><view wx:if="{{item.rectification}}" class="resolution">处理结果：{{item.rectification}}</view><view class="text-3" wx:if="{{item.handled_by_name}}">处理人：{{item.handled_by_name}} · {{item.reviewed_at}}</view><view class="text-3" wx:else>提出人：{{item.raised_by_name}} · {{item.created_at}}</view>
+        <button wx:if="{{canManage && item.status !== 'closed'}}" class="text-btn issue-action" data-id="{{item.id}}" bindtap="onResolveIssue">填写处理结果并解决</button><button wx:if="{{canManage && item.status === 'closed'}}" class="text-btn issue-action" data-id="{{item.id}}" bindtap="onReopenIssue">重开问题</button>
+      </view>
+    </view>
+
+    <!-- 四、交底与产前确认 -->
+    <view wx:if="{{activeTab === 'approval'}}" class="card section-card">
+      <view class="section-head"><view class="h2">交底与产前确认</view><view class="section-tip">负责人交底确认后，由审批人正式放行</view></view>
+      <view wx:if="{{status.briefing_confirmation}}" class="confirm-box"><view class="ok-text">✓ 生产负责人已确认班组交底</view><view>{{status.briefing_confirmation.confirmed_by_name}} · {{status.briefing_confirmation.confirmed_at}}</view><view wx:if="{{status.briefing_confirmation.note}}" class="text-3">说明：{{status.briefing_confirmation.note}}</view></view>
+      <block wx:elif="{{canBrief && pack}}"><textarea class="textarea short" value="{{briefingNote}}" data-field="briefingNote" bindinput="onInput" placeholder="交底说明（可选）" /><button class="btn btn-info" bindtap="onConfirmBriefing">确认已完成班组交底</button></block>
+      <view wx:else class="empty text-3">等待生产负责人确认当前工艺已完成班组交底</view>
+      <view class="approval-panel"><view class="subhead">正式审批</view><view wx:if="{{status.approval}}" class="confirm-box"><view class="ok-text">✓ 当前审批有效</view><view>{{status.approval.decided_by_name}} · {{status.approval.decided_at}}</view></view>
+        <view wx:if="{{canApprove && pack && !status.approved}}" class="approval-actions"><button class="btn btn-primary half" data-approved="1" bindtap="onApprove">审批通过</button><button class="btn btn-plain half danger" data-approved="0" bindtap="onApprove">驳回</button></view>
+      </view>
+      <view wx:if="{{pack.briefing_confirmations.length > 1}}" class="history"><view class="subhead">交底确认历史</view><view wx:for="{{pack.briefing_confirmations}}" wx:key="id" class="text-3 history-line">{{item.confirmed_by_name}} · {{item.confirmed_at}}<text wx:if="{{item.note}}"> · {{item.note}}</text></view></view>
+      <view wx:if="{{pack.approvals.length}}" class="history"><view class="subhead">审批历史</view><view wx:for="{{pack.approvals}}" wx:key="id" class="history-item"><view>{{item.status === 'approved' ? '通过' : (item.status === 'rejected' ? '驳回' : '已失效')}} · {{item.decided_by_name}}</view><view class="text-3">{{item.decided_at}}</view><view wx:if="{{item.reason}}">意见：{{item.reason}}</view></view></view>
+    </view>
+  </block>
+</view>

@@ -1,7 +1,7 @@
 <view class="page">
   <view class="card head-card">
     <view class="h2">款式：{{styleNo}}</view>
-    <view class="text-3">配置该款式各工序单价，款式总单价按工序自动汇总</view>
+    <view class="text-3">配置该款式各工序单价，款式总单价按工序自动汇总。扫码计价：床次建单时改过价的按床次价，否则按这里的单价</view>
   </view>
 
   <view wx:if="{{loading}}" class="state text-3">加载中…</view>

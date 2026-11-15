@@ -1,0 +1,124 @@
+<view class="page">
+  <!-- 无权限防御态（finance.view；后端 403 兜底） -->
+  <view wx:if="{{denied}}" class="state">
+    <view class="text-3">暂无「应收查看」权限，请联系管理员开通</view>
+  </view>
+
+  <block wx:else>
+    <!-- 顶部：库存估值入口 + 排序切换 + 新建应收（finance.manage） -->
+    <view class="toolbar">
+      <view class="link-btn" wx:if="{{canManage}}" bindtap="onGoStockValuation">库存估值 ›</view>
+      <view class="spacer"></view>
+      <view class="sort-btn" bindtap="onExportCsv">导出</view>
+      <view class="sort-btn" bindtap="onToggleSort">{{sortLabels[sortMode]}}</view>
+      <view class="sort-btn" wx:if="{{canManage}}" bindtap="onOpenBatch">批量收款</view>
+      <view class="batch-btn" wx:if="{{canManage}}" bindtap="onOpenCreate">＋ 新建应收</view>
+    </view>
+
+    <!-- 状态 chip -->
+    <view class="chip-bar">
+      <view wx:for="{{statusChips}}" wx:key="key"
+        class="chip {{statusIndex === index ? 'chip-on' : ''}}"
+        data-index="{{index}}" bindtap="onStatusChip">{{item.label}}</view>
+    </view>
+
+    <!-- 客户筛选 + 关键词 -->
+    <view class="card filter-card">
+      <view class="row">
+        <picker mode="selector" range="{{customerNames}}" value="{{customerIndex}}" bindchange="onCustomerChange">
+          <view class="filter-chip">{{customerNames[customerIndex]}} ▾</view>
+        </picker>
+        <input class="search grow" placeholder="应收单号/客户/订单号"
+          value="{{keyword}}" bindinput="onKeyword" bindconfirm="onSearch"
+          confirm-type="search" />
+        <view class="search-btn" bindtap="onSearch">查询</view>
+      </view>
+    </view>
+
+    <view wx:if="{{loading && !rows.length}}" class="state text-3">加载中…</view>
+    <view wx:elif="{{error && !rows.length}}" class="state">
+      <view class="text-3">加载失败，请重试</view>
+      <button class="btn btn-ghost state-btn" bindtap="reload">重新加载</button>
+    </view>
+    <empty-state wx:elif="{{loaded && !rows.length}}" text="暂无应收账"
+      sub="出货域自动建单或点「新建应收」手工建" />
+
+    <!-- 应收卡片：应收/已收/剩余 三列 + 状态徽标 -->
+    <view class="card rec-card" wx:for="{{rows}}" wx:key="id"
+      data-id="{{item.id}}" bindtap="onOpenDetail">
+      <view class="row">
+        <view class="item-main">
+          <view class="item-title">{{item.receivableNo}}</view>
+          <view class="text-3">{{item.customerName || '—'}}{{item.orderNo ? ' · ' + item.orderNo : ''}}</view>
+        </view>
+        <view class="badge {{item.statusClass}}">{{item.statusText}}</view>
+      </view>
+      <view class="row cols">
+        <view class="col">
+          <view class="col-num num">{{item.amount}}</view>
+          <view class="text-3">应收</view>
+        </view>
+        <view class="col">
+          <view class="col-num num">{{item.receivedAmount}}</view>
+          <view class="text-3">已收</view>
+        </view>
+        <view class="col">
+          <view class="col-num num {{item.status === 'settled' ? 'text-3' : 'text-danger'}}">{{item.outstanding}}</view>
+          <view class="text-3">剩余</view>
+        </view>
+      </view>
+      <view class="text-3 sub-line" wx:if="{{item.remark}}">备注：{{item.remark}}</view>
+    </view>
+
+    <view wx:if="{{loading && rows.length}}" class="text-3 loading-more">加载中…</view>
+    <view wx:elif="{{loaded && !hasMore && rows.length}}" class="text-3 loading-more">没有更多了</view>
+  </block>
+
+  <!-- ============ 新建应收弹层（finance.manage） ============ -->
+  <view class="mask" wx:if="{{createVisible}}" bindtap="onCloseCreate">
+    <view class="sheet" catchtap="noop">
+      <view class="row sheet-head">
+        <view class="h2">新建应收</view>
+        <view class="spacer"></view>
+        <view class="text-3" bindtap="onCloseCreate">关闭</view>
+      </view>
+      <view class="text-3 sheet-sub">单号 AR+日期+3 位自动生成；出货单确认后由系统自动建应收。</view>
+      <picker mode="selector" range="{{customerNames}}" value="{{createCustomerIndex}}" bindchange="onCreateCustomerChange">
+        <view class="picker-box">客户：{{createCustomerIndex > 0 ? customerNames[createCustomerIndex] : '请选择客户（必填）'}} ▾</view>
+      </picker>
+      <input class="input amount-input" type="digit" placeholder="应收金额（>0）"
+        value="{{createAmount}}" bindinput="onCreateAmount" />
+      <input class="input amount-input" placeholder="备注（选填）"
+        value="{{createRemark}}" bindinput="onCreateRemark" />
+      <button class="btn btn-primary" loading="{{createSaving}}" bindtap="onSaveCreate">保存</button>
+    </view>
+  </view>
+
+  <!-- ============ 批量收款弹层（评审 Top10 #5，finance.manage） ============ -->
+  <view class="mask" wx:if="{{batchVisible}}" bindtap="onCloseBatch">
+    <view class="sheet" catchtap="noop">
+      <view class="row sheet-head">
+        <view class="h2">批量收款</view>
+        <view class="spacer"></view>
+        <view class="text-3" bindtap="onCloseBatch">关闭</view>
+      </view>
+      <view class="text-3 sheet-sub">客户一笔款付多单：按应收单创建时间从最早开始自动分配（FIFO），全程留痕。</view>
+      <picker mode="selector" range="{{customerNames}}" value="{{batchCustomerIndex}}" bindchange="onBatchCustomerChange">
+        <view class="picker-box">客户：{{batchCustomerIndex > 0 ? customerNames[batchCustomerIndex] : '请选择客户（必填）'}} ▾</view>
+      </picker>
+      <input class="input amount-input" type="digit" placeholder="本次收款总额（>0）"
+        value="{{batchTotal}}" bindinput="onBatchTotal" />
+      <picker mode="date" value="{{batchReceivedAt}}" bindchange="onBatchReceivedAtChange">
+        <view class="picker-box">实际收款日期：{{batchReceivedAt || '默认今天'}} ▾</view>
+      </picker>
+      <picker mode="selector" range="{{batchMethodLabels}}" value="{{batchMethodIndex}}" bindchange="onBatchMethodChange">
+        <view class="picker-box">收款方式：{{batchMethodLabels[batchMethodIndex]}} ▾</view>
+      </picker>
+      <input class="input amount-input" placeholder="经手人（选填）"
+        value="{{batchHandler}}" bindinput="onBatchHandler" />
+      <input class="input amount-input" placeholder="备注（选填）"
+        value="{{batchRemark}}" bindinput="onBatchRemark" />
+      <button class="btn btn-primary" loading="{{batchSaving}}" bindtap="onSaveBatch">确认收款</button>
+    </view>
+  </view>
+</view>

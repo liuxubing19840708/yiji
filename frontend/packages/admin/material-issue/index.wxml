@@ -1,0 +1,105 @@
+<view class="page">
+  <!-- 无权限防御态（warehouse.manage；后端 403 兜底） -->
+  <view wx:if="{{denied}}" class="state">
+    <view class="text-3">暂无「采购/入库/领料」权限，请联系管理员开通</view>
+  </view>
+
+  <block wx:else>
+    <!-- 顶部：差异报表入口 + 模式切换 -->
+    <view class="toolbar">
+      <view class="mode-tabs">
+        <view class="mode-tab {{mode === 'issue' ? 'active' : ''}}" data-mode="issue" bindtap="onMode">领料</view>
+        <view class="mode-tab {{mode === 'return' ? 'active' : ''}}" data-mode="return" bindtap="onMode">退料</view>
+      </view>
+      <view class="spacer"></view>
+      <view class="link-btn" bindtap="onGoDivergence">差异报表 ›</view>
+    </view>
+
+    <!-- 床次上下文 -->
+    <view class="card ctx-card">
+      <picker mode="selector" range="{{productionNames}}" value="{{productionIndex}}" bindchange="onPickProduction">
+        <view class="ctx-picker">{{productionNames[productionIndex]}} ▾</view>
+      </picker>
+      <view class="text-3 ctx-sub" wx:if="{{production}}">
+        床次 {{production.bedNo}} · 款式 {{production.styleNo || '无'}} · 定额基数 {{production.baseQty}} 件
+      </view>
+      <!-- 本床已用缸号（评审 Top10 #8）：换缸会缸差，选新缸号行上有警示 -->
+      <view class="text-3 ctx-sub lot-hint" wx:if="{{production && bedLotText}}">{{bedLotText}}</view>
+      <view class="text-3 ctx-sub warn" wx:if="{{mode === 'return'}}">
+        退料：数量填正数 = 退回仓库量，确认生效后冲减该床次已领量
+      </view>
+      <view class="text-3 ctx-sub warn" wx:elif="{{noBom && production}}">
+        该床次款式无生效 BOM，请「＋ 手选物料」领料（无定额，计入无定额占比）
+      </view>
+    </view>
+
+    <!-- 行列表 -->
+    <empty-state wx:if="{{!rows.length}}" text="{{mode === 'return' ? '暂无退料行' : '选择床次后自动带出定额行'}}"
+      sub="{{mode === 'return' ? '点「＋ 添加退料行」选择物料与批次' : '无生效 BOM 时可「＋ 手选物料」'}}" />
+
+    <view class="card row-card {{item.over ? 'row-over' : ''}}" wx:for="{{rows}}" wx:key="index">
+      <view class="row">
+        <view class="item-main">
+          <view class="item-title">{{item.materialName}}<text class="text-3" wx:if="{{item.variant}}">　{{item.variant}}</text></view>
+          <view class="text-3">{{item.materialCode}}{{item.lotLabel ? ' · 缸号 ' + item.lotLabel : ''}}</view>
+        </view>
+        <view class="badge badge-over" wx:if="{{item.over}}">超领</view>
+        <view class="badge badge-lot-warn" wx:if="{{item.lotMismatch}}">新缸号·注意缸差</view>
+        <view class="tag" wx:if="{{item.unit}}">{{item.unit}}</view>
+        <view class="row-del" data-index="{{index}}" catchtap="onRemoveRow">×</view>
+      </view>
+
+      <view class="row row-fields">
+        <view class="mini-input num">定额 {{item.qtyReq === '' ? '无' : item.qtyReq}}</view>
+        <input class="mini-input" type="digit" placeholder="{{mode === 'return' ? '退回量(正数)' : '数量'}}"
+          value="{{item.qty}}" data-index="{{index}}" bindinput="onRowQty" />
+        <picker wx:if="{{item.over}}" mode="selector" range="{{overReasons}}"
+          value="{{item.overReasonIndex < 0 ? 0 : item.overReasonIndex}}" data-index="{{index}}" bindchange="onRowOverReason">
+          <view class="mini-input reason {{item.overReasonIndex < 0 ? 'ph' : ''}}">
+            {{item.overReasonIndex < 0 ? '超领原因(选填)' : item.overReason}} ▾
+          </view>
+        </picker>
+        <view class="mini-input reason ph" wx:else>—</view>
+      </view>
+
+      <picker mode="selector" range="{{lotsNames}}" value="{{item.lotIndex}}" data-index="{{index}}" bindchange="onPickLot">
+        <view class="mini-input lot-pick">{{item.lotLabel || '点选批次（缸号留痕）'}} ▾</view>
+      </picker>
+    </view>
+
+    <!-- 行操作 -->
+    <view class="card actions-card" wx:if="{{production}}">
+      <view wx:if="{{mode === 'return'}}" class="add-item" bindtap="onAddManualRow">＋ 添加退料行</view>
+      <view wx:else class="add-item" bindtap="onAddManualRow">＋ 手选物料（补料/无定额）</view>
+      <view class="text-3 tip">超领零拦截：数量超定额直接保存，行标「超领」并可选填原因（缩率超差/避疵/缸差排版/其他），差异进差异报表考核口径。</view>
+    </view>
+
+    <button wx:if="{{production}}" class="btn btn-primary submit" loading="{{saving}}" bindtap="onSubmit">
+      {{mode === 'return' ? '保存退料单' : '保存领料单'}}
+    </button>
+  </block>
+
+  <!-- ============ 物料选择器（子弹层，抄 tech-boms） ============ -->
+  <view class="mask" wx:if="{{pickerVisible}}" bindtap="onClosePicker">
+    <view class="sheet" catchtap="noop">
+      <view class="row sheet-head">
+        <view class="h2">选择物料</view>
+        <view class="spacer"></view>
+        <view class="text-3" bindtap="onClosePicker">关闭</view>
+      </view>
+      <input class="search mat-search" placeholder="编码/品名/旧编码搜索" value="{{matKeyword}}" bindinput="onMatKeyword" bindconfirm="onMatSearch" confirm-type="search" />
+      <scroll-view scroll-y class="mat-list">
+        <view wx:if="{{matLoading && !matOptions.length}}" class="text-3 mat-state">加载中…</view>
+        <view wx:elif="{{!matOptions.length}}" class="text-3 mat-state">未找到物料（可先到「物料管理」建档）</view>
+        <view class="mat-opt" wx:for="{{matOptions}}" wx:key="id" data-index="{{index}}" bindtap="onSelectMaterial">
+          <view class="item-title">{{item.code}}</view>
+          <view class="row mat-opt-line">
+            <view class="text-2 mat-opt-name">{{item.name}}</view>
+            <view class="spacer"></view>
+            <view class="text-3">{{item.unit}}</view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+</view>

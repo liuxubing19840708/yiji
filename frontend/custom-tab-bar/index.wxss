@@ -33,7 +33,6 @@
   box-sizing: border-box;
   opacity: 0.9;
 }
-.tab-icon-process { border-radius: 50%; }
 .tab-icon-scan { transform: rotate(45deg); }
 .tab-icon-notifications { border-radius: 10rpx 10rpx 10rpx 0; }
 .tab-icon-profile { border-radius: 50% 50% 0 0; }
@@ -53,7 +52,7 @@
   text-align: center;
 }
 
-/* 中央扫码 FAB：凸起橙色圆钮 */
+/* 中央 AI问报 FAB：凸起橙色圆钮 */
 .fab-wrap {
   width: 120rpx;
   display: flex;
@@ -76,31 +75,14 @@
   box-sizing: content-box;
 }
 
-.fab-frame {
-  width: 44rpx;
-  height: 44rpx;
-  position: relative;
+/* FAB 内 AI 字标（白字加粗，居中） */
+.fab-ai {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 2rpx;
+  line-height: 1;
 }
-
-.fab-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 20rpx;
-  height: 4rpx;
-  background: #ffffff;
-}
-
-.fab-corner {
-  position: absolute;
-  width: 14rpx;
-  height: 14rpx;
-  border: 4rpx solid #ffffff;
-}
-.fab-corner.tl { left: 0; top: 0; border-right: none; border-bottom: none; }
-.fab-corner.tr { right: 0; top: 0; border-left: none; border-bottom: none; }
-.fab-corner.bl { left: 0; bottom: 0; border-right: none; border-top: none; }
-.fab-corner.br { right: 0; bottom: 0; border-left: none; border-top: none; }
 
 .fab-text {
   font-size: 20rpx;

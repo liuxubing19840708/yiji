@@ -1,0 +1,71 @@
+/* 打印进度弹层样式（与 label-preview 同一令牌色系） */
+.pp-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pp-panel {
+  width: 560rpx;
+  max-width: 88vw;
+  background: var(--color-card, #ffffff);
+  border-radius: 24rpx;
+  padding: 40rpx 36rpx 32rpx;
+  box-sizing: border-box;
+}
+
+.pp-title {
+  text-align: center;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--color-text, #1f2329);
+}
+
+.pp-num {
+  margin-top: 20rpx;
+  text-align: center;
+  font-size: 44rpx;
+  font-weight: 600;
+  color: var(--color-primary, #ff6a00);
+  font-variant-numeric: tabular-nums;
+}
+
+.pp-bar {
+  margin-top: 20rpx;
+  height: 12rpx;
+  border-radius: 999rpx;
+  background: var(--color-bg, #f5f6f7);
+  overflow: hidden;
+}
+
+.pp-bar-inner {
+  height: 100%;
+  border-radius: 999rpx;
+  background: var(--color-primary, #ff6a00);
+  transition: width 0.2s ease;
+}
+
+.pp-hint {
+  margin-top: 20rpx;
+  text-align: center;
+  font-size: 22rpx;
+  color: var(--color-text-3, #8f959e);
+}
+
+.pp-cancel {
+  margin-top: 28rpx;
+  width: 100%;
+  font-size: 28rpx;
+  border-radius: 999rpx;
+  padding: 8rpx 0;
+  background: var(--color-bg, #f5f6f7);
+  color: var(--color-text-2, #4e5969);
+}
+
+.pp-cancel::after {
+  border: none;
+}

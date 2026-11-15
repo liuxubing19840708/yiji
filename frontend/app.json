@@ -5,6 +5,7 @@
     "pages/scan/index",
     "pages/notifications/index",
     "pages/profile/index",
+    "pages/ai-report/index",
     "pages/login/index"
   ],
   "window": {
@@ -25,10 +26,6 @@
         "text": "首页"
       },
       {
-        "pagePath": "pages/process/index",
-        "text": "工序"
-      },
-      {
         "pagePath": "pages/scan/index",
         "text": "扫菲"
       },
@@ -39,6 +36,10 @@
       {
         "pagePath": "pages/profile/index",
         "text": "我的"
+      },
+      {
+        "pagePath": "pages/ai-report/index",
+        "text": "AI问报"
       }
     ]
   },
@@ -51,7 +52,9 @@
         "mine/index",
         "order/index",
         "completion/index",
-        "changes/index"
+        "changes/index",
+        "payslip/index",
+        "payments/index"
       ]
     },
     {
@@ -65,8 +68,10 @@
         "posts/index",
         "profile-edit/index",
         "customers/index",
+        "master/index",
         "orders/index",
         "order-detail/index",
+        "preproduction/index",
         "styles/index",
         "style-process/index",
         "productions/index",
@@ -84,7 +89,44 @@
         "trace/index",
         "trace-detail/index",
         "warehouse/index",
-        "style-detail/index"
+        "style-detail/index",
+        "tech-materials/index",
+        "tech-boms/index",
+        "material-issue/index",
+        "issue-divergence/index",
+        "cost/index",
+        "cost-wage/index",
+        "order-pnl/index",
+        "quote-list/index",
+        "quote-detail/index",
+        "quote-edit/index",
+        "quote-compare/index",
+        "receivables/index",
+        "receivable-detail/index",
+        "funds/index",
+        "stock-valuation/index",
+        "suppliers/index",
+        "receipts/index",
+        "receipt-detail/index",
+        "demand-summary/index",
+        "shipments/index",
+        "shipment-detail/index",
+        "order-audit/index",
+        "batch-register/index",
+        "quality/index",
+        "outsource/index",
+        "bundle-view/index",
+        "full-production/index",
+        "full-production/preproduction/index",
+        "full-production/onsite/index",
+        "full-production/quality/index",
+        "full-production/packing/index",
+        "full-production/operations/index",
+        "handovers/index/index",
+        "handovers/create/index",
+        "handovers/detail/index",
+        "handovers/batch/index",
+        "handovers/policy/index"
       ]
     }
   ],

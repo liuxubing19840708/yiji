@@ -1,0 +1,583 @@
+<!-- 全流程生产：同一业务锚点贯穿款号、床次、颜色、尺码与扎号 -->
+<view class="page production-page">
+  <view wx:if="{{entry !== 'operations'}}" class="card route-card">
+    <view class="row">
+      <view class="spacer">
+        <view class="eyebrow">PRODUCTION FLOW</view>
+        <view class="h2">{{pageTitle}}</view>
+      </view>
+      <view class="refresh" bindtap="onRefresh">刷新</view>
+    </view>
+    <picker range="{{routeLabels}}" value="{{routeIndex}}" bindchange="onRouteChange" disabled="{{!routes.length}}">
+      <view class="route-picker {{routes.length ? '' : 'placeholder'}}">
+        <text>{{routes.length ? routeLabels[routeIndex] : '暂无生产路线实例'}}</text><text>▾</text>
+      </view>
+    </picker>
+    <view wx:if="{{route}}" class="context-grid">
+      <view><text class="context-label">款号</text><text class="context-value">{{styleNo}}</text></view>
+      <view><text class="context-label">床次</text><text class="context-value">{{bedNo}}</text></view>
+      <view><text class="context-label">订单</text><text class="context-value">{{orderNo}}</text></view>
+      <view><text class="context-label">路线节点</text><text class="context-value">{{nodes.length}} 个</text></view>
+    </view>
+    <view wx:if="{{showRouteSetup}}" class="route-actions">
+      <button size="mini" class="btn-ghost small-btn" disabled="{{!canMfgView}}" bindtap="onOpenOperations">运营看板</button>
+      <button size="mini" class="btn-plain small-btn" disabled="{{!canMfgManage}}" bindtap="onOpenStageForm">阶段维护</button>
+      <button size="mini" class="btn-plain small-btn" disabled="{{!canMfgManage}}" bindtap="onOpenRouteEditor">模板维护</button>
+      <button size="mini" class="btn-plain small-btn" disabled="{{!canMfgManage}}" bindtap="onOpenTemplateForm">模板建实例</button>
+      <button size="mini" class="btn-ghost small-btn" disabled="{{!orderId || !canPreView}}" bindtap="onOpenPreproduction">产前状态</button>
+    </view>
+  </view>
+
+  <view wx:if="{{entryPermissionError}}" class="card permission-tip">{{entryPermissionError}}</view>
+
+  <view wx:if="{{operationsOpen}}" class="card operations-card">
+    <view class="row"><view class="section-title spacer">跨订单、跨床次运营看板</view><view class="refresh" bindtap="onRefresh">刷新</view></view>
+    <view class="two-col">
+      <input class="input" value="{{operationsOrderOptionKeyword}}" placeholder="搜索订单选项" bindinput="onOperationsOrderOptionInput" confirm-type="search" bindconfirm="onSearchOperationsOptions" />
+      <input class="input" value="{{operationsProductionOptionKeyword}}" placeholder="搜索床次选项" bindinput="onOperationsProductionOptionInput" confirm-type="search" bindconfirm="onSearchOperationsOptions" />
+    </view>
+    <button size="mini" class="btn-plain small-btn right-btn" bindtap="onSearchOperationsOptions">搜索选项（逐页加载）</button>
+    <view class="row">
+      <picker range="{{operationsOrderLabels}}" value="{{operationsOrderIndex}}" bindchange="onOperationsOrderChange"><view class="field-picker flex-input">{{operationsOrderLabels[operationsOrderIndex]}} ▾</view></picker>
+      <picker range="{{operationsProductionLabels}}" value="{{operationsProductionIndex}}" bindchange="onOperationsProductionChange"><view class="field-picker flex-input">{{operationsProductionLabels[operationsProductionIndex]}} ▾</view></picker>
+    </view>
+    <view class="row">
+      <picker range="{{operationsCustomerLabels}}" value="{{operationsCustomerIndex}}" bindchange="onOperationsCustomerChange"><view class="field-picker flex-input">{{operationsCustomerLabels[operationsCustomerIndex]}} ▾</view></picker>
+      <input class="input flex-input" value="{{operationsStyleNo}}" placeholder="款号（精确）" bindinput="onOperationsStyleInput" />
+    </view>
+    <input class="input" value="{{operationsKeyword}}" placeholder="路线编码/名称、订单号或床号" bindinput="onOperationsKeywordInput" confirm-type="search" bindconfirm="onQueryOperations" />
+    <view wx:if="{{operationsFiltersError}}" class="problem">{{operationsFiltersError}}</view>
+    <view class="row form-actions"><button size="mini" class="btn-plain small-btn" bindtap="onResetOperationsFilters">重置</button><button size="mini" class="btn btn-info small-btn" loading="{{operationsLoading}}" bindtap="onQueryOperations">查询</button></view>
+    <view class="row">
+      <picker range="{{operationsThresholdLabels}}" value="{{operationsThresholdIndex}}" bindchange="onOperationsThresholdChange"><view class="field-picker flex-input">滞留阈值：{{operationsThresholdLabels[operationsThresholdIndex]}} ▾</view></picker>
+      <switch checked="{{onlyStalled}}" bindchange="onOnlyStalledChange" />
+    </view>
+    <view class="foot-meta">仅看有在手滞留节点的路线</view>
+    <view wx:if="{{operationsLoading}}" class="state-tip">正在汇总统一流水…</view>
+    <block wx:if="{{operations}}">
+      <view class="metric-grid"><view><text class="metric-num">{{operations.summary.routes}}</text><text class="metric-label">生产路线</text></view><view><text class="metric-num">{{operations.summary.wip}}</text><text class="metric-label">生产在手</text></view><view><text class="metric-num">{{operations.summary.finished_available}}</text><text class="metric-label">成品现货</text></view><view><text class="metric-num">{{operations.summary.stalled_routes}}</text><text class="metric-label">滞留路线</text></view></view>
+      <view class="foot-meta">累计报废 {{operations.summary.scrapped}} 件；滞留指节点有在手且最后流水活动早于阈值</view>
+      <view class="foot-meta">顶部指标汇总全部 {{operations.total}} 条筛选路线；下方表格显示第 {{operations.page}} / {{operations.pages || 1}} 页，每页 {{operations.page_size}} 条。仅看滞留开关作用于当前页。</view>
+      <empty-state wx:if="{{!operationsRows.length}}" text="当前筛选下暂无生产路线" />
+      <view wx:for="{{operationsRows}}" wx:key="route" class="operations-route">
+        <view class="node-title">{{item.route_code}} · {{item.route_name}}</view>
+        <view class="binding">{{item.production ? '床次' : '订单'}} #{{item.production || item.order}} · 在手 {{item.summary.wip}} · 报废 {{item.summary.scrapped}} · 现货 {{item.summary.finished_available}}</view>
+        <view wx:if="{{item.delivery}}" class="foot-meta">订单 {{item.delivery.ordered}} · 已出货 {{item.delivery.shipped}} · 未交 {{item.delivery.remaining}}</view>
+        <view class="foot-meta">待办：检 {{item.pending.quality}} · 裁 {{item.pending.cutting}} · 包 {{item.pending.packing}} · 入 {{item.pending.inbound}}</view>
+        <view wx:for="{{item.stalled_nodes}}" wx:for-item="node" wx:key="node_id" class="problem">滞留 · {{node.stage_name}} · 在手 {{node.available}} · 最后活动 {{node.last_activity_at}}</view>
+        <button wx:if="{{entry !== 'operations'}}" size="mini" class="btn-plain small-btn right-btn" data-id="{{item.route}}" bindtap="onOpenOperationsRoute">查看路线</button>
+      </view>
+      <view wx:if="{{operations.total}}" class="row form-actions operations-pagination"><button size="mini" class="btn-plain small-btn" disabled="{{!operations.has_previous || operationsLoading}}" bindtap="onOperationsPreviousPage">上一页</button><view class="foot-meta">第 {{operations.page}} / {{operations.pages || 1}} 页</view><button size="mini" class="btn-plain small-btn" disabled="{{!operations.has_next || operationsLoading}}" bindtap="onOperationsNextPage">下一页</button></view>
+    </block>
+  </view>
+
+  <view wx:if="{{showRouteSetup && stageFormOpen}}" class="card form-card">
+    <view class="row"><view class="section-title">{{stageFormId ? '编辑标准阶段' : '新建标准阶段'}}</view><view class="add-line" bindtap="onNewStage">新建</view></view>
+    <input class="input" maxlength="32" placeholder="阶段编码，如 CUT" value="{{stageCode}}" disabled="{{stageFormInUse}}" bindinput="onStageCodeInput" />
+    <input class="input" maxlength="64" placeholder="阶段名称，如 裁剪" value="{{stageName}}" bindinput="onStageNameInput" />
+    <picker range="{{stageTypeLabels}}" value="{{stageTypeIndex}}" disabled="{{stageFormInUse}}" bindchange="onStageTypeChange"><view class="field-picker">业务类型：{{stageTypeLabels[stageTypeIndex]}} ▾</view></picker>
+    <view wx:if="{{stageFormInUse}}" class="permission-tip">此阶段已被路线引用，编码和类型不可修改；历史节点保留名称和类型快照。</view>
+    <button class="btn btn-info" disabled="{{stageSaving || !canMfgManage}}" loading="{{stageSaving}}" bindtap="onSaveStage">保存标准阶段</button>
+    <view wx:for="{{stages}}" wx:key="id" class="setup-row">
+      <view><view class="node-title">{{item.code}} · {{item.name}}</view><view class="foot-meta">{{item.stage_type}} · {{item.is_active === false ? '已停用' : '启用中'}}{{item.in_use ? ' · 历史保护' : ''}}</view></view>
+      <view class="row"><button size="mini" class="btn-plain small-btn" data-id="{{item.id}}" bindtap="onEditStage">编辑</button><button size="mini" class="btn-plain small-btn" data-id="{{item.id}}" bindtap="onToggleStageStatus">{{item.is_active === false ? '启用' : '停用'}}</button></view>
+    </view>
+  </view>
+
+  <view wx:if="{{showRouteSetup && routeEditorOpen}}" class="card form-card">
+    <view class="row"><view class="section-title">{{routeEditorMode === 'version' ? '创建路线新版本' : routeEditorMode === 'copy' ? '复制独立模板' : routeEditorId ? '编辑路线模板' : '新建路线模板'}}</view><view class="add-line" bindtap="onNewRouteTemplate">新建模板</view></view>
+    <view wx:if="{{!stages.length}}" class="permission-tip">请先创建标准阶段，再配置路线节点</view>
+    <input class="input" maxlength="64" placeholder="路线编码" value="{{routeEditorCode}}" disabled="{{routeEditorMode === 'edit' && !!routeEditorId}}" bindinput="onRouteEditorCodeInput" />
+    <input class="input" maxlength="64" placeholder="路线名称" value="{{routeEditorName}}" bindinput="onRouteEditorNameInput" />
+    <view wx:for="{{routeEditorNodes}}" wx:key="index" class="route-node-editor">
+      <view class="row"><view class="box-title">第 {{index + 1}} 个节点</view><view class="remove-line" data-index="{{index}}" bindtap="onRemoveRouteEditorNode">删除</view></view>
+      <picker range="{{stages}}" range-key="name" value="{{item.stageIndex}}" data-index="{{index}}" bindchange="onRouteEditorStageChange"><view class="field-picker">{{stages.length ? stages[item.stageIndex].name : '请选择标准阶段'}}{{stages.length && stages[item.stageIndex].is_active === false ? '（已停用）' : ''}} ▾</view></picker>
+      <view class="route-node-options">
+        <view class="flag-option {{item.required ? 'selected' : ''}}" data-index="{{index}}" data-field="required" bindtap="onRouteEditorFlagChange">必过</view>
+        <view class="flag-option {{item.allowParallel ? 'selected' : ''}}" data-index="{{index}}" data-field="allowParallel" bindtap="onRouteEditorFlagChange">并行</view>
+        <view class="flag-option {{item.allowSkip ? 'selected' : ''}}" data-index="{{index}}" data-field="allowSkip" bindtap="onRouteEditorFlagChange">可跳过</view>
+      </view>
+    </view>
+    <view class="add-line" bindtap="onAddRouteEditorNode">＋ 添加路线节点</view>
+    <button class="btn btn-info" disabled="{{routeEditorSaving || !canMfgManage || !routeEditorNodes.length}}" loading="{{routeEditorSaving}}" bindtap="onSaveRouteTemplate">{{routeEditorMode === 'version' ? '创建新版本' : routeEditorMode === 'copy' ? '创建独立副本' : '保存路线模板'}}</button>
+    <view wx:for="{{templates}}" wx:key="id" class="setup-row route-template-row">
+      <view><view class="node-title">{{item.code}} · V{{item.version || 1}} · {{item.name}}</view><view class="foot-meta">{{item.nodes.length}} 个节点 · {{item.instance_count || 0}} 个实例 · {{item.is_active === false ? '已停用' : '启用中'}}</view></view>
+      <view wx:if="{{item.configuration_warnings.length}}" class="permission-tip"><view wx:for="{{item.configuration_warnings}}" wx:for-item="warning" wx:key="*this">⚠ {{warning}}</view></view>
+      <view class="row route-template-actions"><button size="mini" class="btn-plain small-btn" data-id="{{item.id}}" bindtap="onEditRouteTemplate">编辑</button><button size="mini" class="btn-plain small-btn" data-id="{{item.id}}" bindtap="onCopyRouteTemplate">复制</button><button size="mini" class="btn-plain small-btn" data-id="{{item.id}}" bindtap="onNewRouteVersion">新版本</button><button size="mini" class="btn-plain small-btn" data-id="{{item.id}}" bindtap="onToggleRouteTemplateStatus">{{item.is_active === false ? '启用' : '停用'}}</button></view>
+    </view>
+    <view class="legend">模板可编辑、复制和创建新版本；已绑定订单或床次的实例保留节点快照，不受模板变更影响。停用模板不能创建新实例。</view>
+  </view>
+
+  <view wx:if="{{showRouteSetup && templateFormOpen}}" class="card form-card">
+    <view class="section-title">从路线模板创建实例</view>
+    <picker range="{{templateLabels}}" value="{{templateIndex}}" bindchange="onTemplateChange">
+      <view class="field-picker">{{instanceTemplates.length ? templateLabels[templateIndex] : '请选择启用中的路线模板'}} ▾</view>
+    </picker>
+    <view class="two-col">
+      <picker range="{{targetTypeLabels}}" value="{{targetTypeIndex}}" bindchange="onTargetTypeChange">
+        <view class="field-picker">{{targetTypeLabels[targetTypeIndex]}} ▾</view>
+      </picker>
+      <picker range="{{targetLabels}}" value="{{targetIndex}}" bindchange="onTargetChange">
+        <view class="field-picker">{{targetLabels[targetIndex]}} ▾</view>
+      </picker>
+    </view>
+    <input class="input" placeholder="实例编码（留空自动生成）" value="{{instanceCode}}" bindinput="onInstanceCodeInput" />
+    <input class="input" placeholder="实例名称（留空继承模板）" value="{{instanceName}}" bindinput="onInstanceNameInput" />
+    <button class="btn btn-info" disabled="{{instantiating || !canMfgManage}}" loading="{{instantiating}}" bindtap="onInstantiate">创建并绑定路线</button>
+  </view>
+
+  <scroll-view wx:if="{{entry !== 'operations' && tabs.length}}" scroll-x class="tab-scroll" enhanced show-scrollbar="{{false}}">
+    <view class="tabs">
+      <view wx:for="{{tabs}}" wx:key="key" class="tab {{activeTab === item.key ? 'on' : ''}}"
+            data-key="{{item.key}}" bindtap="onTabTap">{{item.label}}</view>
+    </view>
+  </scroll-view>
+
+  <view wx:if="{{entry !== 'operations' && loading}}" class="state-tip">正在读取生产路线…</view>
+  <view wx:if="{{entry !== 'operations' && loadError}}" class="card error-tip">{{loadError}}</view>
+  <empty-state wx:if="{{entry !== 'operations' && tabs.length && !loading && !routes.length && !loadError}}" text="暂无生产路线实例" sub="{{showRouteSetup ? '可点击「模板建实例」绑定订单或床次' : '请联系生产管理员创建并绑定路线'}}" />
+
+  <block wx:if="{{entry !== 'operations' && route}}">
+    <!-- 节点余额 -->
+    <block wx:if="{{activeTab === 'balance'}}">
+      <view class="card compact-card">
+        <picker range="{{balanceTicketLabels}}" value="{{balanceTicketIndex}}" bindchange="onBalanceTicketChange">
+          <view class="field-picker">{{balanceTicketLabels[balanceTicketIndex]}} ▾</view>
+        </picker>
+        <view class="legend">在手 = 接收 + 返修入站 − 转出 − 报废；可转量由服务端统一计算</view>
+      </view>
+      <view wx:if="{{listLoading}}" class="state-tip">加载中…</view>
+      <empty-state wx:elif="{{!filteredBalances.length}}" text="暂无节点余额" sub="该路线下尚无菲票或节点" />
+      <view wx:for="{{filteredBalances}}" wx:key="index" class="card balance-card">
+        <view class="row card-head">
+          <view class="node-title">{{item.sequence}}. {{item.stage_name}}</view>
+          <view class="badge">{{item.stage_type}}</view>
+        </view>
+        <view class="binding">{{item.style_no}} · {{item.bed_no}} · 第{{item.bundle_no}}扎 · {{item.color}}/{{item.size}}</view>
+        <view class="metric-grid">
+          <view><text class="metric-num">{{item.balance.available}}</text><text class="metric-label">在手</text></view>
+          <view><text class="metric-num">{{item.balance.qualification_remaining}}</text><text class="metric-label">待判合格</text></view>
+          <view><text class="metric-num accent">{{item.balance.transferable}}</text><text class="metric-label">可转出</text></view>
+          <view><text class="metric-num">{{item.balance.qualified}}</text><text class="metric-label">累计合格</text></view>
+        </view>
+        <view class="foot-meta">接收 {{item.balance.received}} · 返修 {{item.balance.rework}} · 转出 {{item.balance.transferred}} · 报废 {{item.balance.scrapped}} · 冲销 {{item.balance.reversals}}</view>
+      </view>
+    </block>
+
+    <!-- 流程看板：只展示统一流水及单证待办，不混用旧报工记录 -->
+    <block wx:if="{{activeTab === 'dashboard'}}">
+      <view wx:if="{{listLoading}}" class="state-tip">加载中…</view>
+      <block wx:if="{{dashboard}}">
+        <view class="card compact-card">
+          <view class="section-title">路线数量汇总</view>
+          <view class="metric-grid">
+            <view><text class="metric-num">{{dashboard.summary.ticket_qty}}</text><text class="metric-label">菲票总量</text></view>
+            <view><text class="metric-num">{{dashboard.summary.wip}}</text><text class="metric-label">生产在手</text></view>
+            <view><text class="metric-num accent">{{dashboard.summary.finished_available}}</text><text class="metric-label">成品现货</text></view>
+            <view><text class="metric-num">{{dashboard.summary.scrapped}}</text><text class="metric-label">累计报废</text></view>
+          </view>
+          <view class="foot-meta">待确认质检 {{dashboard.pending.quality}} · 待签收裁片 {{dashboard.pending.cutting}} · 待审核包装 {{dashboard.pending.packing}} · 待审核入库 {{dashboard.pending.inbound}}</view>
+          <view wx:if="{{dashboard.delivery}}" class="foot-meta">订单 {{dashboard.delivery.ordered}} · 已审核出货 {{dashboard.delivery.shipped}} · 未交 {{dashboard.delivery.remaining}}</view>
+        </view>
+        <empty-state wx:if="{{!dashboard.rows.length}}" text="当前路线暂无菲票" />
+        <view wx:for="{{dashboard.rows}}" wx:key="ticket_id" class="card balance-card">
+          <view class="node-title">{{item.bed_no}} · {{item.style_no}} · 第{{item.bundle_no}}扎</view>
+          <view class="binding">菲票 #{{item.ticket_id}} · {{item.color}}/{{item.size}} · 总量 {{item.ticket_qty}}</view>
+          <view class="foot-meta">生产在手 {{item.wip}} · 累计报废 {{item.scrapped}} · 成品现货 {{item.finished_available}}</view>
+          <view wx:for="{{item.nodes}}" wx:for-item="node" wx:key="node_id" class="foot-meta">{{node.sequence}}. {{node.stage_name}}：在手 {{node.available}} · 合格 {{node.qualified}} · 可转 {{node.transferable}} · 返修入 {{node.rework}} · 报废 {{node.scrapped}}</view>
+        </view>
+      </block>
+    </block>
+
+    <!-- 节点报工 -->
+    <block wx:if="{{activeTab === 'report'}}">
+      <view class="card form-card">
+        <view class="section-title">节点报工</view>
+        <view wx:if="{{!canMfgManage}}" class="permission-tip">缺少 manufacturing.manage，写操作已禁用</view>
+        <picker range="{{ticketLabels}}" value="{{reportTicketIndex}}" bindchange="onReportTicketChange">
+          <view class="field-picker">{{tickets.length ? ticketLabels[reportTicketIndex] : '请选择菲票'}} ▾</view>
+        </picker>
+        <view class="two-col">
+          <picker range="{{nodeLabels}}" value="{{reportNodeIndex}}" bindchange="onReportNodeChange">
+            <view class="field-picker">{{nodes.length ? nodeLabels[reportNodeIndex] : '请选择节点'}} ▾</view>
+          </picker>
+          <picker range="{{actions}}" range-key="label" value="{{actionIndex}}" bindchange="onActionChange">
+            <view class="field-picker">{{actions[actionIndex].label}} ▾</view>
+          </picker>
+        </view>
+        <picker wx:if="{{actionIndex === 2 || actionIndex === 3}}" range="{{targetNodeLabels}}" value="{{targetNodeIndex}}" bindchange="onTargetNodeChange">
+          <view class="field-picker">{{targetNodeLabels[targetNodeIndex]}} ▾</view>
+        </picker>
+        <input class="input" type="number" placeholder="数量（正整数）" value="{{reportQuantity}}" bindinput="onReportQuantityInput" />
+        <input class="input" placeholder="原因 / 备注" value="{{reportReason}}" bindinput="onReportReasonInput" />
+        <button class="btn btn-primary {{!canMfgManage ? 'disabled' : ''}}" disabled="{{!canMfgManage || reportSaving || !tickets.length}}" loading="{{reportSaving}}" bindtap="onSubmitReport">提交节点动作</button>
+      </view>
+      <view class="section-heading">路线数量时间线</view>
+      <view wx:if="{{timelineTruncated}}" class="foot-meta">共 {{timelineTotal}} 条，当前展示前 500 条</view>
+      <empty-state wx:if="{{!ledger.length}}" text="暂无路线数量流水" />
+      <view wx:for="{{ledger}}" wx:key="id" class="card ledger-card">
+        <view class="row card-head">
+          <text class="node-title">{{item.event_name}} · {{item.quantity}} 件</text>
+          <text class="badge {{item.event_type === 'reversal' ? 'badge-red' : ''}}">#{{item.id}}</text>
+        </view>
+        <view class="binding">{{styleNo}} · {{bedNo}} · 第{{item.bundle_no}}扎 · {{item.color}}/{{item.size}}</view>
+        <view class="foot-meta">{{item.node_name}} · {{item.created_at}}</view>
+        <view wx:if="{{item.reason}}" class="reason">{{item.reason}}</view>
+        <button wx:if="{{item.can_reverse}}" size="mini" class="btn-plain small-btn right-btn"
+                disabled="{{!canReverse}}" data-id="{{item.id}}" bindtap="onReverseLedger">冲销</button>
+      </view>
+    </block>
+
+    <!-- 质量检验 -->
+    <block wx:if="{{activeTab === 'quality'}}">
+      <view wx:if="{{!canQualityView}}" class="card permission-tip">缺少 quality.view，无法读取检验单</view>
+      <view class="card form-card">
+        <view class="section-title">新建半检 / 尾查 / 复检</view>
+        <view wx:if="{{!canQualityManage}}" class="permission-tip">缺少 quality.manage，写操作已禁用</view>
+        <view class="two-col">
+          <picker range="{{inspectionTypes}}" range-key="label" value="{{inspectionTypeIndex}}" bindchange="onInspectionTypeChange">
+            <view class="field-picker">{{inspectionTypes[inspectionTypeIndex].label}} ▾</view>
+          </picker>
+          <picker range="{{ticketLabels}}" value="{{qualityTicketIndex}}" bindchange="onQualityTicketChange">
+            <view class="field-picker">{{tickets.length ? ticketLabels[qualityTicketIndex] : '请选择菲票'}} ▾</view>
+          </picker>
+        </view>
+        <picker range="{{qualityNodeLabels}}" value="{{qualityNodeIndex}}" bindchange="onQualityNodeChange">
+          <view class="field-picker">{{qualityNodes.length ? qualityNodeLabels[qualityNodeIndex] : '当前类型无匹配节点'}} ▾</view>
+        </picker>
+        <view class="quantity-grid">
+          <input class="input" type="number" placeholder="检验数" value="{{inspected}}" bindinput="onInspectedInput" />
+          <input class="input" type="number" placeholder="合格" value="{{qualified}}" bindinput="onQualifiedInput" />
+          <input class="input" type="number" placeholder="返修" value="{{rework}}" bindinput="onReworkInput" />
+          <input class="input" type="number" placeholder="报废" value="{{scrapped}}" bindinput="onScrappedInput" />
+        </view>
+        <picker wx:if="{{showReworkNode}}" range="{{reworkNodeLabels}}" value="{{reworkNodeIndex}}" bindchange="onReworkNodeChange">
+          <view class="field-picker">{{reworkNodeLabels[reworkNodeIndex]}} ▾</view>
+        </picker>
+        <input wx:if="{{inspectionTypeIndex === 2}}" class="input" type="number" placeholder="原检验单 ID（须已确认且含返修）" value="{{reinspectionOf}}" bindinput="onReinspectionOfInput" />
+        <input class="input" placeholder="原因 / 备注（返修或报废必填）" value="{{qualityReason}}" bindinput="onQualityReasonInput" />
+        <button class="btn btn-primary" disabled="{{!canQualityManage || qualitySaving || !tickets.length || !qualityNodes.length}}" loading="{{qualitySaving}}" bindtap="onSubmitInspection">创建待确认检验单</button>
+      </view>
+      <view wx:if="{{listLoading}}" class="state-tip">加载中…</view>
+      <empty-state wx:elif="{{canQualityView && !inspections.length}}" text="暂无节点检验单" />
+      <view wx:for="{{inspections}}" wx:key="id" class="card">
+        <view class="row card-head">
+          <text class="node-title">{{item.inspection_type_display}} · #{{item.id}}</text>
+          <text class="badge {{item.status === 'confirmed' ? 'badge-green' : ''}}">{{item.status_display}}</text>
+        </view>
+        <view class="binding">{{item.style_no || styleNo}} · {{item.ticket_bed_no}} · 第{{item.ticket_bundle_no}}扎 · {{item.color}}/{{item.size}}</view>
+        <view class="document-line">{{item.node_sequence}}. {{item.node_name}} · 检验 {{item.inspected}}</view>
+        <view class="document-line">合格 {{item.qualified}} · 返修 {{item.rework}} · 报废 {{item.scrapped}}</view>
+        <view wx:if="{{item.rework_node_name}}" class="foot-meta">返修至 {{item.rework_node_name}}</view>
+        <view wx:if="{{item.reinspection_of}}" class="foot-meta">原检验单 #{{item.reinspection_of}}</view>
+        <view wx:if="{{item.reason}}" class="reason">{{item.reason}}</view>
+        <button wx:if="{{item.status === 'pending'}}" size="mini" class="btn-info small-btn right-btn"
+                disabled="{{!canQualityManage || confirmingId > 0}}" loading="{{confirmingId === item.id}}"
+                data-id="{{item.id}}" bindtap="onConfirmInspection">确认并记账</button>
+      </view>
+    </block>
+
+    <!-- 裁片签收 -->
+    <block wx:if="{{activeTab === 'cutting'}}">
+      <view wx:if="{{!canCuttingView}}" class="card permission-tip">缺少 cutting.view，无法读取裁片交接</view>
+      <view class="card form-card">
+        <view class="section-title">裁片下发</view>
+        <view wx:if="{{!canCuttingManage}}" class="permission-tip">缺少 cutting.manage，下发与取消已禁用；指定接收人仍可本人签收</view>
+        <picker range="{{ticketLabels}}" value="{{handoverTicketIndex}}" bindchange="onHandoverTicketChange">
+          <view class="field-picker">{{tickets.length ? ticketLabels[handoverTicketIndex] : '请选择菲票'}} ▾</view>
+        </picker>
+        <view class="two-col">
+          <picker range="{{handoverSourceLabels}}" value="{{handoverSourceIndex}}" bindchange="onHandoverSourceChange">
+            <view class="field-picker">{{handoverSources.length ? handoverSourceLabels[handoverSourceIndex] : '无裁剪节点'}} ▾</view>
+          </picker>
+          <picker range="{{handoverTargetLabels}}" value="{{handoverTargetIndex}}" bindchange="onHandoverTargetChange">
+            <view class="field-picker">{{handoverTargetLabels[handoverTargetIndex]}} ▾</view>
+          </picker>
+        </view>
+        <picker wx:if="{{employees.length}}" range="{{receiverLabels}}" value="{{receiverIndex}}" bindchange="onReceiverChange">
+          <view class="field-picker">{{receiverLabels[receiverIndex]}} ▾</view>
+        </picker>
+        <input wx:else class="input" type="number" placeholder="接收人用户 ID" value="{{receiverId}}" bindinput="onReceiverIdInput" />
+        <input class="input" type="number" placeholder="下发数量" value="{{handoverQuantity}}" bindinput="onHandoverQuantityInput" />
+        <input class="input" placeholder="交接备注" value="{{handoverRemark}}" bindinput="onHandoverRemarkInput" />
+        <button wx:if="{{canHandoverCreate}}" class="btn btn-primary" bindtap="onOpenResponsibleHandover">进入责任交接（支持差异接收）</button>
+        <button class="btn btn-plain" disabled="{{!canCuttingManage || handoverSaving || !handoverSources.length}}" loading="{{handoverSaving}}" bindtap="onSubmitHandover">创建旧版待签收单</button>
+      </view>
+      <view wx:if="{{listLoading}}" class="state-tip">加载中…</view>
+      <empty-state wx:elif="{{canCuttingView && !handovers.length}}" text="暂无裁片交接单" />
+      <view wx:for="{{handovers}}" wx:key="id" class="card">
+        <view class="row card-head">
+          <text class="node-title">裁片交接 #{{item.id}}</text>
+          <text class="badge {{item.status === 'signed' ? 'badge-green' : item.status === 'cancelled' ? 'badge-gray' : ''}}">{{item.status === 'pending' ? '待签收' : item.status === 'signed' ? '已签收' : '已取消'}}</text>
+        </view>
+        <view class="binding">{{item.style_no || styleNo}} · {{item.bed_no}} · 第{{item.bundle_no}}扎 · {{item.color}}/{{item.size}}</view>
+        <view class="document-line">{{item.source_node_name}} → {{item.target_node_name}} · {{item.quantity}} 件</view>
+        <view class="foot-meta">接收人 {{item.receiver_name}} · 下发人 {{item.created_by_name}}</view>
+        <view class="row action-row" wx:if="{{item.status === 'pending'}}">
+          <view class="spacer"></view>
+          <button size="mini" class="btn-plain small-btn" disabled="{{!canCuttingManage || handoverActionId > 0}}" data-id="{{item.id}}" bindtap="onCancelHandover">取消</button>
+          <button size="mini" class="btn-primary small-btn" disabled="{{!item.can_sign || handoverActionId > 0}}" loading="{{handoverActionId === item.id}}" data-id="{{item.id}}" bindtap="onSignHandover">签收</button>
+        </view>
+      </view>
+    </block>
+
+    <!-- 包装入库 -->
+    <block wx:if="{{activeTab === 'packing'}}">
+      <view wx:if="{{!canFinishedView}}" class="card permission-tip">缺少 finished_goods.view，无法读取包装与入库单</view>
+      <view wx:if="{{!canFinishedManage}}" class="card permission-tip">缺少 finished_goods.manage，创建与审核已禁用</view>
+      <view class="card form-card">
+        <view class="section-title">新建包装任务（多箱多菲票）</view>
+        <input class="input" placeholder="任务号（留空自动生成）" value="{{taskNo}}" bindinput="onTaskNoInput" />
+        <view wx:for="{{packingBoxes}}" wx:for-item="box" wx:for-index="boxIndex" wx:key="boxIndex" class="box-block">
+          <view class="row"><view class="box-title">第 {{boxIndex + 1}} 箱</view><view class="remove-line" data-box-index="{{boxIndex}}" bindtap="onRemovePackingBox">删除整箱</view></view>
+          <input class="input" placeholder="箱号（必填）" value="{{box.boxNo}}" data-box-index="{{boxIndex}}" bindinput="onBoxNoInput" />
+          <view wx:for="{{box.rows}}" wx:for-item="row" wx:for-index="rowIndex" wx:key="rowIndex" class="line-editor">
+            <picker range="{{ticketLabels}}" value="{{row.ticketIndex}}" data-box-index="{{boxIndex}}" data-row-index="{{rowIndex}}" bindchange="onPackingTicketChange">
+              <view class="field-picker">{{tickets.length ? ticketLabels[row.ticketIndex] : '请选择菲票'}} ▾</view>
+            </picker>
+            <view class="row">
+              <input class="input flex-input" type="number" placeholder="包装数量" value="{{row.quantity}}" data-box-index="{{boxIndex}}" data-row-index="{{rowIndex}}" bindinput="onPackingQuantityInput" />
+              <view class="remove-line" data-box-index="{{boxIndex}}" data-row-index="{{rowIndex}}" bindtap="onRemovePackingRow">删除</view>
+            </view>
+          </view>
+          <view class="add-line" data-box-index="{{boxIndex}}" bindtap="onAddPackingRow">+ 添加本箱菲票</view>
+        </view>
+        <view class="add-line" bindtap="onAddPackingBox">+ 添加包装箱</view>
+        <input class="input" placeholder="包装备注" value="{{packingRemark}}" bindinput="onPackingRemarkInput" />
+        <button class="btn btn-primary" disabled="{{!canFinishedManage || packingSaving || !tickets.length}}" loading="{{packingSaving}}" bindtap="onSubmitPacking">创建包装任务</button>
+      </view>
+
+      <view class="section-heading">包装任务</view>
+      <empty-state wx:if="{{canFinishedView && !packingTasks.length}}" text="暂无包装任务" />
+      <view wx:for="{{packingTasks}}" wx:key="id" class="card">
+        <view class="row card-head"><text class="node-title">{{item.task_no}}</text><text class="badge {{item.status === 'approved' ? 'badge-green' : ''}}">{{item.status_display}}</text></view>
+        <view class="document-line">{{item.route_code}} · 合计 {{item.total_quantity}} 件 · {{item.boxes.length}} 箱</view>
+        <view wx:for="{{item.boxes}}" wx:for-item="box" wx:key="id" class="box-block">
+          <view class="box-title">箱 {{box.box_no}} · {{box.total_quantity}} 件</view>
+          <view wx:for="{{box.lines}}" wx:for-item="line" wx:key="id" class="binding">{{styleNo}} · {{line.bed_no}} · 第{{line.bundle_no}}扎 · {{line.color}}/{{line.size}} · {{line.quantity}} 件</view>
+        </view>
+        <view wx:if="{{item.status === 'reversed'}}" class="reason">冲销：{{item.reversal_reason}} · {{item.reverser_name || '未知人员'}} · {{item.reversed_at}}</view>
+        <view wx:if="{{finishedDetailKey === 'packing-' + item.id}}" class="document-detail">
+          <view wx:if="{{finishedDetailLoading}}" class="state-tip">正在读取原流水及反向关联…</view>
+          <view wx:for="{{finishedDetail.ledger_entries}}" wx:for-item="ledger" wx:key="id" class="binding">流水 #{{ledger.id}} · {{ledger.node_name}} · {{ledger.event_type_display}} {{ledger.quantity}} 件 · {{ledger.operator_name || '系统'}}<block wx:if="{{ledger.reversal_of}}"> · 冲销原流水 #{{ledger.reversal_of}}</block><block wx:else> · 原流水</block></view>
+          <view wx:if="{{finishedDetail && !finishedDetail.ledger_entries.length}}" class="foot-meta">该单未写入数量流水</view>
+        </view>
+        <view class="action-row">
+          <button wx:if="{{item.status === 'reversed'}}" size="mini" class="btn-plain small-btn" data-kind="packing" data-id="{{item.id}}" bindtap="onShowFinishedDetail">{{finishedDetailKey === 'packing-' + item.id ? '收起流水' : '冲销详情'}}</button>
+          <button wx:if="{{item.status === 'draft'}}" size="mini" class="btn-info small-btn" disabled="{{!canFinishedManage || packingApprovalId > 0 || !!documentReverseKey}}" loading="{{packingApprovalId === item.id}}" data-id="{{item.id}}" bindtap="onApprovePacking">审核包装</button>
+          <button wx:if="{{item.status !== 'reversed'}}" size="mini" class="btn-plain small-btn" disabled="{{!canFinishedManage || !!documentReverseKey}}" data-kind="packing" data-id="{{item.id}}" bindtap="onReverseFinishedDocument">冲销包装</button>
+        </view>
+      </view>
+
+      <view class="card form-card inbound-form">
+        <view class="section-title">新建成品入库单</view>
+        <input class="input" placeholder="入库单号（留空自动生成）" value="{{documentNo}}" bindinput="onDocumentNoInput" />
+        <view wx:for="{{inboundRows}}" wx:key="index" class="line-editor">
+          <picker range="{{inboundOptionLabels}}" value="{{item.optionIndex}}" data-index="{{index}}" bindchange="onInboundOptionChange">
+            <view class="field-picker">{{inboundOptionLabels[item.optionIndex]}} ▾</view>
+          </picker>
+          <view class="row">
+            <input class="input flex-input" type="number" placeholder="本次入库数量" value="{{item.quantity}}" data-index="{{index}}" bindinput="onInboundQuantityInput" />
+            <view class="remove-line" data-index="{{index}}" bindtap="onRemoveInboundRow">删除</view>
+          </view>
+        </view>
+        <view class="add-line" bindtap="onAddInboundRow">+ 添加入库明细</view>
+        <view class="two-col">
+          <input class="input" placeholder="仓库" value="{{warehouseName}}" bindinput="onWarehouseNameInput" />
+          <input class="input" placeholder="库位" value="{{locationName}}" bindinput="onLocationNameInput" />
+        </view>
+        <input class="input" placeholder="入库备注" value="{{inboundRemark}}" bindinput="onInboundRemarkInput" />
+        <button class="btn btn-primary" disabled="{{!canFinishedManage || inboundSaving || inboundOptions.length === 0}}" loading="{{inboundSaving}}" bindtap="onSubmitInbound">创建待审核入库单</button>
+      </view>
+
+      <view class="section-heading">成品入库单</view>
+      <empty-state wx:if="{{canFinishedView && !inbounds.length}}" text="暂无成品入库单" />
+      <view wx:for="{{inbounds}}" wx:key="id" class="card">
+        <view class="row card-head"><text class="node-title">{{item.document_no}}</text><text class="badge {{item.status === 'approved' ? 'badge-green' : ''}}">{{item.status_display}}</text></view>
+        <view class="document-line">{{item.route_code}} · {{item.total_quantity}} 件 · {{item.warehouse_name || '未填仓库'}} / {{item.location_name || '未填库位'}}</view>
+        <view wx:for="{{item.lines}}" wx:for-item="line" wx:key="id" class="binding">{{styleNo}} · {{line.bed_no}} · 第{{line.bundle_no}}扎 · {{line.color}}/{{line.size}} · {{line.box_no}} · {{line.quantity}} 件</view>
+        <view wx:if="{{item.status === 'reversed'}}" class="reason">冲销：{{item.reversal_reason}} · {{item.reverser_name || '未知人员'}} · {{item.reversed_at}}</view>
+        <view wx:if="{{finishedDetailKey === 'inbound-' + item.id}}" class="document-detail">
+          <view wx:if="{{finishedDetailLoading}}" class="state-tip">正在读取原流水及反向关联…</view>
+          <view wx:for="{{finishedDetail.ledger_entries}}" wx:for-item="ledger" wx:key="id" class="binding">流水 #{{ledger.id}} · {{ledger.node_name}} · {{ledger.event_type_display}} {{ledger.quantity}} 件 · {{ledger.operator_name || '系统'}}<block wx:if="{{ledger.reversal_of}}"> · 冲销原流水 #{{ledger.reversal_of}}</block><block wx:else> · 原流水</block></view>
+          <view wx:if="{{finishedDetail && !finishedDetail.ledger_entries.length}}" class="foot-meta">该单未写入数量流水</view>
+        </view>
+        <view class="action-row">
+          <button wx:if="{{item.status === 'reversed'}}" size="mini" class="btn-plain small-btn" data-kind="inbound" data-id="{{item.id}}" bindtap="onShowFinishedDetail">{{finishedDetailKey === 'inbound-' + item.id ? '收起流水' : '冲销详情'}}</button>
+          <button wx:if="{{item.status === 'draft'}}" size="mini" class="btn-info small-btn" disabled="{{!canFinishedManage || inboundApprovalId > 0 || !!documentReverseKey}}" loading="{{inboundApprovalId === item.id}}" data-id="{{item.id}}" bindtap="onApproveInbound">审核入库</button>
+          <button wx:if="{{item.status !== 'reversed'}}" size="mini" class="btn-plain small-btn" disabled="{{!canFinishedManage || !!documentReverseKey}}" data-kind="inbound" data-id="{{item.id}}" bindtap="onReverseFinishedDocument">冲销入库</button>
+        </view>
+      </view>
+    </block>
+
+    <!-- 成品库存 -->
+    <block wx:if="{{activeTab === 'inventory'}}">
+      <view wx:if="{{!canFinishedView}}" class="card permission-tip">缺少 finished_goods.view，无法读取成品库存</view>
+      <view class="card filter-card">
+        <view class="inventory-total"><text>当前路线可用成品</text><text class="total-num">{{inventoryTotal}}</text></view>
+        <view class="three-col">
+          <input class="input" placeholder="床次" value="{{inventoryBedNo}}" bindinput="onInventoryBedInput" />
+          <input class="input" placeholder="颜色" value="{{inventoryColor}}" bindinput="onInventoryColorInput" />
+          <input class="input" placeholder="尺码" value="{{inventorySize}}" bindinput="onInventorySizeInput" />
+        </view>
+        <view class="row">
+          <switch checked="{{includeZero}}" bindchange="onIncludeZeroChange" />
+          <text class="foot-meta">显示零库存</text><view class="spacer"></view>
+          <button size="mini" class="btn-ghost small-btn" bindtap="loadInventory">查询</button>
+        </view>
+      </view>
+      <view wx:if="{{listLoading}}" class="state-tip">加载中…</view>
+      <empty-state wx:elif="{{canFinishedView && !inventory.length}}" text="暂无成品库存" sub="库存仅取 finished_inbound 节点的服务端净可用量" />
+      <view wx:for="{{inventory}}" wx:key="ticket_id" class="card inventory-card">
+        <view class="row card-head"><text class="node-title">{{item.style_no}} · {{item.bed_no}}</text><text class="stock-num">{{item.available}} 件</text></view>
+        <view class="binding">第{{item.bundle_no}}扎 · {{item.color}}/{{item.size}}</view>
+        <view class="foot-meta">入库 {{item.received}} · 出库 {{item.transferred}} · 报废 {{item.scrapped}} · 冲销 {{item.reversals}}</view>
+      </view>
+    </block>
+
+    <!-- 产前工艺维护 -->
+    <block wx:if="{{activeTab === 'preproduction'}}">
+      <view wx:if="{{!canPreView}}" class="card permission-tip">缺少 preproduction.view，无法读取产前状态</view>
+      <view wx:elif="{{!orderId}}" class="card permission-tip">当前床次未关联客户订单，无产前状态入口</view>
+      <block wx:else>
+        <view class="card readiness-card">
+          <view class="row card-head"><text class="node-title">产前放行状态</text><text class="badge {{preStatus.approved ? 'badge-green' : 'badge-red'}}">{{preStatus.approved ? '已批准' : '未放行'}}</text></view>
+          <view class="binding">{{styleNo}} · {{bedNo}} · {{orderNo}}</view>
+          <view wx:if="{{preStatus && !preStatus.approved}}" class="problem-list">
+            <view wx:for="{{preStatus.problems}}" wx:key="index" class="problem">• {{item}}</view>
+          </view>
+          <view wx:if="{{preStatus.approved}}" class="success-text">当前有效工艺与产前闭环已审批，可进入生产。</view>
+        </view>
+        <view wx:if="{{!canPreManage}}" class="card permission-tip">缺少 preproduction.manage，工艺维护、样衣、评审及交底添加已禁用；指定员工仍可本人签收</view>
+        <view wx:if="{{!canPreApprove}}" class="card permission-tip">缺少 preproduction.approve，审批操作已禁用</view>
+
+        <view class="card form-card pre-form">
+          <view class="row card-head">
+            <view class="section-title">{{techPackMode === 'update' ? '编辑当前工艺包' : '创建当前工艺包'}}</view>
+            <button wx:if="{{currentTechPack && techPackMode === 'update'}}" size="mini" class="btn-plain small-btn" disabled="{{!canPreManage || techPackSaving}}" bindtap="onNewTechPack">创建新版本</button>
+            <button wx:if="{{currentTechPack && techPackMode === 'create'}}" size="mini" class="btn-plain small-btn" disabled="{{!canPreManage || techPackSaving}}" bindtap="onEditCurrentTechPack">返回编辑</button>
+          </view>
+          <view wx:if="{{techPackMode === 'update' && currentTechPack}}" class="binding">{{currentTechPack.style_no}} · V{{currentTechPack.version_no}} · 修改工艺内容后需重新完成有效审批</view>
+          <input wx:if="{{techPackMode === 'create'}}" class="input" type="number" placeholder="版本号（留空自动递增）" value="{{techPackVersion}}" bindinput="onTechPackVersionInput" />
+          <input class="input" placeholder="纸样号（必填）" value="{{techPackPatternNo}}" bindinput="onTechPackPatternNoInput" />
+          <textarea class="textarea" placeholder="工艺要求（必填）" value="{{techPackRequirements}}" bindinput="onTechPackRequirementsInput" auto-height />
+          <view class="editor-heading">结构化尺寸表</view>
+          <view wx:for="{{measurementRows}}" wx:key="index" class="line-editor measurement-editor">
+            <view class="two-col">
+              <input class="input" placeholder="测量项，如衣长" value="{{item.item}}" data-index="{{index}}" data-field="item" bindinput="onMeasurementInput" />
+              <input class="input" placeholder="部位，如后中长" value="{{item.point}}" data-index="{{index}}" data-field="point" bindinput="onMeasurementInput" />
+            </view>
+            <view class="three-col">
+              <input class="input" placeholder="尺码" value="{{item.size}}" data-index="{{index}}" data-field="size" bindinput="onMeasurementInput" />
+              <input class="input" type="digit" placeholder="尺寸" value="{{item.value}}" data-index="{{index}}" data-field="value" bindinput="onMeasurementInput" />
+              <input class="input" placeholder="单位" value="{{item.unit}}" data-index="{{index}}" data-field="unit" bindinput="onMeasurementInput" />
+            </view>
+            <view class="row tolerance-row">
+              <input class="input flex-input" type="digit" placeholder="正公差" value="{{item.tolerancePlus}}" data-index="{{index}}" data-field="tolerancePlus" bindinput="onMeasurementInput" />
+              <input class="input flex-input" type="digit" placeholder="负公差" value="{{item.toleranceMinus}}" data-index="{{index}}" data-field="toleranceMinus" bindinput="onMeasurementInput" />
+              <view class="remove-line" data-index="{{index}}" bindtap="onRemoveMeasurementRow">删除</view>
+            </view>
+          </view>
+          <view class="add-line" bindtap="onAddMeasurementRow">+ 添加尺寸行</view>
+          <button class="btn btn-primary" disabled="{{!canPreManage || techPackSaving}}" loading="{{techPackSaving}}" bindtap="onSaveTechPack">{{techPackMode === 'update' ? '保存当前工艺' : '创建并设为当前版本'}}</button>
+        </view>
+
+        <view wx:if="{{listLoading}}" class="state-tip">加载中…</view>
+        <empty-state wx:elif="{{!techPacks.length}}" text="暂无工艺包版本" sub="请先填写纸样、工艺要求及尺寸表" />
+
+        <block wx:if="{{currentTechPack}}">
+          <view class="section-heading">样衣任务与结果</view>
+          <view class="card form-card">
+            <view class="section-title">创建样衣任务</view>
+            <input class="input" placeholder="任务名称（必填）" value="{{sampleTitle}}" bindinput="onSampleTitleInput" />
+            <picker range="{{preEmployeeLabels}}" value="{{sampleAssigneeIndex}}" bindchange="onSampleAssigneeChange" disabled="{{!canPreManage}}">
+              <view class="field-picker">{{preEmployeeLabels[sampleAssigneeIndex]}}（可不指派） ▾</view>
+            </picker>
+            <button class="btn btn-primary" disabled="{{!canPreManage || sampleSaving}}" loading="{{sampleSaving}}" bindtap="onCreateSampleTask">创建样衣任务</button>
+          </view>
+          <empty-state wx:if="{{!currentTechPack.sample_tasks.length}}" text="暂无样衣任务" />
+          <view wx:for="{{currentTechPack.sample_tasks}}" wx:key="id" class="card pre-detail-card">
+            <view class="row card-head">
+              <text class="node-title">{{item.title}}</text>
+              <text class="badge {{item.status === 'passed' ? 'badge-green' : item.status === 'failed' ? 'badge-red' : ''}}">{{item.status === 'pending' ? '待检验' : item.status === 'passed' ? '合格' : item.status === 'failed' ? '不合格' : '返工'}}</text>
+            </view>
+            <view class="foot-meta">任务 #{{item.id}} · 负责人 {{item.assignee_name || '未指派'}}</view>
+            <view wx:for="{{item.records}}" wx:for-item="record" wx:key="id" class="record-block">
+              <view class="document-line">{{record.result === 'passed' ? '合格' : record.result === 'failed' ? '不合格' : '返工'}} · {{record.operator_name || '未署名'}}</view>
+              <view class="foot-meta">{{record.occurred_at}}<text wx:if="{{record.note}}"> · {{record.note}}</text></view>
+            </view>
+            <button size="mini" class="btn-plain small-btn right-btn" disabled="{{!canPreManage || sampleResultSaving}}" data-id="{{item.id}}" bindtap="onOpenSampleResult">{{sampleResultTaskId === item.id ? '收起结果录入' : '记录检验结果'}}</button>
+            <view wx:if="{{sampleResultTaskId === item.id}}" class="inline-form">
+              <picker range="{{sampleResults}}" range-key="label" value="{{sampleResultIndex}}" bindchange="onSampleResultChange">
+                <view class="field-picker">{{sampleResults[sampleResultIndex].label}} ▾</view>
+              </picker>
+              <textarea class="textarea" placeholder="检验说明（合格/不合格必填）" value="{{sampleResultNote}}" bindinput="onSampleResultNoteInput" auto-height />
+              <button class="btn btn-info" disabled="{{sampleResultSaving}}" loading="{{sampleResultSaving}}" data-id="{{item.id}}" bindtap="onSubmitSampleResult">提交结果</button>
+            </view>
+          </view>
+
+          <view class="section-heading">工艺评审问题</view>
+          <view class="card form-card">
+            <view class="section-title">创建评审问题</view>
+            <input class="input" placeholder="问题标题（必填）" value="{{issueTitle}}" bindinput="onIssueTitleInput" />
+            <textarea class="textarea" placeholder="问题详情（可选）" value="{{issueDetail}}" bindinput="onIssueDetailInput" auto-height />
+            <button class="btn btn-primary" disabled="{{!canPreManage || issueSaving}}" loading="{{issueSaving}}" bindtap="onCreateReviewIssue">创建评审问题</button>
+          </view>
+          <empty-state wx:if="{{!currentTechPack.review_issues.length}}" text="暂无评审问题" />
+          <view wx:for="{{currentTechPack.review_issues}}" wx:key="id" class="card pre-detail-card">
+            <view class="row card-head">
+              <text class="node-title">{{item.title}}</text>
+              <text class="badge {{item.status === 'closed' ? 'badge-green' : item.status === 'open' ? 'badge-red' : ''}}">{{item.status === 'open' ? '待整改' : item.status === 'rectified' ? '待复审' : '已关闭'}}</text>
+            </view>
+            <view wx:if="{{item.detail}}" class="reason">{{item.detail}}</view>
+            <view wx:if="{{item.rectification}}" class="document-line">整改：{{item.rectification}}</view>
+            <view wx:if="{{item.review_note}}" class="foot-meta">复审：{{item.review_note}}</view>
+            <view class="row action-row">
+              <view class="spacer"></view>
+              <button wx:if="{{item.status === 'open'}}" size="mini" class="btn-info small-btn" disabled="{{!canPreManage || preActionId > 0}}" loading="{{preActionId === item.id}}" data-id="{{item.id}}" bindtap="onRectifyReviewIssue">提交整改</button>
+              <button wx:if="{{item.status === 'rectified'}}" size="mini" class="btn-plain small-btn" disabled="{{!canPreManage || preActionId > 0}}" data-id="{{item.id}}" data-close="0" bindtap="onReviewReviewIssue">复审退回</button>
+              <button wx:if="{{item.status === 'rectified'}}" size="mini" class="btn-primary small-btn" disabled="{{!canPreManage || preActionId > 0}}" data-id="{{item.id}}" data-close="1" bindtap="onReviewReviewIssue">复审关闭</button>
+            </view>
+          </view>
+
+          <view class="section-heading">工艺交底与本人签收</view>
+          <view class="card form-card">
+            <view class="section-title">添加交底员工</view>
+            <picker range="{{preEmployeeLabels}}" value="{{briefingEmployeeIndex}}" bindchange="onBriefingEmployeeChange" disabled="{{!canPreManage}}">
+              <view class="field-picker">{{preEmployeeLabels[briefingEmployeeIndex]}} ▾</view>
+            </picker>
+            <input class="input" placeholder="交底说明（可选）" value="{{briefingNote}}" bindinput="onBriefingNoteInput" />
+            <button class="btn btn-primary" disabled="{{!canPreManage || briefingSaving || employees.length === 0}}" loading="{{briefingSaving}}" bindtap="onAddBriefingTarget">添加交底对象</button>
+          </view>
+          <empty-state wx:if="{{!currentTechPack.briefing_targets.length}}" text="暂无交底员工" />
+          <view wx:for="{{currentTechPack.briefing_targets}}" wx:for-item="target" wx:key="id" class="card pre-detail-card">
+            <view class="row card-head">
+              <text class="node-title">{{target.employee_name}}（用户 {{target.employee}}）</text>
+              <text class="badge {{target.receipt ? 'badge-green' : 'badge-red'}}">{{target.receipt ? '已签收' : '待签收'}}</text>
+            </view>
+            <view wx:if="{{target.note}}" class="document-line">{{target.note}}</view>
+            <view wx:if="{{target.receipt}}" class="foot-meta">{{target.receipt.signed_at}}<text wx:if="{{target.receipt.remark}}"> · {{target.receipt.remark}}</text></view>
+            <button wx:if="{{!target.receipt && currentUserId === target.employee}}" size="mini" class="btn-primary small-btn right-btn" disabled="{{preActionId > 0}}" loading="{{preActionId === target.id}}" data-id="{{target.id}}" bindtap="onSignBriefingTarget">本人签收</button>
+          </view>
+        </block>
+
+        <view class="section-heading">工艺版本与审批</view>
+        <view wx:for="{{techPacks}}" wx:key="id" class="card">
+          <view class="row card-head"><text class="node-title">{{item.style_no}} · V{{item.version_no}}</text><text class="badge {{item.is_current ? '' : 'badge-gray'}}">{{item.is_current ? '当前版本' : '历史版本'}}</text></view>
+          <view class="document-line">订单 {{item.order_no}} · 纸样 {{item.pattern_no || '未填'}}</view>
+          <view class="metric-grid pre-metrics">
+            <view><text class="metric-num">{{item.sample_tasks.length}}</text><text class="metric-label">样衣任务</text></view>
+            <view><text class="metric-num">{{item.review_issues.length}}</text><text class="metric-label">评审问题</text></view>
+            <view><text class="metric-num">{{item.briefing_targets.length}}</text><text class="metric-label">交底对象</text></view>
+            <view><text class="metric-num">{{item.approvals.length}}</text><text class="metric-label">审批记录</text></view>
+          </view>
+          <view wx:if="{{item.is_current}}" class="row action-row">
+            <view class="spacer"></view>
+            <button size="mini" class="btn-plain small-btn" disabled="{{!canPreApprove || preApprovalId > 0}}" data-id="{{item.id}}" data-approved="0" bindtap="onApproveTechPack">驳回</button>
+            <button size="mini" class="btn-primary small-btn" disabled="{{!canPreApprove || preApprovalId > 0}}" data-id="{{item.id}}" data-approved="1" bindtap="onApproveTechPack">批准</button>
+          </view>
+        </view>
+      </block>
+    </block>
+  </block>
+</view>

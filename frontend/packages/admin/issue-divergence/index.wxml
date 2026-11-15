@@ -1,0 +1,122 @@
+<view class="page">
+  <!-- 无权限防御态（warehouse.manage；后端 403 兜底） -->
+  <view wx:if="{{denied}}" class="state">
+    <view class="text-3">暂无「采购/入库/领料」权限，请联系管理员开通</view>
+  </view>
+
+  <block wx:else>
+    <!-- 过滤：日期范围 + 订单/床次/物料 -->
+    <date-range-bar start="{{start}}" end="{{end}}" quick="{{quick}}" bind:change="onRangeChange" />
+    <view class="card filter-card">
+      <view class="row filter-row">
+        <picker mode="selector" range="{{orderNames}}" value="{{orderIndex}}" bindchange="onOrderChange">
+          <view class="filter-chip">{{orderNames[orderIndex]}} ▾</view>
+        </picker>
+        <picker mode="selector" range="{{productionNames}}" value="{{productionIndex}}" bindchange="onProductionChange">
+          <view class="filter-chip">{{productionNames[productionIndex]}} ▾</view>
+        </picker>
+      </view>
+      <view class="row filter-row">
+        <picker mode="selector" range="{{materialNames}}" value="{{materialIndex}}" bindchange="onMaterialChange">
+          <view class="filter-chip wide">{{materialNames[materialIndex]}} ▾</view>
+        </picker>
+        <view class="search-btn" bindtap="onSearch">查询</view>
+      </view>
+    </view>
+
+    <view wx:if="{{loading}}" class="state text-3">加载中…</view>
+    <view wx:elif="{{error}}" class="state">
+      <view class="text-3">加载失败，请重试</view>
+      <button class="btn btn-ghost state-btn" bindtap="onSearch">重新加载</button>
+    </view>
+
+    <block wx:elif="{{searched}}">
+      <!-- summary 卡：双占比 + 合计 -->
+      <view class="card summary-card" wx:if="{{summary}}">
+        <view class="row">
+          <view class="stat">
+            <view class="stat-num num {{summary.over_ratio ? 'warn-num' : ''}}">
+              {{summary.over_ratio === null ? '—' : summary.over_ratio + '%'}}
+            </view>
+            <view class="text-3">超领占比</view>
+          </view>
+          <view class="stat">
+            <view class="stat-num num">{{summary.no_req_ratio === null ? '—' : summary.no_req_ratio + '%'}}</view>
+            <view class="text-3">无定额占比</view>
+          </view>
+          <view class="stat">
+            <view class="stat-num num">{{summary.pending_count}}</view>
+            <view class="text-3">待补参数</view>
+          </view>
+        </view>
+        <view class="text-3 total-line">
+          实领合计 {{summary.issued_total}} · 超领量 {{summary.over_total}} · 无定额量 {{summary.no_req_total}}（主单位口径，仅已确认单）
+        </view>
+      </view>
+
+      <!-- 待补参数清单：批次单位≠主单位且缺克重/幅宽，折算缺参不入合计 -->
+      <view class="card" wx:if="{{pendingUnits.length}}">
+        <view class="row">
+          <view class="h2">待补参数（{{pendingUnits.length}}）</view>
+          <view class="spacer"></view>
+          <view class="link-btn" bindtap="onGoMaterials">去物料档补克重幅宽 ›</view>
+        </view>
+        <view class="text-3 pending-item" wx:for="{{pendingUnits}}" wx:key="index">
+          {{item.issue_no}} · {{item.lot_no}} · {{item.qty}}{{item.lot_unit}} → 主单位{{item.material_unit}}（缺克重/幅宽）
+        </view>
+      </view>
+
+      <!-- 明细行：双口径四列 + 超领/无定额徽标 + over_rows 展开 -->
+      <empty-state wx:if="{{!rows.length}}" text="该范围内无已确认领料行" sub="调整过滤条件或确认领料单后再查" />
+      <view class="card div-card" wx:for="{{rows}}" wx:key="index"
+        data-index="{{index}}" bindtap="onToggleRow">
+        <view class="row">
+          <view class="item-main">
+            <view class="item-title">{{item.material_name || item.lot_no}}</view>
+            <view class="text-3">{{item.order_no || '无单'}} · 床次 {{item.bed_no}} · {{item.style_no || '无款式'}}</view>
+          </view>
+          <view class="badge badge-over" wx:if="{{item.over}}">超领</view>
+          <view class="badge badge-gray" wx:if="{{item.no_req_qty !== '0.00' && item.no_req_qty !== '0'}}">无定额</view>
+          <view class="badge badge-gray" wx:if="{{item.unit_pending}}">待补参数</view>
+        </view>
+        <!-- 双口径四列 -->
+        <view class="row cols">
+          <view class="col">
+            <view class="col-num num">{{item.qty_issued}}</view>
+            <view class="text-3">实领</view>
+          </view>
+          <view class="col">
+            <view class="col-num num">{{item.qty_returned}}</view>
+            <view class="text-3">退回</view>
+          </view>
+          <view class="col">
+            <view class="col-num num">{{item.qty_req_snapshot}}</view>
+            <view class="text-3">发料快照定额</view>
+          </view>
+          <view class="col">
+            <view class="col-num num {{item.qty_req_current === null ? 'text-3' : ''}}">{{item.reqCurrentText}}</view>
+            <view class="text-3">当前BOM应发</view>
+          </view>
+        </view>
+        <view class="text-3 sub-line">
+          净领 {{item.qty_net}}{{item.material_unit ? ' ' + item.material_unit : ''}}
+          <text wx:if="{{item.over_qty !== '0.00' && item.over_qty !== '0'}}"> · 超领量 {{item.over_qty}}</text>
+        </view>
+
+        <!-- over_rows 明细（可展开：单号/类型/缸号/数量/定额/状态/原因） -->
+        <view wx:if="{{item.expanded && item.over_rows.length}}" class="over-detail">
+          <view class="text-3 detail-line" wx:for="{{item.over_rows}}" wx:for-item="ov" wx:key="issue_no">
+            {{ov.issue_no}}（{{ov.issue_type === 'return' ? '退料' : '领料'}}）· 缸 {{ov.lot_no}} ·
+            数量 {{ov.qty}}{{ov.qty_req ? ' / 定额 ' + ov.qty_req : ''}} ·
+            {{ov.state === 'over' ? '超领' : ov.state === 'pending' ? '缺参' : ov.state === 'no_req' ? '无定额' : '正常'}}
+            <text wx:if="{{ov.over_reason}}"> · 原因：{{ov.over_reason}}</text>
+          </view>
+        </view>
+        <view wx:elif="{{item.expanded}}" class="text-3 detail-line">无逐单明细（该行由退料冲减/正常行汇总）</view>
+        <view wx:elif="{{item.over_rows.length}}" class="text-3 detail-hint">点开看 {{item.over_rows.length}} 条超额/缺参明细</view>
+      </view>
+    </block>
+
+    <empty-state wx:else text="选好日期与过滤条件后点「查询」" sub="只统计已确认领料/退料单，主单位口径" />
+  </block>
+</view>

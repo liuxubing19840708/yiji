@@ -132,10 +132,18 @@ def get_wx_access_token() -> str:
     try:
         with urllib.request.urlopen(url, timeout=10) as resp:
             data = json.loads(resp.read().decode('utf-8'))
+        if not isinstance(data, dict):
+            raise ValueError('微信凭证响应不是 JSON 对象')
+        expires_in = int(data.get('expires_in', 7200))
     except (urllib.error.URLError, TimeoutError) as exc:
         raise ValidationError(f'获取小程序凭证失败：网络错误 {exc}') from exc
+    except (UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        raise ValidationError('获取小程序凭证失败：响应格式异常') from exc
     if 'access_token' not in data:
         raise ValidationError(f"获取小程序凭证失败：{data.get('errmsg', '未知错误')}")
-    _wx_token_cache['token'] = data['access_token']
-    _wx_token_cache['expires_at'] = now + int(data.get('expires_in', 7200)) - 300
-    return data['access_token']
+    token = data['access_token']
+    if not isinstance(token, str) or not token:
+        raise ValidationError('获取小程序凭证失败：响应格式异常')
+    # 所有字段校验完成后再整体更新，避免非法 expires_in 留下半份缓存。
+    _wx_token_cache.update(token=token, expires_at=now + expires_in - 300)
+    return token

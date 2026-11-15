@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "按扎卡片",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index"
+  }
+}

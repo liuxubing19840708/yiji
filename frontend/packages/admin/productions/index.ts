@@ -8,7 +8,8 @@ import {
   fetchProductions, lockProduction, cutDoneProduction, fetchProductionBundles
 } from '../../../services/production';
 import { fetchProductionLotLinks } from '../../../services/warehouse';
-import { printTickets } from '../../../services/printer';
+import { getSkipPreview } from '../../../services/printer';
+import { startPrintFlow, cancelPrintFlow } from '../../../utils/print-flow';
 import { PrintTicketData } from '../../../utils/bluetooth/templates';
 import { mediaUrl } from '../../../utils/media';
 import { Production, Paginated } from '../../../services/types';
@@ -59,7 +60,9 @@ Page({
     previewTickets: [] as PrintTicketData[],
     /** 打印门槛（H4）：⋮ 菜单「打印」按 print.manage ∪ production.manage 显隐 */
     canPrint: false,
-    previewCompany: { name: '' } as { name?: string }
+    previewCompany: { name: '' } as { name?: string },
+    /** 打印流程状态（print-progress 组件，utils/print-flow 驱动） */
+    printFlow: { show: false, done: 0, total: 0 }
   },
 
   /**
@@ -171,7 +174,13 @@ Page({
     const p = this.data.productions[idx];
     if (!p) return;
     const actions: Array<{ label: string; run: () => void }> = [
-      { label: '床次详情', run: () => wx.navigateTo({ url: `/packages/admin/production-detail/index?id=${p.id}` }) }
+      { label: '床次详情', run: () => wx.navigateTo({ url: `/packages/admin/production-detail/index?id=${p.id}` }) },
+      // 按扎卡片（竞品对齐借鉴#1，2026-11-05）：扎卡+工序价目+行内改数/撤销
+      { label: '按扎卡片', run: () => wx.navigateTo({
+        url: `/packages/admin/bundle-view/index?production_id=${p.id}`
+          + `&bed_no=${encodeURIComponent(p.bed_no)}`
+          + `&style_no=${encodeURIComponent(p.style_no || '')}`
+      }) }
     ];
     if (hasPerm('production.lock')) {
       actions.push({ label: p.is_locked ? '解锁床次' : '锁定床次', run: () => this.toggleLock(idx) });
@@ -266,18 +275,37 @@ Page({
           .map((row, i) => ({ row, t: all[i] }))
           .filter((x) => !x.row.is_printed)
           .map((x) => x.t);
-        const options = unprinted.length && unprinted.length < all.length
+        const pickAndPreview = (list: PrintTicketData[]) => {
+          // 开关关掉（预览里勾过「不再预览」）：跳过预览直接进打印流程
+          if (getSkipPreview()) {
+            this.printBundles(list);
+            return;
+          }
+          this.setData({
+            previewShow: true,
+            previewTickets: list,
+            previewCompany: this.printCompany()
+          });
+        };
+        // 全部已打印过：重打全床是费纸操作，先防呆确认一次
+        if (!unprinted.length) {
+          wx.showModal({
+            title: '该床次均已打印',
+            content: `共 ${all.length} 扎菲票都已打印过，确认全部重打？`,
+            success: (m) => {
+              if (m.confirm) pickAndPreview(all);
+            }
+          });
+          return;
+        }
+        const options = unprinted.length < all.length
           ? [`全部打印（${all.length} 扎）`, `仅未打印（${unprinted.length} 扎）`]
           : [`全部打印（${all.length} 扎）`];
         wx.showActionSheet({
           itemList: options,
           success: (r) => {
             // 打印前先出预览：按当前模板渲染标签，确认后才发蓝牙
-            this.setData({
-              previewShow: true,
-              previewTickets: r.tapIndex === 1 ? unprinted : all,
-              previewCompany: this.printCompany()
-            });
+            pickAndPreview(r.tapIndex === 1 ? unprinted : all);
           }
         });
       })
@@ -299,44 +327,19 @@ Page({
     this.setData({ previewShow: false, previewTickets: [] });
   },
 
+  /** 发起打印：统一走 print-flow（进度弹窗可取消 + 失败/未连接引导），成功刷新列表 */
   printBundles(tickets: PrintTicketData[]) {
-    wx.showLoading({ title: `打印中 0/${tickets.length}…`, mask: true });
-    printTickets(tickets, {
+    startPrintFlow(this, tickets, {
       company: this.printCompany(),
-      // 批量打印逐张回显进度（蓝牙逐张发送，大批次耗时随张数线性增长）
-      onProgress: (done, total) => wx.showLoading({ title: `打印中 ${done}/${total}…`, mask: true })
-    })
-      .then((result) => {
-        wx.hideLoading();
-        const failed = result.failed.length;
-        if (!failed) {
-          wx.showToast({ title: `已打印 ${result.printed.length} 张`, icon: 'success' });
-          // 打印成功后刷新列表（L5：统计与列表状态回到最新）
-          this.reload();
-        } else {
-          wx.showModal({
-            title: '部分未打印',
-            content: `成功 ${result.printed.length} 张，${failed} 张失败已入重试队列，可到「打印管理」补打`,
-            showCancel: false
-          });
-        }
-      })
-      .catch((err: Error) => {
-        wx.hideLoading();
-        if (err && err.message === '请先连接打印机') {
-          wx.showModal({
-            title: '未连接打印机',
-            content: '先到「打印管理」页扫描绑定蓝牙打印机，再回来打印',
-            confirmText: '去连接',
-            success: (r) => {
-              if (r.confirm) {
-                wx.navigateTo({ url: '/packages/admin/cloud-printer/index' });
-              }
-            }
-          });
-        } else {
-          wx.showToast({ title: (err && err.message) || '打印失败', icon: 'none' });
-        }
-      });
+      onSuccess: () => {
+        // 打印成功后刷新列表（L5：统计与列表状态回到最新）
+        this.reload();
+      }
+    });
+  },
+
+  /** 打印进度弹层「取消打印」回调（print-flow 统一转发） */
+  onFlowCancel() {
+    cancelPrintFlow();
   }
 });
