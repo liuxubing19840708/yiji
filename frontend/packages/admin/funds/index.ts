@@ -54,6 +54,12 @@ Page({
     hasMore: false,
     dateFrom: '',
     dateTo: '',
+    filterStatus: '',
+    payableStatusOptions: ['全部状态', 'unpaid', 'partial', 'settled', 'voided'],
+    paymentStatusOptions: ['全部状态', 'active', 'voided'],
+    filterSupplierIndex: 0,
+    filterCategory: '',
+    filterDirection: 'expense',
     groupBy: 'month',
     flowRows: [] as CashFlowRow[],
     flowTotals: null as CashFlowRow | null,
@@ -132,7 +138,10 @@ Page({
 
   onTab(e: WechatMiniprogram.TouchEvent) {
     const tab = String(e.currentTarget.dataset.key || 'payables');
-    this.setData({ tab, rows: [], loaded: false, error: false });
+    this.setData({
+      tab, rows: [], loaded: false, error: false, page: 1,
+      filterStatus: '', filterSupplierIndex: 0, filterCategory: '', filterDirection: 'expense'
+    });
     this.reload();
   },
 
@@ -177,6 +186,30 @@ Page({
     this.loadCashFlow();
   },
 
+  onFilterStatus(e: WechatMiniprogram.PickerChange) {
+    const options = this.data.tab === 'payables'
+      ? this.data.payableStatusOptions : this.data.paymentStatusOptions;
+    const index = Number(e.detail.value);
+    const status = index > 0 ? options[index] : '';
+    this.setData({ filterStatus: status, page: 1 }, () => this.loadPage(1));
+  },
+
+  onFilterSupplier(e: WechatMiniprogram.PickerChange) {
+    this.setData({ filterSupplierIndex: Number(e.detail.value), page: 1 }, () => this.loadPage(1));
+  },
+
+  onFilterCategory(e: WechatMiniprogram.Input) {
+    this.setData({ filterCategory: e.detail.value });
+  },
+
+  onFilterDirection(e: WechatMiniprogram.TouchEvent) {
+    this.setData({ filterDirection: String(e.currentTarget.dataset.key || 'expense'), page: 1 }, () => this.loadPage(1));
+  },
+
+  onFilterSearch() {
+    this.loadPage(1);
+  },
+
   reload() {
     if (this.data.tab === 'cashflow') this.loadCashFlow();
     else this.loadPage(1);
@@ -184,7 +217,17 @@ Page({
 
   loadPage(page: number) {
     this.setData({ loading: true, error: false });
-    const params = { page, page_size: 20 };
+    const params: Record<string, unknown> = { page, page_size: 20 };
+    if (this.data.dateFrom) params.date_from = this.data.dateFrom;
+    if (this.data.dateTo) params.date_to = this.data.dateTo;
+    if (this.data.filterStatus) params.status = this.data.filterStatus;
+    const supplier = this.data.filterSupplierIndex > 0
+      ? this.data.suppliers[this.data.filterSupplierIndex - 1] : null;
+    if (supplier) params.supplier = supplier.id;
+    if (this.data.tab === 'entries') {
+      params.direction = this.data.filterDirection;
+      if (this.data.filterCategory.trim()) params.category = this.data.filterCategory.trim();
+    }
     const request = this.data.tab === 'payments'
       ? fetchSupplierPayments(params)
       : this.data.tab === 'entries' ? fetchCashEntries(params) : fetchPayables(params);

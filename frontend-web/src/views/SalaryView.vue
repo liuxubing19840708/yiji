@@ -65,12 +65,12 @@ async function loadEmployees() {
 }
 async function loadCompletionFilters() {
   if (completionFiltersLoaded.value) return
-  const [employeeData, customerData] = await Promise.all([
+  const [employeeData, customerData] = await Promise.allSettled([
     employees.value.length ? Promise.resolve(employees.value) : api('/salary/company/employees', { params: filters }),
     api('/customers', { params: { page_size: 200 } }),
   ])
-  employees.value = employeeData
-  completionCustomers.value = rows(customerData)
+  if (employeeData.status === 'fulfilled') employees.value = employeeData.value
+  if (customerData.status === 'fulfilled') completionCustomers.value = rows(customerData.value)
   completionFiltersLoaded.value = true
 }
 async function loadOverview() {
@@ -109,11 +109,12 @@ async function loadAux() {
         return
       }
       const params = { ...filters, ...completionFilters, ...drill }
-      const [result] = await Promise.all([
+      const [result] = await Promise.allSettled([
         api('/salary/summary/completion', { params }),
         loadCompletionFilters(),
       ])
-      completion.value = result
+      if (result.status !== 'fulfilled') throw result.reason
+      completion.value = result.value
     } else if (tab.value === 'payments') {
       return
     } else if (tab.value === 'changes') {
@@ -129,7 +130,8 @@ async function loadAux() {
   }
 }
 function load() {
-  tab.value === 'overview' ? loadOverview() : loadAux()
+  if (standaloneMode.value && tab.value === 'completion') loadAux()
+  else tab.value === 'overview' ? loadOverview() : loadAux()
 }
 function changeTab(value) {
   tab.value = value
@@ -276,7 +278,7 @@ onMounted(load)
         <h2>{{ pageTitle }}</h2>
         <p>{{ pageDescription }}</p>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div class="salary-header-actions">
         <button v-if="!orderSalaryMode && !completionMode" class="button secondary" @click="changeTab('changes')">与我相关的变更</button>
         <button v-if="!orderSalaryMode && !completionMode" class="button secondary" @click="openAction('apply')">申请结算</button>
         <template v-if="!personalMode && !orderSalaryMode && !completionMode">
@@ -725,6 +727,8 @@ onMounted(load)
 
 <style scoped>
 .salary-mobile { display: none; }
+.salary-header-actions { display: flex; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.salary-header-actions .button { min-width: 0; max-width: 100%; }
 .payslip-modal-actions { display: flex; align-items: center; gap: 8px; }
 .payslip-modal-actions .spinner { width: 13px; height: 13px; }
 .salary-completion-view-bar { justify-content: flex-start; }
@@ -760,6 +764,8 @@ onMounted(load)
   .salary-view .salary-mobile,
   .salary-modal .salary-mobile { display: block; }
   .salary-view { min-width: 0; color: var(--ink); }
+  .salary-header-actions { width: 100%; }
+  .salary-header-actions .button { flex: 1 1 30%; white-space: normal; padding-inline: 8px; }
   .salary-tab-bar { margin-bottom: 12px; }
   .salary-main-tabs {
     display: grid;
@@ -889,8 +895,9 @@ onMounted(load)
   .salary-card-actions { gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
   .salary-card-actions .button { flex: 1; min-width: 0; }
   .danger-text { color: var(--danger) !important; }
-  .salary-change-card { padding: 16px; }
-  .salary-change-card time { color: var(--muted); font-size: 11px; }
+  .salary-change-card { padding: 14px 12px; min-width: 0; overflow-wrap: anywhere; }
+  .salary-change-card .salary-record-head { flex-wrap: wrap; }
+  .salary-change-card time { color: var(--muted); font-size: 11px; min-width: 0; overflow-wrap: anywhere; }
   .salary-change-employee { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 15px; font-size: 15px; }
   .salary-change-card > p { margin: 13px 0 10px; color: var(--text-primary); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
   .salary-muted { color: var(--muted); font-size: 11px; }

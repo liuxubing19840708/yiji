@@ -30,6 +30,32 @@
       <view class="primary-btn" data-kind="{{tab}}" bindtap="openForm">＋ {{tab === 'payables' ? '新建应付' : tab === 'payments' ? '登记付款' : '登记收支'}}</view>
     </view>
 
+    <view wx:if="{{tab !== 'cashflow'}}" class="card filter-card">
+      <view class="range-row">
+        <picker mode="date" value="{{dateFrom}}" data-field="dateFrom" bindchange="onDate"><view class="picker-box">{{dateFrom || '开始日期'}}</view></picker>
+        <text>至</text>
+        <picker mode="date" value="{{dateTo}}" data-field="dateTo" bindchange="onDate"><view class="picker-box">{{dateTo || '结束日期'}}</view></picker>
+      </view>
+      <picker wx:if="{{tab === 'payables'}}" mode="selector" range="{{payableStatusOptions}}" value="{{filterStatus ? payableStatusOptions.indexOf(filterStatus) : 0}}" bindchange="onFilterStatus">
+        <view class="picker-box">状态：{{filterStatus || '全部'}} ▾</view>
+      </picker>
+      <picker wx:if="{{tab === 'payments'}}" mode="selector" range="{{paymentStatusOptions}}" value="{{filterStatus ? paymentStatusOptions.indexOf(filterStatus) : 0}}" bindchange="onFilterStatus">
+        <view class="picker-box">状态：{{filterStatus || '全部'}} ▾</view>
+      </picker>
+      <picker wx:if="{{tab === 'entries'}}" mode="selector" range="{{paymentStatusOptions}}" value="{{filterStatus ? paymentStatusOptions.indexOf(filterStatus) : 0}}" bindchange="onFilterStatus">
+        <view class="picker-box">状态：{{filterStatus || '全部'}} ▾</view>
+      </picker>
+      <picker wx:if="{{tab !== 'entries'}}" mode="selector" range="{{supplierNames}}" value="{{filterSupplierIndex}}" bindchange="onFilterSupplier">
+        <view class="picker-box">供应商：{{supplierNames[filterSupplierIndex]}} ▾</view>
+      </picker>
+      <view wx:if="{{tab === 'entries'}}" class="chip-row">
+        <view class="chip {{filterDirection === 'expense' ? 'chip-on' : ''}}" data-key="expense" bindtap="onFilterDirection">费用</view>
+        <view class="chip {{filterDirection === 'income' ? 'chip-on' : ''}}" data-key="income" bindtap="onFilterDirection">收入</view>
+      </view>
+      <input wx:if="{{tab === 'entries'}}" class="input" placeholder="按分类筛选" value="{{filterCategory}}" bindinput="onFilterCategory" />
+      <button class="query-btn" bindtap="onFilterSearch">查询</button>
+    </view>
+
     <view wx:if="{{loading && !rows.length && !flowRows.length}}" class="state text-3">加载中…</view>
     <view wx:elif="{{error}}" class="state"><view class="text-3">加载失败，请重试</view><button class="btn btn-ghost" bindtap="reload">重新加载</button></view>
 

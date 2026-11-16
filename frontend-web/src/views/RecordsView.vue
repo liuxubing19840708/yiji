@@ -182,8 +182,9 @@ async function exportRecords() {
 }
 
 onMounted(() => {
-  if (props.section && Number.isInteger(Number(props.section)) && Number(props.section) > 0) {
-    filters.ticket_id = String(Number(props.section))
+  const ticketSection = props.section?.startsWith?.('ticket-') ? props.section.slice(7) : props.section
+  if (ticketSection && Number.isInteger(Number(ticketSection)) && Number(ticketSection) > 0) {
+    filters.ticket_id = String(Number(ticketSection))
     filters.date_from = ''
     filters.date_to = ''
     quick.value = ''

@@ -433,6 +433,7 @@ class ObjectTenantMatrixTests(TestCase):
             'api/finance/receivables/<int:receivable_id>': {
                 'receivable_id': self.receivable_b.pk},
             'api/shipments/<int:pk>/undelivered': {'pk': self.shipment_b.pk},
+            'api/shipments/<int:pk>/print-file': {'pk': self.shipment_b.pk},
             'api/shipments/<int:pk>/print-logs': {'pk': self.shipment_b.pk},
             'api/shipments/<int:pk>/audit': {'pk': self.shipment_b.pk},
             'api/shipments/<int:pk>/void': {'pk': self.shipment_b.pk},

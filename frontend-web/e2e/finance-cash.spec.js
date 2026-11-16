@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test'
 const session = {
   access: 'finance-cash-mock-session',
   companyId: 1,
-  companies: [{ id: 1, name: 'Mock 工厂', post: { name: '财务测试' } }],
+  companies: [{ id: 1, name: 'Mock 工厂', post: { name: '财务测试', permissions: ['finance.manage', 'finance.view', 'salary.view'] } }],
   user: { real_name: '测试员', phone: '00000000000' },
 }
 

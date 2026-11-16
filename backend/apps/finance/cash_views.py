@@ -132,6 +132,11 @@ class SupplierPaymentListCreateView(CompanyContextMixin, APIView):
             qs = qs.filter(status=SupplierPayment.Status.VOIDED)
         elif request.query_params.get('status'):
             raise ValidationError({'status': '状态不合法'})
+        supplier_id = request.query_params.get('supplier')
+        if supplier_id:
+            if not Supplier.objects.filter(company=self.company, pk=supplier_id).exists():
+                raise ValidationError({'supplier': '供应商不存在'})
+            qs = qs.filter(supplier_id=supplier_id)
         qs = _date_filter(request, qs, 'paid_at')
         paginator = DefaultPagination()
         page = paginator.paginate_queryset(qs, request, self)

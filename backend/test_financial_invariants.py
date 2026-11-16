@@ -146,13 +146,19 @@ class StockValuationInvariantTests(TestCase):
             total_qty=100, plan_qty=100)
         self.lot = Lot.objects.create(
             company=self.company, lot_no='FI-LOT-1', fabric_name='估值面料', qty=0)
-        self.yesterday = timezone.now() - timedelta(days=1)
+        # 使用本地时区的昨天零点，避免 UTC 23:xx 在 PostgreSQL __date
+        # 按 Asia/Shanghai 转换后落到今天，造成截止日报表跨时区不稳定。
+        self.yesterday = timezone.localtime().replace(
+            hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
         self._stock_in('FI-IN-1', self.yesterday, 10, '2.000')
         self._stock_in('FI-IN-2', timezone.now(), 10, '4.000')
 
     def _stock_in(self, number, at, qty, price, status=StockIn.Status.DONE):
         doc = StockIn.objects.create(
             company=self.company, in_no=number, in_at=at, status=status)
+        # 估值截止查询按 in_at 过滤；历史入库必须显式固定业务时间，
+        # 不能依赖 BaseModel 的建档默认值，避免全量套件执行时出现时区/时序漂移。
+        StockIn.objects.filter(pk=doc.pk).update(created_at=at)
         StockInItem.objects.create(
             stock_in=doc, lot=self.lot, fabric_name='估值面料', lot_no=self.lot.lot_no,
             qty=qty, unit_price=price)
